@@ -11,6 +11,9 @@ export type TerrainType =
 
 export type ResourceType = 'wood' | 'brick' | 'wheat' | 'sheep' | 'ore'
 
+// Tile types that can appear on land (excludes 'ocean')
+export type TileType = Exclude<TerrainType, 'ocean'>
+
 export const TERRAIN_COLORS: Record<TerrainType, string> = {
   forest: '#2d6a4f',
   hills: '#b85c38',
@@ -138,6 +141,52 @@ export interface MapConfig {
   name: string
   description: string
   preview: TerrainType[][]  // rough grid for thumbnail
+}
+
+// ─── Map editor payloads (HTTP) ──────────────────────────────────────────────
+
+export interface MapConfigTilePayload {
+  q: number
+  r: number
+  tile_type: TileType
+  token?: number | null
+  robber?: boolean
+}
+
+export interface MapConfigPortPayload {
+  q: number
+  r: number
+  side: number
+  ratio: number
+  resource: ResourceType | null
+}
+
+export interface MapConfigPayload {
+  tiles: MapConfigTilePayload[]
+  ports: MapConfigPortPayload[]
+}
+
+// ─── Topology editor payloads (HTTP) ─────────────────────────────────────────
+
+export interface TopologyTilePayload {
+  tile_id: string
+  tile_type: TileType
+  token?: number | null
+  robber?: boolean
+  neighbors?: Record<number, string>
+}
+
+export interface MapTopologyPortPayload {
+  tile_id: string
+  side: number
+  ratio: number
+  resource: ResourceType | null
+}
+
+export interface MapTopologyPayload {
+  map_id: string
+  tiles: TopologyTilePayload[]
+  ports: MapTopologyPortPayload[]
 }
 
 export interface RoomState {

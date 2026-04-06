@@ -1,4 +1,4 @@
-import type { RoomState } from '../types'
+import type { MapConfigPayload, MapTopologyPayload, RoomState } from '../types'
 
 const BASE = '/api'
 
@@ -44,4 +44,29 @@ export function joinRoom(
 
 export function getRoomState(roomId: string): Promise<RoomState> {
   return request<RoomState>(`/rooms/${roomId}`)
+}
+
+// ─── Map editor endpoints (dev/admin) ─────────────────────────────────────────
+// These endpoints may be served by the backend when map editing is enabled.
+
+export function getMapConfig(roomId: string): Promise<MapConfigPayload> {
+  return request<MapConfigPayload>(`/rooms/${roomId}/map`)
+}
+
+export function setMapConfig(roomId: string, payload: MapConfigPayload): Promise<MapConfigPayload> {
+  return request<MapConfigPayload>(`/rooms/${roomId}/map`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function getMapTopology(roomId: string): Promise<MapTopologyPayload> {
+  return request<MapTopologyPayload>(`/rooms/${roomId}/topology`)
+}
+
+export function setMapTopology(roomId: string, payload: MapTopologyPayload): Promise<MapTopologyPayload> {
+  return request<MapTopologyPayload>(`/rooms/${roomId}/topology`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
 }
