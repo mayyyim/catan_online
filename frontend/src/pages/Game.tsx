@@ -91,6 +91,28 @@ function parseEdgeId(id: string): { q: number; r: number; direction: number } | 
   return { q, r, direction }
 }
 
+function allVertexIdsFromTiles(tiles: Array<{ q: number; r: number; s: number; terrain: string }>): string[] {
+  const set = new Set<string>()
+  for (const t of tiles) {
+    if (t.terrain === 'ocean') continue
+    for (let corner = 0; corner < 6; corner++) {
+      set.add(`${t.q},${t.r},${t.s}:v${corner}`)
+    }
+  }
+  return [...set]
+}
+
+function allEdgeIdsFromTiles(tiles: Array<{ q: number; r: number; s: number; terrain: string }>): string[] {
+  const set = new Set<string>()
+  for (const t of tiles) {
+    if (t.terrain === 'ocean') continue
+    for (let side = 0; side < 6; side++) {
+      set.add(`${t.q},${t.r},${t.s}:e${side}`)
+    }
+  }
+  return [...set]
+}
+
 export default function Game() {
   const { roomId } = useParams<{ roomId: string }>()
   const navigate = useNavigate()
@@ -255,14 +277,22 @@ export default function Game() {
   // Build mode: which vertices/edges to highlight
   // Server drives valid placements; client just needs the mode active to route clicks.
   const buildableVertices = useMemo(() => {
+    // In setup, allow clicking any vertex; server will validate placement rules.
+    if (isSetupPhase && isMyTurn && requiredBuildMode === 'settlement') {
+      return allVertexIdsFromTiles(tiles as any)
+    }
     if (buildMode !== 'settlement' && buildMode !== 'city') return []
-    return [] // server sends the actual valid vertex list via game_state
-  }, [buildMode])
+    return [] // future: server-driven valid vertex list
+  }, [buildMode, isSetupPhase, isMyTurn, requiredBuildMode, tiles])
 
   const buildableEdges = useMemo(() => {
+    // In setup, allow clicking any edge; server will validate placement rules.
+    if (isSetupPhase && isMyTurn && requiredBuildMode === 'road') {
+      return allEdgeIdsFromTiles(tiles as any)
+    }
     if (buildMode !== 'road') return []
-    return [] // server drives valid placements
-  }, [buildMode])
+    return [] // future: server-driven valid edge list
+  }, [buildMode, isSetupPhase, isMyTurn, requiredBuildMode, tiles])
 
   // Action handlers
   const handleRollDice = useCallback(() => {

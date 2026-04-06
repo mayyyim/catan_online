@@ -100,6 +100,9 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
 
     # Send initial state
     await send_to_player(room, player_id, _room_update_msg(room, game))
+    # If game already started, also send full game state immediately
+    if game and game.phase.value != "waiting":
+        await send_to_player(room, player_id, _game_state_msg(game, viewer_player_id=player_id))
 
     # Notify others that this player connected
     await broadcast(room, _room_update_msg(room, game))
