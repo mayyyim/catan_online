@@ -17,18 +17,20 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export interface CreateRoomResponse {
   room_id: string
   invite_code: string
-  player_id: string
+  host_player_id: string
 }
 
 export interface JoinRoomResponse {
   room_id: string
   player_id: string
+  player_name: string
+  color: string
 }
 
 export function createRoom(playerName: string): Promise<CreateRoomResponse> {
   return request<CreateRoomResponse>('/rooms', {
     method: 'POST',
-    body: JSON.stringify({ player_name: playerName }),
+    body: JSON.stringify({ host_name: playerName }),
   })
 }
 
@@ -36,9 +38,9 @@ export function joinRoom(
   inviteCode: string,
   playerName: string,
 ): Promise<JoinRoomResponse> {
-  return request<JoinRoomResponse>('/rooms/join', {
+  return request<JoinRoomResponse>(`/rooms/${inviteCode}/join`, {
     method: 'POST',
-    body: JSON.stringify({ invite_code: inviteCode, player_name: playerName }),
+    body: JSON.stringify({ player_name: playerName }),
   })
 }
 

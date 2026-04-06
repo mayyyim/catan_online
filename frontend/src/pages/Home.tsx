@@ -23,10 +23,11 @@ export default function Home() {
     setError('')
     try {
       const res = await createRoom(playerName.trim())
-      setMyPlayerId(res.player_id)
+      setMyPlayerId(res.host_player_id)
       // Store player_id in sessionStorage so it survives page navigation
-      sessionStorage.setItem('player_id', res.player_id)
+      sessionStorage.setItem('player_id', res.host_player_id)
       sessionStorage.setItem('player_name', playerName.trim())
+      sessionStorage.setItem('invite_code', res.invite_code)
       navigate(`/room/${res.room_id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create room')
@@ -45,6 +46,7 @@ export default function Home() {
       setMyPlayerId(res.player_id)
       sessionStorage.setItem('player_id', res.player_id)
       sessionStorage.setItem('player_name', playerName.trim())
+      sessionStorage.setItem('invite_code', inviteCode.trim().toUpperCase())
       navigate(`/room/${res.room_id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to join room')
