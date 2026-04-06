@@ -14,7 +14,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.store import (
     get_room, get_player_in_room, ensure_game_state,
-    connect_player, disconnect_player, broadcast, send_to_player, save_game,
+    connect_player, disconnect_player, broadcast, send_to_player, save_game, load_game,
 )
 from app.game.engine import (
     ActionError,
@@ -118,6 +118,14 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
             if not msg_type:
                 await send_to_player(room, player_id, _error_msg("Missing 'type' field"))
                 continue
+
+            # Refresh game from Redis to avoid stale in-memory state
+            # (e.g. players added via HTTP while WS connection is alive).
+            fresh = load_game(room_id)
+            if fresh is None:
+                fresh = ensure_game_state(room)
+            room.game = fresh
+            game = fresh
 
             await _dispatch(room, game, player_id, msg_type, msg)
 
