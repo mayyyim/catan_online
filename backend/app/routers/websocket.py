@@ -53,6 +53,8 @@ def _room_update_msg(room, game=None):
             "players": players_data,
             "map": map_data,
             "state": state,
+            "selected_map_id": getattr(room, "selected_map_id", "random"),
+            "seed": getattr(room, "random_seed", None),
         },
     }
 
@@ -148,6 +150,16 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
         if msg_type == "start_game":
             await _handle_start_game(room, game, player_id, msg)
 
+        elif msg_type == "select_map":
+            # Host selects which map to use when starting.
+            if player_id != room.host_player_id:
+                raise ActionError("Only the host can select the map")
+            map_id = msg.get("map_id") or msg.get("mapId") or "random"
+            seed = msg.get("seed")
+            room.selected_map_id = map_id
+            room.random_seed = seed
+            await broadcast(room, _room_update_msg(room, game))
+
         elif msg_type == "roll_dice":
             result = handle_roll_dice(game, player_id)
             # Broadcast dice result then full game state
@@ -185,10 +197,10 @@ async def _handle_start_game(room, game, player_id: str, msg: dict):
     if player_id != room.host_player_id:
         raise ActionError("Only the host can start the game")
 
-    map_id = msg.get("map_id", "random")
+    map_id = msg.get("map_id") or msg.get("mapId") or getattr(room, "selected_map_id", "random")
 
     if map_id == "random" or map_id.startswith("random"):
-        seed = msg.get("seed")  # optional seed for reproducibility
+        seed = msg.get("seed") or getattr(room, "random_seed", None)  # optional seed for reproducibility
         map_data = generate_random_map(seed=seed)
     else:
         try:

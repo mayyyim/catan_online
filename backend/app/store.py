@@ -25,6 +25,8 @@ class RoomInfo:
     invite_code: str
     host_player_id: str
     max_players: int = 4
+    selected_map_id: str = "random"
+    random_seed: Optional[str] = None
     # WebSocket connections: player_id -> WebSocket
     connections: Dict[str, WebSocket] = field(default_factory=dict)
     # Game state — None until game starts

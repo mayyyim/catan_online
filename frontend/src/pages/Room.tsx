@@ -66,8 +66,8 @@ export default function Room() {
           inviteCode,
           hostId: players[0]?.id ?? room?.hostId ?? '',
           players,
-          selectedMapId: room?.selectedMapId ?? 'random',
-          randomSeed: room?.randomSeed ?? '',
+          selectedMapId: m.data?.selected_map_id ?? room?.selectedMapId ?? 'random',
+          randomSeed: m.data?.seed ?? room?.randomSeed ?? '',
           maxPlayers: room?.maxPlayers ?? 4,
           status: m.data?.state === 'waiting' ? 'waiting' : 'started',
         })
@@ -87,14 +87,20 @@ export default function Room() {
 
   const handleMapSelect = useCallback(
     (mapId: string) => {
+      // Persist selection server-side so refresh/other players see it.
       gameSocket.send({ type: 'select_map', mapId, seed: seed || undefined })
     },
     [seed],
   )
 
   const handleStartGame = useCallback(() => {
-    gameSocket.send({ type: 'start_game' })
-  }, [])
+    // Backend accepts mapId/map_id + seed
+    gameSocket.send({
+      type: 'start_game',
+      map_id: room?.selectedMapId,
+      seed: seed || room?.randomSeed || undefined,
+    } as any)
+  }, [room?.randomSeed, room?.selectedMapId, seed])
 
   const handleAddBot = useCallback(async () => {
     if (!roomId) return
