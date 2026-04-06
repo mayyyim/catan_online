@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react'
+import { useMemo, useCallback } from 'react'
 import type { HexTile, Building, Road, Player } from '../../types'
 import { TERRAIN_COLORS, TERRAIN_LABELS } from '../../types'
 import {
@@ -99,15 +99,6 @@ export function HexGrid({
   const handleEdgeClick = useCallback(
     (id: string) => onEdgeClick?.(id),
     [onEdgeClick],
-  )
-
-  const buildableVertexSet = useMemo(
-    () => new Set(buildableVertices),
-    [buildableVertices],
-  )
-  const buildableEdgeSet = useMemo(
-    () => new Set(buildableEdges),
-    [buildableEdges],
   )
 
   return (

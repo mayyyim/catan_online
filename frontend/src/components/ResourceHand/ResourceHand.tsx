@@ -1,4 +1,4 @@
-import React from 'react'
+import type { CSSProperties } from 'react'
 import type { ResourceType } from '../../types'
 import { RESOURCE_LABELS } from '../../types'
 import styles from './ResourceHand.module.css'
@@ -41,7 +41,7 @@ export function ResourceHand({ resources }: ResourceHandProps) {
             <div
               key={res}
               className={`${styles.card} ${count === 0 ? styles.empty : ''}`}
-              style={{ '--res-color': RESOURCE_COLORS[res] } as React.CSSProperties}
+              style={{ '--res-color': RESOURCE_COLORS[res] } as CSSProperties}
             >
               <span className={styles.emoji}>{RESOURCE_LABELS[res]}</span>
               <span className={styles.count}>{count}</span>

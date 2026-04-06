@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createRoom, joinRoom } from '../api'
 import { useRoom } from '../context/RoomContext'
@@ -16,7 +16,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreate = async (e: FormEvent) => {
     e.preventDefault()
     if (!playerName.trim()) return
     setLoading(true)
@@ -35,7 +35,7 @@ export default function Home() {
     }
   }
 
-  const handleJoin = async (e: React.FormEvent) => {
+  const handleJoin = async (e: FormEvent) => {
     e.preventDefault()
     if (!playerName.trim() || !inviteCode.trim()) return
     setLoading(true)

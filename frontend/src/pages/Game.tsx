@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, type CSSProperties } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useGame } from '../context/GameContext'
 import { useRoom } from '../context/RoomContext'
@@ -8,7 +8,7 @@ import { ResourceHand } from '../components/ResourceHand'
 import { DiceDisplay } from '../components/DiceDisplay'
 import { PlayerAvatar } from '../components/PlayerAvatar'
 import { generateBoard } from '../engine/boardUtils'
-import type { GameState, ResourceType } from '../types'
+import type { ResourceType } from '../types'
 import styles from './Game.module.css'
 
 type BuildMode = 'none' | 'road' | 'settlement' | 'city'
@@ -175,7 +175,7 @@ export default function Game() {
               className={`${styles.scoreCard} ${
                 p.id === game?.currentPlayerId ? styles.activeScore : ''
               } ${p.id === myPlayerId ? styles.myScore : ''}`}
-              style={{ '--player-color': p.color } as React.CSSProperties}
+              style={{ '--player-color': p.color } as CSSProperties}
             >
               <PlayerAvatar player={p} isMe={p.id === myPlayerId} compact />
               <span className={styles.scoreVP}>{p.victoryPoints} VP</span>

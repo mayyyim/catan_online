@@ -1,4 +1,3 @@
-import React from 'react'
 import type { MapConfig, TerrainType } from '../../types'
 import { TERRAIN_COLORS } from '../../types'
 import styles from './MapThumbnail.module.css'
