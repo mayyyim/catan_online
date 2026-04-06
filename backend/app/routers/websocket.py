@@ -14,7 +14,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.store import (
     get_room, get_player_in_room, ensure_game_state,
-    connect_player, disconnect_player, broadcast, send_to_player,
+    connect_player, disconnect_player, broadcast, send_to_player, save_game,
 )
 from app.game.engine import (
     ActionError,
@@ -149,6 +149,7 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
     try:
         if msg_type == "start_game":
             await _handle_start_game(room, game, player_id, msg)
+            save_game(room.room_id, game)
 
         elif msg_type == "select_map":
             # Host selects which map to use when starting.
@@ -165,22 +166,26 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
             # Broadcast dice result then full game state
             await broadcast(room, _dice_msg(result["values"], result["total"]))
             await broadcast(room, _game_state_msg(game))
+            save_game(room.room_id, game)
 
         elif msg_type == "build":
             piece = msg.get("piece")
             position = msg.get("position", {})
             handle_build(game, player_id, piece, position)
             await broadcast(room, _game_state_msg(game))
+            save_game(room.room_id, game)
 
         elif msg_type == "trade":
             offer = msg.get("offer", {})
             want = msg.get("want", {})
             handle_trade(game, player_id, offer, want)
             await broadcast(room, _game_state_msg(game))
+            save_game(room.room_id, game)
 
         elif msg_type == "end_turn":
             handle_end_turn(game, player_id)
             await broadcast(room, _game_state_msg(game))
+            save_game(room.room_id, game)
 
         else:
             await send_to_player(room, player_id, _error_msg(f"Unknown message type: {msg_type}"))

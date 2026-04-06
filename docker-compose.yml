@@ -1,10 +1,21 @@
 services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+
   backend:
     build:
       context: ./backend
     restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
     expose:
       - "8080"
+    depends_on:
+      - redis
 
   web:
     build:
@@ -15,4 +26,7 @@ services:
       - "80:80"
     depends_on:
       - backend
+
+volumes:
+  redis_data:
 

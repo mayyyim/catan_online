@@ -1,8 +1,14 @@
 """
-In-memory store for rooms and WebSocket connections.
-Designed for 100 concurrent users — no external DB required.
+Redis-backed store for rooms + game state, with in-memory WS connections.
+
+Why:
+- Docker redeploys restart the backend container, which would otherwise wipe
+  in-memory rooms and cause WS 403 rejections.
+- Redis persists room/player/game state across restarts.
 """
 
+import json
+import os
 import random
 import string
 import uuid
@@ -10,6 +16,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 from fastapi import WebSocket
+from redis import Redis
 
 from app.game.models import GameState, Player, GamePhase
 from app.maps.generator import generate_random_map
@@ -45,17 +52,48 @@ class RoomInfo:
 
 
 # ---------------------------------------------------------------------------
-# Global store (module-level singletons)
+# Redis + in-memory WS connections
 # ---------------------------------------------------------------------------
 
-# room_id -> RoomInfo
-_rooms: Dict[str, RoomInfo] = {}
+_redis: Optional[Redis] = None
 
-# invite_code -> room_id
-_invite_index: Dict[str, str] = {}
+# room_id -> {player_id: WebSocket}
+_connections: Dict[str, Dict[str, WebSocket]] = {}
 
-# room_id -> list of Player (persisted before game starts)
-_room_players: Dict[str, List[Player]] = {}
+# Persist keys for 24h after last update to avoid unbounded growth
+ROOM_TTL_SECONDS = 60 * 60 * 24
+
+
+def _r() -> Redis:
+    global _redis
+    if _redis is None:
+        url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        _redis = Redis.from_url(url, decode_responses=True)
+    return _redis
+
+
+def _k_room(room_id: str) -> str:
+    return f"room:{room_id}:info"
+
+
+def _k_players(room_id: str) -> str:
+    return f"room:{room_id}:players"
+
+
+def _k_game(room_id: str) -> str:
+    return f"room:{room_id}:game"
+
+
+def _k_invite(invite_code: str) -> str:
+    return f"invite:{invite_code}"
+
+
+def _touch(room_id: str):
+    r = _r()
+    for k in (_k_room(room_id), _k_players(room_id), _k_game(room_id)):
+        # keep TTL updated if key exists
+        if r.exists(k):
+            r.expire(k, ROOM_TTL_SECONDS)
 
 
 def _generate_invite_code() -> str:
@@ -70,15 +108,14 @@ def create_room(host_player_name: str) -> RoomInfo:
     room_id = _generate_room_id()
     invite_code = _generate_invite_code()
     # Avoid collisions
-    while invite_code in _invite_index:
+    r = _r()
+    while r.exists(_k_invite(invite_code)):
         invite_code = _generate_invite_code()
 
     host_player_id = str(uuid.uuid4())[:8]
     colors = ["red", "blue", "green", "orange"]
 
     room = RoomInfo(room_id=room_id, invite_code=invite_code, host_player_id=host_player_id)
-    _rooms[room_id] = room
-    _invite_index[invite_code] = room_id
 
     # Pre-register host player
     host = Player(
@@ -86,22 +123,39 @@ def create_room(host_player_name: str) -> RoomInfo:
         name=host_player_name,
         color=colors[0],
     )
-    _room_players[room_id] = [host]
+
+    r.set(_k_invite(invite_code), room_id, ex=ROOM_TTL_SECONDS)
+    r.set(
+        _k_room(room_id),
+        json.dumps(
+            {
+                "room_id": room_id,
+                "invite_code": invite_code,
+                "host_player_id": host_player_id,
+                "max_players": room.max_players,
+                "selected_map_id": room.selected_map_id,
+                "random_seed": room.random_seed,
+            }
+        ),
+        ex=ROOM_TTL_SECONDS,
+    )
+    r.set(_k_players(room_id), json.dumps([host.to_dict(hide_resources=False)]), ex=ROOM_TTL_SECONDS)
 
     return room
 
 
 def join_room(invite_code: str, player_name: str) -> Optional[tuple]:
     """Return (room, player) or None if room not found / full / started."""
-    room_id = _invite_index.get(invite_code)
+    r = _r()
+    room_id = r.get(_k_invite(invite_code))
     if not room_id:
         return None
 
-    room = _rooms.get(room_id)
+    room = get_room(room_id)
     if not room:
         return None
 
-    players = _room_players.get(room_id, [])
+    players = get_room_players(room_id)
 
     if len(players) >= room.max_players:
         return None
@@ -120,16 +174,43 @@ def join_room(invite_code: str, player_name: str) -> Optional[tuple]:
         color=color,
     )
     players.append(player)
-    _room_players[room_id] = players
+    r.set(_k_players(room_id), json.dumps([p.to_dict(hide_resources=False) for p in players]), ex=ROOM_TTL_SECONDS)
+
+    # Keep persisted game players in sync if game exists
+    if room.game is not None:
+        room.game.players = players
+        save_game(room_id, room.game)
+
+    _touch(room_id)
     return room, player
 
 
 def get_room(room_id: str) -> Optional[RoomInfo]:
-    return _rooms.get(room_id)
+    r = _r()
+    raw = r.get(_k_room(room_id))
+    if not raw:
+        return None
+    d = json.loads(raw)
+    room = RoomInfo(
+        room_id=d["room_id"],
+        invite_code=d["invite_code"],
+        host_player_id=d["host_player_id"],
+        max_players=int(d.get("max_players", 4)),
+        selected_map_id=d.get("selected_map_id", "random"),
+        random_seed=d.get("random_seed", None),
+    )
+    room.connections = _connections.setdefault(room_id, {})
+    room.game = load_game(room_id)
+    return room
 
 
 def get_room_players(room_id: str) -> List[Player]:
-    return _room_players.get(room_id, [])
+    r = _r()
+    raw = r.get(_k_players(room_id))
+    if not raw:
+        return []
+    arr = json.loads(raw)
+    return [Player.from_dict(p) for p in arr]
 
 
 def get_player_in_room(room_id: str, player_id: str) -> Optional[Player]:
@@ -142,13 +223,31 @@ def get_player_in_room(room_id: str, player_id: str) -> Optional[Player]:
 def ensure_game_state(room: RoomInfo) -> GameState:
     """Initialize GameState for the room if not already done."""
     if room.game is None:
-        players = _room_players.get(room.room_id, [])
+        players = get_room_players(room.room_id)
         room.game = GameState(
             room_id=room.room_id,
             map_data=generate_random_map(),  # placeholder until start_game sets real map
             players=players,
         )
+        save_game(room.room_id, room.game)
     return room.game
+
+
+def save_game(room_id: str, game: GameState):
+    r = _r()
+    r.set(_k_game(room_id), json.dumps(game.to_dict()), ex=ROOM_TTL_SECONDS)
+    _touch(room_id)
+
+
+def load_game(room_id: str) -> Optional[GameState]:
+    r = _r()
+    raw = r.get(_k_game(room_id))
+    if not raw:
+        return None
+    try:
+        return GameState.from_dict(json.loads(raw))
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -160,11 +259,11 @@ def add_bot_player(room_id: str, name: str = "Bot") -> Optional[Player]:
     Add a new player entry to an existing room without using invite codes.
     Returns the created Player, or None if room not found / full / started.
     """
-    room = _rooms.get(room_id)
+    room = get_room(room_id)
     if not room:
         return None
 
-    players = _room_players.get(room_id, [])
+    players = get_room_players(room_id)
     if len(players) >= room.max_players:
         return None
 
@@ -182,12 +281,15 @@ def add_bot_player(room_id: str, name: str = "Bot") -> Optional[Player]:
         color=color,
     )
     players.append(player)
-    _room_players[room_id] = players
+    r = _r()
+    r.set(_k_players(room_id), json.dumps([p.to_dict(hide_resources=False) for p in players]), ex=ROOM_TTL_SECONDS)
 
     # If a GameState object already exists (created by WS connect), keep it in sync.
     if room.game is not None:
         room.game.players = players
+        save_game(room_id, room.game)
 
+    _touch(room_id)
     return player
 
 

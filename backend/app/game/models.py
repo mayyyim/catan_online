@@ -100,6 +100,15 @@ class Port:
             "ratio": self.ratio,
         }
 
+    @staticmethod
+    def from_dict(d: dict) -> "Port":
+        return Port(
+            q=int(d.get("q", 0)),
+            r=int(d.get("r", 0)),
+            resource=Resource(d["resource"]) if d.get("resource") else None,
+            ratio=int(d.get("ratio", 3)),
+        )
+
 
 @dataclass
 class Tile:
@@ -117,6 +126,15 @@ class Tile:
             "resource": TILE_RESOURCE[self.tile_type].value if TILE_RESOURCE[self.tile_type] else None,
         }
 
+    @staticmethod
+    def from_dict(d: dict) -> "Tile":
+        return Tile(
+            q=int(d.get("q", 0)),
+            r=int(d.get("r", 0)),
+            tile_type=TileType(d.get("tile_type") or d.get("tileType") or "ocean"),
+            token=d.get("token", None),
+        )
+
 
 @dataclass
 class MapData:
@@ -130,6 +148,14 @@ class MapData:
             "tiles": [t.to_dict() for t in self.tiles],
             "ports": [p.to_dict() for p in self.ports],
         }
+
+    @staticmethod
+    def from_dict(d: dict) -> "MapData":
+        return MapData(
+            map_id=str(d.get("map_id") or d.get("mapId") or "unknown"),
+            tiles=[Tile.from_dict(t) for t in (d.get("tiles") or [])],
+            ports=[Port.from_dict(p) for p in (d.get("ports") or [])],
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -149,6 +175,13 @@ class PlacedPiece:
 
     def to_dict(self):
         return {"piece_type": self.piece_type.value, "player_id": self.player_id}
+
+    @staticmethod
+    def from_dict(d: dict) -> "PlacedPiece":
+        return PlacedPiece(
+            piece_type=PieceType(d.get("piece_type") or d.get("pieceType") or "road"),
+            player_id=str(d.get("player_id") or d.get("playerId") or ""),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -195,6 +228,29 @@ class Player:
             "cities_placed": self.cities_placed,
             "roads_placed": self.roads_placed,
         }
+
+    @staticmethod
+    def from_dict(d: dict) -> "Player":
+        # resources are stored as {"wood": 0, ...}
+        raw = d.get("resources") or {}
+        resources: Dict[Resource, int] = {r: 0 for r in Resource}
+        if isinstance(raw, dict):
+            for k, v in raw.items():
+                try:
+                    resources[Resource(k)] = int(v)
+                except Exception:
+                    continue
+
+        return Player(
+            player_id=str(d.get("player_id") or d.get("playerId") or ""),
+            name=str(d.get("name") or ""),
+            color=str(d.get("color") or "red"),
+            resources=resources,
+            victory_points=int(d.get("victory_points") or 0),
+            settlements_placed=int(d.get("settlements_placed") or 0),
+            cities_placed=int(d.get("cities_placed") or 0),
+            roads_placed=int(d.get("roads_placed") or 0),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -263,3 +319,24 @@ class GameState:
             "vertices": {k: v.to_dict() for k, v in self.vertices.items()},
             "edges": {k: v.to_dict() for k, v in self.edges.items()},
         }
+
+    @staticmethod
+    def from_dict(d: dict) -> "GameState":
+        game = GameState(
+            room_id=str(d.get("room_id") or d.get("roomId") or ""),
+            map_data=MapData.from_dict(d.get("map") or {}),
+            players=[Player.from_dict(p) for p in (d.get("players") or [])],
+        )
+        game.phase = GamePhase(d.get("phase") or "waiting")
+        game.turn_step = TurnStep(d.get("turn_step") or "pre_roll")
+        game.current_player_index = int(d.get("current_player_index") or 0)
+        game.setup_order = list(d.get("setup_order") or [])
+        game.setup_step = int(d.get("setup_step") or 0)
+        robber = d.get("robber") or {}
+        game.robber_q = int(robber.get("q") or 0)
+        game.robber_r = int(robber.get("r") or 0)
+        game.last_dice = d.get("last_dice") or None
+        game.winner_id = d.get("winner_id") or None
+        game.vertices = {k: PlacedPiece.from_dict(v) for k, v in (d.get("vertices") or {}).items()}
+        game.edges = {k: PlacedPiece.from_dict(v) for k, v in (d.get("edges") or {}).items()}
+        return game
