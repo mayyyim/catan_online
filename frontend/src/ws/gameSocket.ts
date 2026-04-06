@@ -23,7 +23,7 @@ class GameSocket {
   private openSocket(): void {
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
     const host = window.location.host
-    const url = `${protocol}://${host}/ws/game/${this.roomId}?player_id=${this.playerId}`
+    const url = `${protocol}://${host}/ws/${this.roomId}/${this.playerId}`
 
     this.ws = new WebSocket(url)
 

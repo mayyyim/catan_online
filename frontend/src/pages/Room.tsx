@@ -39,10 +39,41 @@ export default function Room() {
 
     const unsubStatus = gameSocket.onStatus(setWsStatus)
     const unsubMsg = gameSocket.onMessage(msg => {
-      if (msg.type === 'room_state') setRoom(msg.state)
-      if (msg.type === 'player_joined') updatePlayer(msg.player)
-      if (msg.type === 'player_left') removePlayer(msg.playerId)
-      if (msg.type === 'game_state' && msg.state.phase !== 'waiting') {
+      // Backend sends "room_update" with { players, map, state }
+      if ((msg as any).type === 'room_update') {
+        const m = msg as any
+        const players = (m.data?.players ?? []).map((p: any, idx: number) => ({
+          id: p.player_id,
+          name: p.name,
+          color: p.color,
+          isHost: idx === 0,
+          connected: !!p.connected,
+          resources: { wood: 0, brick: 0, wheat: 0, sheep: 0, ore: 0 },
+          victoryPoints: 0,
+          settlements: 0,
+          cities: 0,
+          roads: 0,
+        }))
+
+        // Keep invite code from existing room/session (WS payload doesn't include it)
+        const inviteCode =
+          room?.inviteCode ||
+          sessionStorage.getItem('invite_code') ||
+          ''
+
+        setRoom({
+          roomId: roomId,
+          inviteCode,
+          hostId: players[0]?.id ?? room?.hostId ?? '',
+          players,
+          selectedMapId: room?.selectedMapId ?? 'random',
+          randomSeed: room?.randomSeed ?? '',
+          maxPlayers: room?.maxPlayers ?? 4,
+          status: m.data?.state === 'waiting' ? 'waiting' : 'started',
+        })
+      }
+
+      if (msg.type === 'game_state' && (msg as any).data?.phase !== 'waiting') {
         navigate(`/game/${roomId}`)
       }
     })
