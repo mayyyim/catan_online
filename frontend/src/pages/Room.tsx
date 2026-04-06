@@ -55,21 +55,23 @@ export default function Room() {
           roads: 0,
         }))
 
-        // Keep invite code from existing room/session (WS payload doesn't include it)
-        const inviteCode =
-          room?.inviteCode ||
-          sessionStorage.getItem('invite_code') ||
-          ''
+        setRoom(prev => {
+          // Keep invite code from existing room/session (WS payload doesn't include it)
+          const inviteCode =
+            prev?.inviteCode ||
+            sessionStorage.getItem('invite_code') ||
+            ''
 
-        setRoom({
-          roomId: roomId,
-          inviteCode,
-          hostId: players[0]?.id ?? room?.hostId ?? '',
-          players,
-          selectedMapId: m.data?.selected_map_id ?? room?.selectedMapId ?? 'random',
-          randomSeed: m.data?.seed ?? room?.randomSeed ?? '',
-          maxPlayers: room?.maxPlayers ?? 4,
-          status: m.data?.state === 'waiting' ? 'waiting' : 'started',
+          return {
+            roomId: roomId,
+            inviteCode,
+            hostId: players[0]?.id ?? prev?.hostId ?? '',
+            players,
+            selectedMapId: m.data?.selected_map_id ?? prev?.selectedMapId ?? 'random',
+            randomSeed: m.data?.seed ?? prev?.randomSeed ?? '',
+            maxPlayers: prev?.maxPlayers ?? 4,
+            status: m.data?.state === 'waiting' ? 'waiting' : 'started',
+          }
         })
       }
 
@@ -83,21 +85,22 @@ export default function Room() {
       unsubMsg()
       gameSocket.disconnect()
     }
-  }, [roomId, myPlayerId, navigate, setRoom, updatePlayer, removePlayer, room])
+  }, [roomId, myPlayerId, navigate, setRoom, updatePlayer, removePlayer])
 
   const handleMapSelect = useCallback(
     (mapId: string) => {
       // Optimistic UI: highlight immediately, then persist server-side so refresh/other players see it.
-      if (room) {
-        setRoom({
-          ...room,
+      setRoom(prev => {
+        if (!prev) return prev
+        return {
+          ...prev,
           selectedMapId: mapId,
-          randomSeed: seed || room.randomSeed,
-        })
-      }
+          randomSeed: seed || prev.randomSeed,
+        }
+      })
       gameSocket.send({ type: 'select_map', mapId, seed: seed || undefined })
     },
-    [seed, room, setRoom],
+    [seed, setRoom],
   )
 
   const handleStartGame = useCallback(() => {

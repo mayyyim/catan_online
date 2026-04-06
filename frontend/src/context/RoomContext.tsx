@@ -1,10 +1,12 @@
 import { createContext, useContext, useReducer, useCallback, type ReactNode } from 'react'
 import type { RoomState, Player } from '../types'
 
+type RoomUpdater = (prev: RoomState | null) => RoomState | null
+
 interface RoomContextValue {
   room: RoomState | null
   myPlayerId: string | null
-  setRoom: (room: RoomState) => void
+  setRoom: (room: RoomState | RoomUpdater) => void
   setMyPlayerId: (id: string) => void
   updatePlayer: (player: Player) => void
   removePlayer: (playerId: string) => void
@@ -12,6 +14,7 @@ interface RoomContextValue {
 
 type RoomAction =
   | { type: 'SET_ROOM'; room: RoomState }
+  | { type: 'UPDATE_ROOM'; updater: RoomUpdater }
   | { type: 'SET_PLAYER_ID'; id: string }
   | { type: 'UPDATE_PLAYER'; player: Player }
   | { type: 'REMOVE_PLAYER'; playerId: string }
@@ -25,6 +28,8 @@ function roomReducer(state: RoomStore, action: RoomAction): RoomStore {
   switch (action.type) {
     case 'SET_ROOM':
       return { ...state, room: action.room }
+    case 'UPDATE_ROOM':
+      return { ...state, room: action.updater(state.room) }
     case 'SET_PLAYER_ID':
       return { ...state, myPlayerId: action.id }
     case 'UPDATE_PLAYER': {
@@ -52,8 +57,12 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     myPlayerId: null,
   })
 
-  const setRoom = useCallback((room: RoomState) => {
-    dispatch({ type: 'SET_ROOM', room })
+  const setRoom = useCallback((roomOrUpdater: RoomState | RoomUpdater) => {
+    if (typeof roomOrUpdater === 'function') {
+      dispatch({ type: 'UPDATE_ROOM', updater: roomOrUpdater as RoomUpdater })
+      return
+    }
+    dispatch({ type: 'SET_ROOM', room: roomOrUpdater })
   }, [])
 
   const setMyPlayerId = useCallback((id: string) => {
