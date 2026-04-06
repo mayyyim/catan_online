@@ -1,0 +1,52 @@
+name: Deploy to EC2 (Amazon Linux)
+
+on:
+  push:
+    branches: ["main"]
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH (pull, build, restart)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.EC2_PORT || 22 }}
+          script: |
+            set -euo pipefail
+
+            APP_DIR="${APP_DIR:-/home/${USER}/apps/catan-online}"
+            BACKEND_DIR="${BACKEND_DIR:-$APP_DIR/backend}"
+            FRONTEND_DIR="${FRONTEND_DIR:-$APP_DIR/frontend}"
+            WEB_ROOT="${WEB_ROOT:-/var/www/catan}"
+            BACKEND_SERVICE="${BACKEND_SERVICE:-catan-backend}"
+
+            cd "$APP_DIR"
+            git fetch --all --prune
+            git reset --hard origin/main
+
+            # Backend
+            cd "$BACKEND_DIR"
+            python3 -m venv .venv
+            . .venv/bin/activate
+            pip install -r requirements.txt
+
+            # Frontend
+            cd "$FRONTEND_DIR"
+            npm ci
+            npm run build
+
+            sudo mkdir -p "$WEB_ROOT"
+            sudo rm -rf "$WEB_ROOT"/*
+            sudo cp -r dist/* "$WEB_ROOT"/
+
+            # Restart services
+            sudo systemctl restart "$BACKEND_SERVICE"
+            sudo systemctl reload nginx
