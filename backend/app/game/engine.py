@@ -180,6 +180,15 @@ def handle_build(
         current_pid = game.players[current_idx].player_id
         if player_id != current_pid:
             raise ActionError("Not your turn in setup")
+
+        # Enforce setup action order: settlement then road (per player, snake draft).
+        # setup_step is incremented after each placement:
+        #   even  -> settlement
+        #   odd   -> road
+        normalized = piece.value if isinstance(piece, PieceType) else str(piece)
+        expected = "settlement" if (game.setup_step % 2 == 0) else "road"
+        if normalized != expected:
+            raise ActionError(f"Setup requires placing a {expected} now")
     else:
         if game.phase != GamePhase.PLAYING:
             raise ActionError("Game not in playing phase")
