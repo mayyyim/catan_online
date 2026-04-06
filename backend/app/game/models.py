@@ -313,6 +313,9 @@ class GameState:
             "phase": self.phase.value,
             "turn_step": self.turn_step.value,
             "current_player_id": self.current_player().player_id if self.current_player() else None,
+            # Setup ordering (snake draft) for UI + rule clarity
+            "setup_order": self.setup_order,
+            "setup_step": self.setup_step,
             "robber": {"q": self.robber_q, "r": self.robber_r},
             "last_dice": self.last_dice,
             "winner_id": self.winner_id,

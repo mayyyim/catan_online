@@ -21,6 +21,76 @@ const EMPTY_RESOURCES: Record<ResourceType, number> = {
   ore: 0,
 }
 
+type BackendGameState = {
+  room_id: string
+  phase: string
+  turn_step: 'pre_roll' | 'post_roll'
+  current_player_id: string | null
+  players: Array<{
+    player_id: string
+    name: string
+    color: string
+    resources?: Record<string, number>
+    victory_points?: number
+  }>
+  map?: {
+    tiles?: Array<{ q: number; r: number; tile_type: string; token?: number | null }>
+  }
+  robber?: { q: number; r: number }
+  last_dice?: [number, number] | number[] | null
+  winner_id?: string | null
+  vertices?: Record<string, { piece_type: string; player_id: string }>
+  edges?: Record<string, { piece_type: string; player_id: string }>
+  setup_order?: number[]
+  setup_step?: number
+}
+
+function cubeS(q: number, r: number): number {
+  return -q - r
+}
+
+function vertexKeyToId(vkey: string): string {
+  const [qRaw, rRaw, cornerRaw] = vkey.split(',')
+  const q = Number(qRaw)
+  const r = Number(rRaw)
+  const s = cubeS(q, r)
+  const corner = Number(cornerRaw)
+  return `${q},${r},${s}:v${corner}`
+}
+
+function edgeKeyToId(ekey: string): string {
+  const [qRaw, rRaw, sideRaw] = ekey.split(',')
+  const q = Number(qRaw)
+  const r = Number(rRaw)
+  const s = cubeS(q, r)
+  const side = Number(sideRaw)
+  return `${q},${r},${s}:e${side}`
+}
+
+function parseVertexId(id: string): { q: number; r: number; direction: number } | null {
+  // format: "q,r,s:v{corner}"
+  const [coord, v] = id.split(':v')
+  if (!coord || v == null) return null
+  const [qRaw, rRaw] = coord.split(',')
+  const q = Number(qRaw)
+  const r = Number(rRaw)
+  const direction = Number(v)
+  if (!Number.isFinite(q) || !Number.isFinite(r) || !Number.isFinite(direction)) return null
+  return { q, r, direction }
+}
+
+function parseEdgeId(id: string): { q: number; r: number; direction: number } | null {
+  // format: "q,r,s:e{side}"
+  const [coord, e] = id.split(':e')
+  if (!coord || e == null) return null
+  const [qRaw, rRaw] = coord.split(',')
+  const q = Number(qRaw)
+  const r = Number(rRaw)
+  const direction = Number(e)
+  if (!Number.isFinite(q) || !Number.isFinite(r) || !Number.isFinite(direction)) return null
+  return { q, r, direction }
+}
+
 export default function Game() {
   const { roomId } = useParams<{ roomId: string }>()
   const navigate = useNavigate()
@@ -50,11 +120,84 @@ export default function Game() {
     gameSocket.connect(roomId, pid)
     const unsubStatus = gameSocket.onStatus(setWsStatus)
     const unsubMsg = gameSocket.onMessage(msg => {
-      if (msg.type === 'game_state') {
-        setGame(msg.state)
+      if ((msg as any).type === 'game_state') {
+        const raw = (msg as any).data as BackendGameState | undefined
+        if (!raw) return
+
+        const players = (raw.players ?? []).map(p => ({
+          id: p.player_id,
+          name: p.name,
+          color: p.color as any,
+          isHost: false,
+          connected: true,
+          resources: {
+            wood: Number(p.resources?.wood ?? 0),
+            brick: Number(p.resources?.brick ?? 0),
+            wheat: Number(p.resources?.wheat ?? 0),
+            sheep: Number(p.resources?.sheep ?? 0),
+            ore: Number(p.resources?.ore ?? 0),
+          },
+          victoryPoints: Number(p.victory_points ?? 0),
+          settlements: 0,
+          cities: 0,
+          roads: 0,
+        }))
+
+        const robberPos = raw.robber ?? { q: 0, r: 0 }
+        const tiles =
+          raw.map?.tiles?.map(t => ({
+            q: t.q,
+            r: t.r,
+            s: cubeS(t.q, t.r),
+            terrain: t.tile_type as any,
+            token: t.token == null ? undefined : Number(t.token),
+            robber: robberPos.q === t.q && robberPos.r === t.r,
+          })) ?? []
+
+        const buildings = Object.entries(raw.vertices ?? {})
+          .filter(([, v]) => v.piece_type === 'settlement' || v.piece_type === 'city')
+          .map(([k, v]) => ({
+            vertexId: vertexKeyToId(k),
+            playerId: v.player_id,
+            type: v.piece_type,
+          }))
+
+        const roads = Object.entries(raw.edges ?? {})
+          .filter(([, v]) => v.piece_type === 'road')
+          .map(([k, v]) => ({
+            edgeId: edgeKeyToId(k),
+            playerId: v.player_id,
+          }))
+
+        // Prefer server tiles; fall back to demo board if server didn't include map yet.
+        const mapped = {
+          roomId: raw.room_id ?? roomId,
+          phase:
+            raw.phase === 'setup_forward'
+              ? 'setup_round1'
+              : raw.phase === 'setup_backward'
+                ? 'setup_round2'
+                : raw.phase,
+          turnPhase: raw.turn_step,
+          currentPlayerId: raw.current_player_id ?? '',
+          players,
+          tiles,
+          buildings,
+          roads,
+          lastDiceRoll: Array.isArray(raw.last_dice) && raw.last_dice.length === 2
+            ? ([Number(raw.last_dice[0]), Number(raw.last_dice[1])] as [number, number])
+            : undefined,
+          winner: raw.winner_id ?? undefined,
+          // carry-through extra fields for UI ordering (optional)
+          setupOrder: raw.setup_order,
+          setupStep: raw.setup_step,
+        } as any
+
+        setGame(mapped)
       }
-      if (msg.type === 'error') {
-        appendLog(`Error: ${msg.message}`)
+
+      if ((msg as any).type === 'error') {
+        appendLog(`Error: ${(msg as any).data?.message ?? (msg as any).message ?? 'Unknown error'}`)
       }
     })
 
@@ -68,7 +211,7 @@ export default function Game() {
   // Demo board when there is no server state yet
   const demoTiles = useMemo(() => generateBoard('demo'), [])
 
-  const tiles = game?.tiles ?? demoTiles
+  const tiles = (game?.tiles?.length ? game.tiles : demoTiles) ?? demoTiles
   const buildings = game?.buildings ?? []
   const roads = game?.roads ?? []
   const players = game?.players ?? []
@@ -78,6 +221,32 @@ export default function Game() {
   const isMyTurn = game?.currentPlayerId === myPlayerId
   const turnPhase = game?.turnPhase ?? 'pre_roll'
   const currentPlayer = players.find(p => p.id === game?.currentPlayerId)
+  const isSetupPhase = game?.phase === 'setup_round1' || game?.phase === 'setup_round2'
+  const setupStep = (game as any)?.setupStep as number | undefined
+  const setupNeedsSettlement = isSetupPhase && (setupStep == null ? true : setupStep % 2 === 0)
+  const requiredBuildMode: BuildMode = !isSetupPhase
+    ? buildMode
+    : setupNeedsSettlement
+      ? 'settlement'
+      : 'road'
+
+  const setupOrder = (game as any)?.setupOrder as number[] | undefined
+  const orderedPlayers = useMemo(() => {
+    if (!players.length) return players
+    if (!setupOrder || setupOrder.length === 0) return players
+    // Opening order is the first N unique indices in setupOrder (snake draft).
+    const seen = new Set<number>()
+    const opening: number[] = []
+    for (const idx of setupOrder) {
+      if (!seen.has(idx)) {
+        opening.push(idx)
+        seen.add(idx)
+      }
+      if (opening.length >= players.length) break
+    }
+    const byIdx = opening.map(i => players[i]).filter(Boolean)
+    return byIdx.length === players.length ? byIdx : players
+  }, [players, setupOrder])
 
   const appendLog = useCallback((msg: string) => {
     setLog(prev => [...prev.slice(-49), msg])
@@ -97,54 +266,65 @@ export default function Game() {
 
   // Action handlers
   const handleRollDice = useCallback(() => {
+    if (isSetupPhase) return
     if (!isMyTurn || turnPhase !== 'pre_roll') return
     setRolling(true)
     gameSocket.send({ type: 'roll_dice' })
     setTimeout(() => setRolling(false), 600)
-  }, [isMyTurn, turnPhase])
+  }, [isMyTurn, turnPhase, isSetupPhase])
 
   const handleEndTurn = useCallback(() => {
+    if (isSetupPhase) return
     if (!isMyTurn) return
     gameSocket.send({ type: 'end_turn' })
     setBuildMode('none')
     selectVertex(null)
     selectEdge(null)
-  }, [isMyTurn, selectVertex, selectEdge])
+  }, [isMyTurn, selectVertex, selectEdge, isSetupPhase])
 
   const handleVertexClick = useCallback(
     (vid: string) => {
       if (!isMyTurn) return
       selectVertex(vid)
-      if (buildMode === 'settlement') {
-        gameSocket.send({ type: 'build_settlement', vertexId: vid })
-        setBuildMode('none')
-      } else if (buildMode === 'city') {
-        gameSocket.send({ type: 'build_city', vertexId: vid })
+      const pos = parseVertexId(vid)
+      if (!pos) return
+
+      const mode = requiredBuildMode
+      if (mode === 'settlement') {
+        gameSocket.send({ type: 'build', piece: 'settlement', position: pos } as any)
+        if (!isSetupPhase) setBuildMode('none')
+      } else if (mode === 'city') {
+        gameSocket.send({ type: 'build', piece: 'city', position: pos } as any)
         setBuildMode('none')
       }
     },
-    [isMyTurn, buildMode, selectVertex],
+    [isMyTurn, requiredBuildMode, selectVertex, isSetupPhase],
   )
 
   const handleEdgeClick = useCallback(
     (eid: string) => {
       if (!isMyTurn) return
       selectEdge(eid)
-      if (buildMode === 'road') {
-        gameSocket.send({ type: 'build_road', edgeId: eid })
-        setBuildMode('none')
+      const pos = parseEdgeId(eid)
+      if (!pos) return
+
+      const mode = requiredBuildMode
+      if (mode === 'road') {
+        gameSocket.send({ type: 'build', piece: 'road', position: pos } as any)
+        if (!isSetupPhase) setBuildMode('none')
       }
     },
-    [isMyTurn, buildMode, selectEdge],
+    [isMyTurn, requiredBuildMode, selectEdge, isSetupPhase],
   )
 
   const toggleBuildMode = useCallback(
     (mode: BuildMode) => {
+      if (isSetupPhase) return
       setBuildMode(prev => (prev === mode ? 'none' : mode))
       selectVertex(null)
       selectEdge(null)
     },
-    [selectVertex, selectEdge],
+    [selectVertex, selectEdge, isSetupPhase],
   )
 
   if (!game && !demoTiles.length) {
@@ -169,7 +349,7 @@ export default function Game() {
         </div>
 
         <div className={styles.scoreboard}>
-          {players.map(p => (
+          {orderedPlayers.map(p => (
             <div
               key={p.id}
               className={`${styles.scoreCard} ${
@@ -215,7 +395,13 @@ export default function Game() {
           <div className={styles.turnSection}>
             <div className={styles.turnHeader}>
               <span className={styles.turnLabel}>
-                {isMyTurn ? 'Your Turn' : `${currentPlayer?.name ?? '...'}'s Turn`}
+                {isSetupPhase
+                  ? isMyTurn
+                    ? `Setup: Your turn — place a ${requiredBuildMode}`
+                    : `Setup: ${currentPlayer?.name ?? '...'} — place a ${requiredBuildMode}`
+                  : isMyTurn
+                    ? 'Your Turn'
+                    : `${currentPlayer?.name ?? '...'}'s Turn`}
               </span>
               <DiceDisplay
                 dice={game?.lastDiceRoll}
@@ -237,6 +423,7 @@ export default function Game() {
                 <button
                   className={`${styles.buildBtn} ${buildMode === 'road' ? styles.active : ''}`}
                   onClick={() => toggleBuildMode('road')}
+                  disabled={isSetupPhase}
                   type="button"
                   title="Road (1 wood + 1 brick)"
                 >
@@ -247,6 +434,7 @@ export default function Game() {
                 <button
                   className={`${styles.buildBtn} ${buildMode === 'settlement' ? styles.active : ''}`}
                   onClick={() => toggleBuildMode('settlement')}
+                  disabled={isSetupPhase}
                   type="button"
                   title="Settlement (1 wood + 1 brick + 1 wheat + 1 sheep)"
                 >
@@ -257,6 +445,7 @@ export default function Game() {
                 <button
                   className={`${styles.buildBtn} ${buildMode === 'city' ? styles.active : ''}`}
                   onClick={() => toggleBuildMode('city')}
+                  disabled={isSetupPhase}
                   type="button"
                   title="City (2 wheat + 3 ore)"
                 >
@@ -302,17 +491,21 @@ export default function Game() {
       {/* Bottom action bar */}
       <footer className={styles.actionBar}>
         <div className={styles.actionLeft}>
-          {buildMode !== 'none' && (
+          {isSetupPhase ? (
+            <span className={styles.buildHint}>
+              Setup phase: click the map to place your {requiredBuildMode}. Order is 1→N then N→1.
+            </span>
+          ) : buildMode !== 'none' ? (
             <span className={styles.buildHint}>
               Click on the map to place your {buildMode}. Press again to cancel.
             </span>
-          )}
+          ) : null}
         </div>
         <div className={styles.actionRight}>
           <button
             className={styles.rollBtn}
             onClick={handleRollDice}
-            disabled={!isMyTurn || turnPhase !== 'pre_roll' || rolling}
+            disabled={isSetupPhase || !isMyTurn || turnPhase !== 'pre_roll' || rolling}
             type="button"
           >
             {rolling ? 'Rolling...' : 'Roll Dice'}
@@ -320,7 +513,7 @@ export default function Game() {
           <button
             className={styles.endTurnBtn}
             onClick={handleEndTurn}
-            disabled={!isMyTurn || turnPhase === 'pre_roll'}
+            disabled={isSetupPhase || !isMyTurn || turnPhase === 'pre_roll'}
             type="button"
           >
             End Turn

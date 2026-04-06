@@ -78,8 +78,9 @@ def move_robber_random(game: GameState):
 # ---------------------------------------------------------------------------
 
 def setup_order_for_players(n: int) -> List[int]:
-    """Snake draft order: [0,1,2,3,3,2,1,0] for 4 players."""
+    """Snake draft order with randomized opening: [p0,p1,...,pN,pN,...,p1,p0]."""
     fwd = list(range(n))
+    random.shuffle(fwd)
     return fwd + fwd[::-1]
 
 
