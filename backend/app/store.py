@@ -150,6 +150,46 @@ def ensure_game_state(room: RoomInfo) -> GameState:
 
 
 # ---------------------------------------------------------------------------
+# Bot / programmatic players
+# ---------------------------------------------------------------------------
+
+def add_bot_player(room_id: str, name: str = "Bot") -> Optional[Player]:
+    """
+    Add a new player entry to an existing room without using invite codes.
+    Returns the created Player, or None if room not found / full / started.
+    """
+    room = _rooms.get(room_id)
+    if not room:
+        return None
+
+    players = _room_players.get(room_id, [])
+    if len(players) >= room.max_players:
+        return None
+
+    if room.game is not None and room.game.phase != GamePhase.WAITING:
+        return None
+
+    colors = ["red", "blue", "green", "orange"]
+    used_colors = {p.color for p in players}
+    available = [c for c in colors if c not in used_colors]
+    color = available[0] if available else "purple"
+
+    player = Player(
+        player_id=str(uuid.uuid4())[:8],
+        name=name,
+        color=color,
+    )
+    players.append(player)
+    _room_players[room_id] = players
+
+    # If a GameState object already exists (created by WS connect), keep it in sync.
+    if room.game is not None:
+        room.game.players = players
+
+    return player
+
+
+# ---------------------------------------------------------------------------
 # WebSocket connection management
 # ---------------------------------------------------------------------------
 

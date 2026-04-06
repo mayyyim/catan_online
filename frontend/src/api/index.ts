@@ -48,6 +48,20 @@ export function getRoomState(roomId: string): Promise<RoomState> {
   return request<RoomState>(`/rooms/${roomId}`)
 }
 
+export interface AddBotResponse {
+  room_id: string
+  player_id: string
+  player_name: string
+  color: string
+}
+
+export function addBot(roomId: string, name = 'Bot'): Promise<AddBotResponse> {
+  return request<AddBotResponse>(`/rooms/${roomId}/bots`, {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  })
+}
+
 // ─── Map editor endpoints (dev/admin) ─────────────────────────────────────────
 // These endpoints may be served by the backend when map editing is enabled.
 

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getRoomState } from '../api'
+import { getRoomState, addBot } from '../api'
 import { useRoom } from '../context/RoomContext'
 import { gameSocket } from '../ws/gameSocket'
 import { MapThumbnail } from '../components/MapThumbnail'
@@ -95,6 +95,16 @@ export default function Room() {
   const handleStartGame = useCallback(() => {
     gameSocket.send({ type: 'start_game' })
   }, [])
+
+  const handleAddBot = useCallback(async () => {
+    if (!roomId) return
+    try {
+      await addBot(roomId, `Bot ${Math.max(1, (room?.players?.length ?? 1))}`)
+    } catch (e) {
+      // Room will update via WS when successful; show minimal error if not.
+      console.error(e)
+    }
+  }, [roomId, room?.players?.length])
 
   const handleCopyInvite = useCallback(async () => {
     const link = `${window.location.origin}/room/${roomId}?code=${room?.inviteCode ?? ''}`
@@ -195,19 +205,30 @@ export default function Room() {
           </div>
 
           {isHost && (
-            <button
-              className={styles.startBtn}
-              onClick={handleStartGame}
-              disabled={room.players.length < 2}
-              type="button"
-            >
-              Start Game
-              {room.players.length < 2 && (
-                <span className={styles.startHint}>
-                  (need at least 2 players)
-                </span>
-              )}
-            </button>
+            <>
+              <button
+                className={styles.inviteBtn}
+                onClick={handleAddBot}
+                disabled={room.players.length >= room.maxPlayers}
+                type="button"
+              >
+                Add Bot
+              </button>
+
+              <button
+                className={styles.startBtn}
+                onClick={handleStartGame}
+                disabled={room.players.length < 2}
+                type="button"
+              >
+                Start Game
+                {room.players.length < 2 && (
+                  <span className={styles.startHint}>
+                    (need at least 2 players)
+                  </span>
+                )}
+              </button>
+            </>
           )}
 
           {!isHost && (

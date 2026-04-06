@@ -6,7 +6,9 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
 
-from app.store import create_room, join_room, get_room, get_room_players
+from app.store import create_room, join_room, get_room, get_room_players, add_bot_player, ensure_game_state, broadcast
+from app.bots import start_bot
+from app.routers.websocket import _room_update_msg
 
 
 router = APIRouter(prefix="/rooms", tags=["rooms"])
@@ -44,6 +46,17 @@ class RoomStatusResponse(BaseModel):
     state: str
     player_count: int
     players: list
+
+
+class AddBotRequest(BaseModel):
+    name: str = Field(default="Bot", min_length=1, max_length=32)
+
+
+class AddBotResponse(BaseModel):
+    room_id: str
+    player_id: str
+    player_name: str
+    color: str
 
 
 # ---------------------------------------------------------------------------
@@ -108,6 +121,36 @@ async def join_room_endpoint(invite_code: str, body: JoinRoomRequest):
     room, player = result
     return JoinRoomResponse(
         room_id=room.room_id,
+        player_id=player.player_id,
+        player_name=player.name,
+        color=player.color,
+    )
+
+
+@router.post("/{room_id}/bots", response_model=AddBotResponse, status_code=201)
+async def add_bot_endpoint(room_id: str, body: AddBotRequest):
+    """
+    Add a bot player to a waiting room and start an in-process bot client that connects via WS.
+    """
+    room = get_room(room_id)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    player = add_bot_player(room_id, name=body.name)
+    if not player:
+        raise HTTPException(status_code=400, detail="Room is full or game already started")
+
+    # Ensure game state exists so room_update uses consistent players list
+    game = ensure_game_state(room)
+
+    # Start bot loop (connects back to this server)
+    start_bot("http://localhost:8080", room_id, player.player_id)
+
+    # Notify connected clients
+    await broadcast(room, _room_update_msg(room, game))
+
+    return AddBotResponse(
+        room_id=room_id,
         player_id=player.player_id,
         player_name=player.name,
         color=player.color,
