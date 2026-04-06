@@ -44,8 +44,43 @@ export function joinRoom(
   })
 }
 
-export function getRoomState(roomId: string): Promise<RoomState> {
-  return request<RoomState>(`/rooms/${roomId}`)
+type BackendRoomStatusResponse = {
+  room_id: string
+  invite_code: string
+  host_player_id: string
+  state: string
+  player_count: number
+  players: Array<{
+    player_id: string
+    name: string
+    color: string
+    connected: boolean
+  }>
+}
+
+export async function getRoomState(roomId: string): Promise<RoomState> {
+  const raw = await request<BackendRoomStatusResponse>(`/rooms/${roomId}`)
+  return {
+    roomId: raw.room_id,
+    inviteCode: raw.invite_code,
+    hostId: raw.host_player_id,
+    players: (raw.players ?? []).map((p, idx) => ({
+      id: p.player_id,
+      name: p.name,
+      color: p.color as any,
+      isHost: p.player_id === raw.host_player_id || idx === 0,
+      connected: !!p.connected,
+      resources: { wood: 0, brick: 0, wheat: 0, sheep: 0, ore: 0 },
+      victoryPoints: 0,
+      settlements: 0,
+      cities: 0,
+      roads: 0,
+    })),
+    selectedMapId: 'random',
+    randomSeed: '',
+    maxPlayers: 4,
+    status: raw.state === 'waiting' ? 'waiting' : 'started',
+  }
 }
 
 export interface AddBotResponse {

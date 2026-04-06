@@ -50,6 +50,7 @@ def _room_update_msg(room, game=None):
     return {
         "type": "room_update",
         "data": {
+            "host_player_id": room.host_player_id,
             "players": players_data,
             "map": map_data,
             "state": state,
@@ -101,22 +102,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
     await send_to_player(room, player_id, _room_update_msg(room, game))
 
     # Notify others that this player connected
-    await broadcast(room, {
-        "type": "room_update",
-        "data": {
-            "players": [
-                {
-                    "player_id": p.player_id,
-                    "name": p.name,
-                    "color": p.color,
-                    "connected": p.player_id in room.connections,
-                }
-                for p in game.players
-            ],
-            "map": None,
-            "state": room.state_label(),
-        },
-    })
+    await broadcast(room, _room_update_msg(room, game))
 
     try:
         while True:

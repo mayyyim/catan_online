@@ -43,6 +43,7 @@ class JoinRoomResponse(BaseModel):
 class RoomStatusResponse(BaseModel):
     room_id: str
     invite_code: str
+    host_player_id: str
     state: str
     player_count: int
     players: list
@@ -102,6 +103,7 @@ async def get_room_status(room_id: str):
     return RoomStatusResponse(
         room_id=room.room_id,
         invite_code=room.invite_code,
+        host_player_id=room.host_player_id,
         state=room.state_label(),
         player_count=len(players),
         players=players_data,

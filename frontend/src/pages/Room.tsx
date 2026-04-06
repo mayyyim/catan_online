@@ -17,6 +17,7 @@ export default function Room() {
   const [seed, setSeed] = useState('')
   const [copied, setCopied] = useState(false)
   const [wsStatus, setWsStatus] = useState<'connected' | 'disconnected' | 'error'>('disconnected')
+  const [wsError, setWsError] = useState('')
 
   // Restore player_id from session if context was lost (e.g. refresh)
   useEffect(() => {
@@ -42,6 +43,7 @@ export default function Room() {
       // Backend sends "room_update" with { players, map, state }
       if ((msg as any).type === 'room_update') {
         const m = msg as any
+        setWsError('')
         const players = (m.data?.players ?? []).map((p: any, idx: number) => ({
           id: p.player_id,
           name: p.name,
@@ -65,7 +67,7 @@ export default function Room() {
           return {
             roomId: roomId,
             inviteCode,
-            hostId: players[0]?.id ?? prev?.hostId ?? '',
+            hostId: m.data?.host_player_id ?? players[0]?.id ?? prev?.hostId ?? '',
             players,
             selectedMapId: m.data?.selected_map_id ?? prev?.selectedMapId ?? 'random',
             randomSeed: m.data?.seed ?? prev?.randomSeed ?? '',
@@ -75,7 +77,11 @@ export default function Room() {
         })
       }
 
-      if (msg.type === 'game_state' && (msg as any).data?.phase !== 'waiting') {
+      if ((msg as any).type === 'error') {
+        setWsError((msg as any).data?.message ?? (msg as any).message ?? 'Server error')
+      }
+
+      if ((msg as any).type === 'game_state' && (msg as any).data?.phase !== 'waiting') {
         navigate(`/game/${roomId}`)
       }
     })
@@ -108,6 +114,7 @@ export default function Room() {
     gameSocket.send({
       type: 'start_game',
       map_id: room?.selectedMapId,
+      mapId: room?.selectedMapId,
       seed: seed || room?.randomSeed || undefined,
     } as any)
   }, [room?.randomSeed, room?.selectedMapId, seed])
@@ -250,6 +257,12 @@ export default function Room() {
           {!isHost && (
             <p className={styles.waitingText}>
               Waiting for host to start the game...
+            </p>
+          )}
+
+          {wsError && (
+            <p className={styles.waitingText} style={{ color: '#e63946' }}>
+              {wsError}
             </p>
           )}
         </section>
