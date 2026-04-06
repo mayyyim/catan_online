@@ -1,0 +1,50 @@
+.grid {
+  display: block;
+  user-select: none;
+}
+
+.oceanTile polygon {
+  cursor: default;
+}
+
+.landTile polygon {
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.landTile:hover polygon {
+  filter: brightness(1.15);
+}
+
+.terrainEmoji,
+.robberIcon {
+  pointer-events: none;
+  dominant-baseline: middle;
+}
+
+.tokenText {
+  pointer-events: none;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.road {
+  pointer-events: none;
+}
+
+.building {
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+.buildableVertex {
+  cursor: pointer;
+  transition: r 0.1s ease, fill 0.1s ease;
+}
+
+.buildableVertex:hover {
+  fill: rgba(255, 214, 10, 0.6);
+}
+
+.buildableEdge {
+  cursor: pointer;
+}

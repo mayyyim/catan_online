@@ -1,0 +1,1 @@
+export { MapThumbnail } from './MapThumbnail'

@@ -1,0 +1,260 @@
+.loading {
+  min-height: 100vh;
+  background: #0d1b2a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: #6c757d;
+  font-size: 15px;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #1e3a5f;
+  border-top-color: #ffd60a;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.page {
+  min-height: 100vh;
+  background: #0d1b2a;
+  display: flex;
+  flex-direction: column;
+  color: #f8f9fa;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid #1e3a5f;
+  background: #0d1b2a;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.roomCode {
+  font-size: 13px;
+  color: #6c757d;
+  background: #16213e;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #1e3a5f;
+}
+
+.roomCode strong {
+  color: #ffd60a;
+  letter-spacing: 0.1em;
+}
+
+.wsIndicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.wsIndicator.connected { background: #52b788; }
+.wsIndicator.disconnected { background: #e63946; }
+.wsIndicator.error { background: #f4a261; }
+
+.pageTitle {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+  color: #f8f9fa;
+}
+
+.headerRight {
+  width: 120px; /* balance header */
+}
+
+.body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 0;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px;
+  gap: 24px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 800px) {
+  .body {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sectionTitle {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6c757d;
+  margin: 0 0 14px;
+}
+
+/* Map section */
+.mapSection {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.mapGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.seedRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 280px;
+}
+
+.seedLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.seedInput {
+  padding: 9px 12px;
+  background: #16213e;
+  border: 1.5px solid #1e3a5f;
+  border-radius: 8px;
+  color: #f8f9fa;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.15s ease;
+}
+
+.seedInput:focus {
+  outline: none;
+  border-color: #4a6fa5;
+}
+
+.seedInput:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Right section */
+.rightSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.playerPanel {
+  background: #16213e;
+  border: 1px solid #1e3a5f;
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.playerList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.emptySlot {
+  padding: 10px 10px;
+  border: 1px dashed #1e3a5f;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #343a40;
+  text-align: center;
+}
+
+.inviteBtn {
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: 1.5px solid #4a6fa5;
+  border-radius: 8px;
+  color: #4a6fa5;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  margin-top: 4px;
+}
+
+.inviteBtn:hover {
+  background: rgba(74, 111, 165, 0.15);
+  color: #6a9fd8;
+}
+
+.startBtn {
+  width: 100%;
+  padding: 15px;
+  background: #ffd60a;
+  color: #0d1b2a;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
+}
+
+.startBtn:hover:not(:disabled) {
+  background: #ffe347;
+  transform: translateY(-1px);
+}
+
+.startBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.startHint {
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.waitingText {
+  font-size: 13px;
+  color: #6c757d;
+  text-align: center;
+  padding: 12px;
+  background: #16213e;
+  border-radius: 8px;
+  border: 1px solid #1e3a5f;
+  margin: 0;
+}

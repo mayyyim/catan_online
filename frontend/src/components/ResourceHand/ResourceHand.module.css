@@ -1,0 +1,70 @@
+.hand {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6c757d;
+}
+
+.total {
+  font-size: 12px;
+  color: #adb5bd;
+}
+
+.cards {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 52px;
+  padding: 8px 4px;
+  background: color-mix(in srgb, var(--res-color) 20%, #16213e);
+  border: 1px solid color-mix(in srgb, var(--res-color) 50%, transparent);
+  border-radius: 8px;
+  transition: transform 0.1s ease, border-color 0.1s ease;
+}
+
+.card.empty {
+  opacity: 0.35;
+}
+
+.card:not(.empty):hover {
+  transform: translateY(-2px);
+  border-color: var(--res-color);
+}
+
+.emoji {
+  font-size: 18px;
+}
+
+.count {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f8f9fa;
+  line-height: 1;
+}
+
+.name {
+  font-size: 9px;
+  color: #adb5bd;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}

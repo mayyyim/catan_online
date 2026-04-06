@@ -1,0 +1,34 @@
+.wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.die {
+  font-size: 32px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+.rolling .die {
+  animation: spin 0.4s linear infinite;
+}
+
+.total {
+  font-size: 20px;
+  font-weight: 700;
+  color: #f8f9fa;
+  margin-left: 4px;
+}
+
+.total.seven {
+  color: #e63946;
+}
+
+@keyframes spin {
+  0%   { transform: rotate(0deg); }
+  25%  { transform: rotate(90deg); }
+  50%  { transform: rotate(180deg); }
+  75%  { transform: rotate(270deg); }
+  100% { transform: rotate(360deg); }
+}

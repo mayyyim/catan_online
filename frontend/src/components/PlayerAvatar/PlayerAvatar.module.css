@@ -1,0 +1,77 @@
+.wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  transition: border-color 0.15s ease;
+}
+
+.wrapper.current {
+  border-color: #ffd60a;
+  background: rgba(255, 214, 10, 0.06);
+}
+
+.wrapper.disconnected {
+  opacity: 0.5;
+}
+
+.wrapper.compact {
+  padding: 0;
+  gap: 0;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.compact .avatar {
+  width: 28px;
+  height: 28px;
+}
+
+.initials {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.compact .initials {
+  font-size: 11px;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f8f9fa;
+}
+
+.meTag {
+  font-size: 12px;
+  color: #adb5bd;
+  font-weight: 400;
+}
+
+.hostTag {
+  font-size: 13px;
+}
+
+.offlineTag {
+  font-size: 11px;
+  color: #e63946;
+}
