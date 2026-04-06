@@ -83,14 +83,21 @@ export default function Room() {
       unsubMsg()
       gameSocket.disconnect()
     }
-  }, [roomId, myPlayerId, navigate, setRoom, updatePlayer, removePlayer])
+  }, [roomId, myPlayerId, navigate, setRoom, updatePlayer, removePlayer, room])
 
   const handleMapSelect = useCallback(
     (mapId: string) => {
-      // Persist selection server-side so refresh/other players see it.
+      // Optimistic UI: highlight immediately, then persist server-side so refresh/other players see it.
+      if (room) {
+        setRoom({
+          ...room,
+          selectedMapId: mapId,
+          randomSeed: seed || room.randomSeed,
+        })
+      }
       gameSocket.send({ type: 'select_map', mapId, seed: seed || undefined })
     },
-    [seed],
+    [seed, room, setRoom],
   )
 
   const handleStartGame = useCallback(() => {
