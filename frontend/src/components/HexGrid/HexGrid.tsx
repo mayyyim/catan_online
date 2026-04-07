@@ -246,13 +246,19 @@ export function HexGrid({
         if (!pt) return null
         const color = playerColor(players, building.playerId)
         if (building.type === 'settlement') {
-          // Triangle pointing up
-          const s = 10
-          const points = `${pt.x},${pt.y - s} ${pt.x - s},${pt.y + s} ${pt.x + s},${pt.y + s}`
+          // House shape: pentagon (roof peak + 4 wall corners)
+          const w = 8, roofTop = -13, eaveY = -3, botY = 7
+          const pts = [
+            `${pt.x},${pt.y + roofTop}`,
+            `${pt.x + w},${pt.y + eaveY}`,
+            `${pt.x + w},${pt.y + botY}`,
+            `${pt.x - w},${pt.y + botY}`,
+            `${pt.x - w},${pt.y + eaveY}`,
+          ].join(' ')
           return (
             <polygon
               key={building.vertexId}
-              points={points}
+              points={pts}
               fill={color}
               stroke="#0d1b2a"
               strokeWidth={2}
@@ -260,15 +266,19 @@ export function HexGrid({
             />
           )
         } else {
-          // City: small square
-          const s = 10
+          // City: stepped building (wider base + taller tower on left)
+          const pts = [
+            `${pt.x - 11},${pt.y + 9}`,
+            `${pt.x - 11},${pt.y - 5}`,
+            `${pt.x - 4},${pt.y - 5}`,
+            `${pt.x - 4},${pt.y - 12}`,
+            `${pt.x + 11},${pt.y - 12}`,
+            `${pt.x + 11},${pt.y + 9}`,
+          ].join(' ')
           return (
-            <rect
+            <polygon
               key={building.vertexId}
-              x={pt.x - s}
-              y={pt.y - s}
-              width={s * 2}
-              height={s * 2}
+              points={pts}
               fill={color}
               stroke="#0d1b2a"
               strokeWidth={2}

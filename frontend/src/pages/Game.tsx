@@ -55,7 +55,9 @@ function vertexKeyToId(vkey: string): string {
   const q = Number(qRaw)
   const r = Number(rRaw)
   const s = cubeS(q, r)
-  const corner = Number(cornerRaw)
+  // Backend corner 0 = top-right; frontend corner 0 = right (0°).
+  // Backend corner N corresponds to frontend corner (N-1+6)%6.
+  const corner = ((Number(cornerRaw) - 1) + 6) % 6
   return `${q},${r},${s}:v${corner}`
 }
 
@@ -64,7 +66,8 @@ function edgeKeyToId(ekey: string): string {
   const q = Number(qRaw)
   const r = Number(rRaw)
   const s = cubeS(q, r)
-  const side = Number(sideRaw)
+  // Same -1 offset as vertices: backend side N → frontend side (N-1+6)%6.
+  const side = ((Number(sideRaw) - 1) + 6) % 6
   return `${q},${r},${s}:e${side}`
 }
 
