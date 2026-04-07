@@ -99,6 +99,48 @@ function parseEdgeId(id: string): { q: number; r: number; direction: number } | 
   return { q, r, direction }
 }
 
+// Adjacent corners for each frontend corner index (flat-top, 0=right going clockwise in SVG).
+// Corner i shares edges with corners (i-1+6)%6 and (i+1)%6 on the same tile,
+// but the physically adjacent vertices on the board can be on neighboring tiles.
+// For the distance rule we just need the 3 vertices reachable in one road step.
+// We compute them by looking at all land vertices and checking if they share an edge
+// (i.e. appear as consecutive corners of the same tile).
+function buildAdjacencyMap(
+  tiles: Array<{ q: number; r: number; s: number; terrain: string }>,
+): Map<string, Set<string>> {
+  const adj = new Map<string, Set<string>>()
+  const ensure = (id: string) => {
+    if (!adj.has(id)) adj.set(id, new Set())
+    return adj.get(id)!
+  }
+  for (const t of tiles) {
+    if (t.terrain === 'ocean') continue
+    for (let c = 0; c < 6; c++) {
+      const a = `${t.q},${t.r},${t.s}:v${c}`
+      const b = `${t.q},${t.r},${t.s}:v${(c + 1) % 6}`
+      ensure(a).add(b)
+      ensure(b).add(a)
+    }
+  }
+  return adj
+}
+
+function validSettlementVertices(
+  tiles: Array<{ q: number; r: number; s: number; terrain: string }>,
+  occupiedVertexIds: Set<string>,
+): string[] {
+  const adj = buildAdjacencyMap(tiles)
+  // A vertex is blocked if it or any neighbour is occupied.
+  const blocked = new Set<string>()
+  for (const vid of occupiedVertexIds) {
+    blocked.add(vid)
+    for (const nb of (adj.get(vid) ?? [])) {
+      blocked.add(nb)
+    }
+  }
+  return [...adj.keys()].filter(vid => !blocked.has(vid))
+}
+
 function allVertexIdsFromTiles(tiles: Array<{ q: number; r: number; s: number; terrain: string }>): string[] {
   const set = new Set<string>()
   for (const t of tiles) {
@@ -295,15 +337,15 @@ export default function Game() {
   }, [])
 
   // Build mode: which vertices/edges to highlight
-  // Server drives valid placements; client just needs the mode active to route clicks.
   const buildableVertices = useMemo(() => {
-    // In setup, allow clicking any vertex; server will validate placement rules.
     if (isSetupPhase && isMyTurn && requiredBuildMode === 'settlement') {
-      return allVertexIdsFromTiles(tiles as any)
+      // Filter out vertices that violate the distance rule.
+      const occupiedIds = new Set(buildings.map(b => b.vertexId))
+      return validSettlementVertices(tiles as any, occupiedIds)
     }
     if (buildMode !== 'settlement' && buildMode !== 'city') return []
     return [] // future: server-driven valid vertex list
-  }, [buildMode, isSetupPhase, isMyTurn, requiredBuildMode, tiles])
+  }, [buildMode, isSetupPhase, isMyTurn, requiredBuildMode, tiles, buildings])
 
   const buildableEdges = useMemo(() => {
     // In setup, allow clicking any edge; server will validate placement rules.

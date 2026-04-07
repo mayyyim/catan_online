@@ -230,6 +230,7 @@ class Player:
             "settlements_placed": self.settlements_placed,
             "cities_placed": self.cities_placed,
             "roads_placed": self.roads_placed,
+            "setup_settlements": [[vk[0], vk[1], vk[2]] for vk in self.setup_settlements],
         }
 
     @staticmethod
@@ -244,7 +245,12 @@ class Player:
                 except Exception:
                     continue
 
-        return Player(
+        setup_settlements: List[VertexKey] = []
+        for raw_vk in (d.get("setup_settlements") or []):
+            if isinstance(raw_vk, (list, tuple)) and len(raw_vk) == 3:
+                setup_settlements.append((int(raw_vk[0]), int(raw_vk[1]), int(raw_vk[2])))
+
+        p = Player(
             player_id=str(d.get("player_id") or d.get("playerId") or ""),
             name=str(d.get("name") or ""),
             color=str(d.get("color") or "red"),
@@ -254,6 +260,8 @@ class Player:
             cities_placed=int(d.get("cities_placed") or 0),
             roads_placed=int(d.get("roads_placed") or 0),
         )
+        p.setup_settlements = setup_settlements
+        return p
 
 
 # ---------------------------------------------------------------------------
