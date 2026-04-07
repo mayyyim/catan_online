@@ -1,6 +1,6 @@
 import { useMemo, useCallback } from 'react'
-import type { HexTile, Building, Road, Player } from '../../types'
-import { TERRAIN_COLORS, TERRAIN_LABELS } from '../../types'
+import type { HexTile, Building, Road, Player, Port } from '../../types'
+import { TERRAIN_COLORS, TERRAIN_LABELS, RESOURCE_LABELS } from '../../types'
 import {
   cubeToPixel,
   hexCorners,
@@ -14,8 +14,22 @@ const HEX_SIZE = 60
 const VERTEX_RADIUS = 8
 const ROAD_STROKE = 8
 
+// Pixel direction vectors for each backend side index (flat-top hex, SVG y-down).
+// Derived from cubeToPixel(dq, dr, 1): x = 1.5*dq, y = (√3/2)*dq + √3*dr
+// Backend HEX_DIRECTIONS = [(1,0),(1,-1),(0,-1),(-1,0),(-1,1),(0,1)]
+const SQ3 = Math.sqrt(3)
+const SIDE_PIXEL_DIRS: [number, number][] = [
+  [ 1.5,         SQ3 / 2],   // side 0: (1,  0)
+  [ 1.5,        -SQ3 / 2],   // side 1: (1, -1)
+  [ 0,          -SQ3],       // side 2: (0, -1)
+  [-1.5,        -SQ3 / 2],   // side 3: (-1, 0)
+  [-1.5,         SQ3 / 2],   // side 4: (-1, 1)
+  [ 0,           SQ3],       // side 5: (0,  1)
+]
+
 interface HexGridProps {
   tiles: HexTile[]
+  ports?: Port[]
   buildings: Building[]
   roads: Road[]
   players: Player[]
@@ -36,6 +50,7 @@ function playerColor(players: Player[], playerId: string): string {
 
 export function HexGrid({
   tiles,
+  ports = [],
   buildings,
   roads,
   players,
@@ -261,6 +276,30 @@ export function HexGrid({
             />
           )
         }
+      })}
+
+      {/* Ports */}
+      {ports.map((port, idx) => {
+        const { x: tilePx, y: tilePy } = cubeToPixel(port.q, port.r, HEX_SIZE)
+        const cx = centerX + tilePx
+        const cy = centerY + tilePy
+        const [ddx, ddy] = SIDE_PIXEL_DIRS[port.side] ?? [0, 0]
+        // Place badge at ~60 % of the way toward the ocean neighbor (just outside the edge)
+        const portX = cx + ddx * HEX_SIZE * 0.6
+        const portY = cy + ddy * HEX_SIZE * 0.6
+        const label = port.resource ? RESOURCE_LABELS[port.resource] : '?'
+        const ratioText = `${port.ratio}:1`
+        return (
+          <g key={`port-${idx}`} className={styles.port}>
+            <circle cx={portX} cy={portY} r={14} fill="#1a3a5c" stroke="#ffd60a" strokeWidth={1.5} />
+            <text x={portX} y={portY - 2} textAnchor="middle" fontSize={11} fill="#ffd60a">
+              {label}
+            </text>
+            <text x={portX} y={portY + 10} textAnchor="middle" fontSize={9} fill="#cce" fontWeight="bold">
+              {ratioText}
+            </text>
+          </g>
+        )
       })}
 
       {/* Buildable vertex indicators */}

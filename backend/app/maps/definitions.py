@@ -11,6 +11,7 @@ Standard token distribution:
 
 from typing import List, Tuple
 from app.game.models import Tile, Port, MapData, TileType, Resource
+from app.maps.ports import normalize_ports
 
 
 # ---------------------------------------------------------------------------
@@ -21,10 +22,17 @@ def _tile(q, r, tile_type, token=None):
     return Tile(q=q, r=r, tile_type=TileType(tile_type), token=token)
 
 
-def _port(q, r, resource=None, ratio=None):
+def _port(q, r, resource=None, ratio=None, side=None):
+    """
+    Define a port on land tile (q, r).
+    - resource: None means 3:1 generic; a resource string means 2:1 specific.
+    - side: coastal edge (0-5) the port faces. Must be the outward-facing coastal
+      side of the tile. If omitted, normalize_ports() will infer it automatically.
+    All (q, r) must be actual land tiles so there is no snapping ambiguity.
+    """
     if resource:
-        return Port(q=q, r=r, resource=Resource(resource), ratio=ratio or 2)
-    return Port(q=q, r=r, resource=None, ratio=ratio or 3)
+        return Port(q=q, r=r, resource=Resource(resource), ratio=ratio or 2, side=side)
+    return Port(q=q, r=r, resource=None, ratio=ratio or 3, side=side)
 
 
 # ---------------------------------------------------------------------------
@@ -70,10 +78,11 @@ def china_map() -> MapData:
         _tile(0, 2, "pasture", 12), _tile(1, 2, "hills", 5),
     ]
     ports = [
-        _port(-2, -2, ratio=3),   # generic port NW
-        _port(3, -2, ratio=3),    # generic port NE
-        _port(3, 1, "ore"),       # ore 2:1 port (mountains heavy)
-        _port(0, 3, ratio=3),     # generic port S
+        # 4 ports spread around the perimeter — ore-heavy theme
+        _port(-2, -1, ratio=3, side=3),   # 3:1 NW  — left face
+        _port( 2, -2, ratio=3, side=1),   # 3:1 NE  — upper-right face
+        _port( 2,  1, "ore",   side=0),   # ore 2:1 E — right face
+        _port( 0,  2, ratio=3, side=5),   # 3:1 S   — down face
     ]
     return MapData(map_id="china", tiles=tiles, ports=ports)
 
@@ -100,15 +109,19 @@ def japan_map() -> MapData:
         _tile(2, 1, "mountains", 8), _tile(3, 0, "mountains", 10), _tile(2, 0, "fields", 3),
     ]
     ports = [
-        # Many ports — Japan is an island nation
-        _port(-3, -1, ratio=3),
-        _port(-2, -2, "wood"),
-        _port(2, -3, ratio=3),
-        _port(3, -2, "sheep"),
-        _port(4, -1, ratio=3),
-        _port(3, 1, ratio=3),
-        _port(1, 3, "brick"),
-        _port(-2, 3, ratio=3),
+        # Many ports — Japan is an island nation; 8 ports on 8 distinct perimeter tiles
+        # Island 1
+        _port(-3,  0, ratio=3,   side=3),  # 3:1   NW left face
+        _port(-2, -1, "wood",    side=2),  # wood  NW upper face
+        # Island 2
+        _port( 0, -2, ratio=3,   side=2),  # 3:1   N upper face
+        _port( 1, -2, "sheep",   side=1),  # sheep NE upper-right face
+        _port( 1, -1, ratio=3,   side=0),  # 3:1   E right face
+        # Island 3
+        _port( 0,  2, "brick",   side=5),  # brick S down face
+        _port(-1,  2, ratio=3,   side=3),  # 3:1   SW left face
+        # Island 4
+        _port( 3,  0, ratio=3,   side=0),  # 3:1   SE right face
     ]
     return MapData(map_id="japan", tiles=tiles, ports=ports)
 
@@ -136,13 +149,14 @@ def usa_map() -> MapData:
         _tile(0, 2, "pasture", 12), _tile(1, 2, "fields", 6),
     ]
     ports = [
-        _port(-3, 0, ratio=3),
-        _port(-2, -2, "wheat"),
-        _port(0, -3, ratio=3),
-        _port(3, -2, "wood"),
-        _port(3, 1, ratio=3),
-        _port(0, 3, "sheep"),
-        _port(-1, 2, ratio=3),
+        # 7 ports on 7 distinct perimeter tiles — wheat/wood/sheep theme
+        _port( 0, -2, ratio=3,   side=2),  # 3:1   N  upper face
+        _port( 2, -2, "wood",    side=1),  # wood  NE upper-right face
+        _port( 2, -1, ratio=3,   side=0),  # 3:1   E  right face
+        _port( 2,  1, ratio=3,   side=5),  # 3:1   SE down face
+        _port( 1,  2, "sheep",   side=5),  # sheep S  down face  (different tile from above)
+        _port(-2,  0, "wheat",   side=3),  # wheat W  left face
+        _port(-1, -2, ratio=3,   side=2),  # 3:1   NW upper face (different tile from N)
     ]
     return MapData(map_id="usa", tiles=tiles, ports=ports)
 
@@ -163,9 +177,16 @@ def europe_map() -> MapData:
         _tile(3, 0, "mountains", 11),
     ]
     ports = [
-        _port(-2, 0, ratio=3), _port(-1, -2, "wheat"), _port(1, -3, ratio=3),
-        _port(3, -2, "sheep"), _port(4, -1, ratio=3), _port(4, 0, "brick"),
-        _port(2, 2, ratio=3), _port(0, 3, "ore"), _port(-1, 3, ratio=3),
+        # 9 ports on 9 distinct perimeter tiles — wheat/sheep/brick/ore theme
+        _port(-1, -1, ratio=3,   side=3),  # 3:1   NW left face
+        _port( 0, -2, "wheat",   side=2),  # wheat N  upper face
+        _port( 1, -2, ratio=3,   side=1),  # 3:1   NE upper-right face
+        _port( 2, -1, "sheep",   side=1),  # sheep E  upper-right face  (different tile)
+        _port( 3, -1, ratio=3,   side=0),  # 3:1   E  right face
+        _port( 3,  0, "brick",   side=1),  # brick SE upper-right face  (different tile)
+        _port( 2,  1, ratio=3,   side=0),  # 3:1   SE right face
+        _port( 1,  2, "ore",     side=5),  # ore   S  down face
+        _port(-1,  2, ratio=3,   side=4),  # 3:1   SW lower-left face
     ]
     return MapData(map_id="europe", tiles=tiles, ports=ports)
 
@@ -191,9 +212,19 @@ def uk_map() -> MapData:
         _tile(-3, 1, "pasture", 12), _tile(-3, 0, "hills", 3), _tile(-3, -1, "forest", 11),
     ]
     ports = [
-        _port(-2, -3, ratio=3), _port(1, -3, "sheep"), _port(2, -2, ratio=3),
-        _port(2, 0, "ore"), _port(1, 2, ratio=3), _port(-2, 2, ratio=3),
-        _port(-4, 1, "sheep"), _port(-4, -1, ratio=3),
+        # 8 ports on 8 distinct perimeter tiles — sheep/ore theme
+        # Scotland
+        _port(-1, -3, ratio=3,  side=2),  # 3:1   N  upper face
+        _port( 0, -3, "sheep",  side=2),  # sheep N  upper face  (different tile)
+        # England east coast
+        _port( 1, -2, ratio=3,  side=1),  # 3:1   NE upper-right face
+        _port( 1, -1, ratio=3,  side=0),  # 3:1   E  right face
+        _port( 1,  0, "ore",    side=0),  # ore   E  right face  (different tile)
+        # England south / Wales
+        _port(-2,  1, ratio=3,  side=4),  # 3:1   SW lower-left face
+        # Ireland
+        _port(-3,  1, "sheep",  side=4),  # sheep W  lower-left face
+        _port(-3, -1, ratio=3,  side=3),  # 3:1   W  left face
     ]
     return MapData(map_id="uk", tiles=tiles, ports=ports)
 
@@ -219,9 +250,14 @@ def australia_map() -> MapData:
         _tile(-1, 2, "fields", 5), _tile(0, 2, "hills", 12),
     ]
     ports = [
-        _port(-3, 0, "ore"), _port(-2, -2, ratio=3), _port(0, -3, ratio=3),
-        _port(3, -2, "sheep"), _port(3, 0, ratio=3), _port(1, 2, "ore"),
-        _port(-2, 3, ratio=3),
+        # 7 ports on 7 distinct perimeter tiles — ore/sheep theme (desert-heavy interior)
+        _port(-2, -1, "ore",    side=3),  # ore   W  left face
+        _port(-1, -2, ratio=3,  side=2),  # 3:1   NW upper face
+        _port( 0, -2, ratio=3,  side=2),  # 3:1   N  upper face  (different tile)
+        _port( 2, -2, "sheep",  side=1),  # sheep NE upper-right face
+        _port( 2,  0, ratio=3,  side=0),  # 3:1   E  right face
+        _port( 0,  2, "ore",    side=5),  # ore   S  down face
+        _port(-1,  2, ratio=3,  side=4),  # 3:1   SW lower-left face
     ]
     return MapData(map_id="australia", tiles=tiles, ports=ports)
 
@@ -243,9 +279,14 @@ def brazil_map() -> MapData:
         _tile(-1, 2, "forest", 11),
     ]
     ports = [
-        _port(-3, 0, "wood"), _port(-2, -2, ratio=3), _port(0, -3, ratio=3),
-        _port(3, -1, ratio=3), _port(3, 0, "wheat"), _port(1, 3, ratio=3),
-        _port(-1, 3, ratio=3),
+        # 7 ports on 7 distinct perimeter tiles — wood/wheat theme (forest-heavy)
+        _port(-2, -1, "wood",   side=3),  # wood  W  left face
+        _port(-1, -2, ratio=3,  side=2),  # 3:1   NW upper face
+        _port( 0, -2, ratio=3,  side=2),  # 3:1   N  upper face  (different tile)
+        _port( 2, -1, ratio=3,  side=1),  # 3:1   NE upper-right face
+        _port( 2,  0, "wheat",  side=0),  # wheat E  right face
+        _port( 1,  2, ratio=3,  side=5),  # 3:1   SE down face
+        _port(-1,  2, ratio=3,  side=4),  # 3:1   SW lower-left face
     ]
     return MapData(map_id="brazil", tiles=tiles, ports=ports)
 
@@ -292,4 +333,4 @@ def get_static_map(map_id: str) -> MapData:
     fn = MAP_REGISTRY.get(map_id)
     if not fn:
         raise ValueError(f"Unknown static map: {map_id}")
-    return fn()
+    return normalize_ports(fn())

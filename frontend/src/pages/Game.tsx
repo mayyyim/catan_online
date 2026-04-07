@@ -8,7 +8,7 @@ import { ResourceHand } from '../components/ResourceHand'
 import { DiceDisplay } from '../components/DiceDisplay'
 import { PlayerAvatar } from '../components/PlayerAvatar'
 import { generateBoard } from '../engine/boardUtils'
-import type { ResourceType } from '../types'
+import type { ResourceType, Port } from '../types'
 import styles from './Game.module.css'
 
 type BuildMode = 'none' | 'road' | 'settlement' | 'city'
@@ -35,6 +35,7 @@ type BackendGameState = {
   }>
   map?: {
     tiles?: Array<{ q: number; r: number; tile_type: string; token?: number | null }>
+    ports?: Array<{ q: number; r: number; side: number; resource: string | null; ratio: number }>
   }
   robber?: { q: number; r: number }
   last_dice?: [number, number] | number[] | null
@@ -74,7 +75,10 @@ function parseVertexId(id: string): { q: number; r: number; direction: number } 
   const [qRaw, rRaw] = coord.split(',')
   const q = Number(qRaw)
   const r = Number(rRaw)
-  const direction = Number(v)
+  // Frontend renders corners starting at "right-most" (0) clockwise.
+  // Backend expects corner indices starting from a different reference.
+  // Empirically, shifting by +1 aligns click → placed vertex visually.
+  const direction = (Number(v) + 1) % 6
   if (!Number.isFinite(q) || !Number.isFinite(r) || !Number.isFinite(direction)) return null
   return { q, r, direction }
 }
@@ -86,7 +90,8 @@ function parseEdgeId(id: string): { q: number; r: number; direction: number } | 
   const [qRaw, rRaw] = coord.split(',')
   const q = Number(qRaw)
   const r = Number(rRaw)
-  const direction = Number(e)
+  // Same indexing shift as vertices.
+  const direction = (Number(e) + 1) % 6
   if (!Number.isFinite(q) || !Number.isFinite(r) || !Number.isFinite(direction)) return null
   return { q, r, direction }
 }
@@ -191,6 +196,16 @@ export default function Game() {
             playerId: v.player_id,
           }))
 
+        const ports: Port[] = (raw.map?.ports ?? [])
+          .filter(p => p.side != null)
+          .map(p => ({
+            q: p.q,
+            r: p.r,
+            side: p.side,
+            resource: p.resource as Port['resource'],
+            ratio: p.ratio,
+          }))
+
         // Prefer server tiles; fall back to demo board if server didn't include map yet.
         const mapped = {
           roomId: raw.room_id ?? roomId,
@@ -204,6 +219,7 @@ export default function Game() {
           currentPlayerId: raw.current_player_id ?? '',
           players,
           tiles,
+          ports,
           buildings,
           roads,
           lastDiceRoll: Array.isArray(raw.last_dice) && raw.last_dice.length === 2
@@ -234,6 +250,7 @@ export default function Game() {
   const demoTiles = useMemo(() => generateBoard('demo'), [])
 
   const tiles = (game?.tiles?.length ? game.tiles : demoTiles) ?? demoTiles
+  const ports = game?.ports ?? []
   const buildings = game?.buildings ?? []
   const roads = game?.roads ?? []
   const players = game?.players ?? []
@@ -405,6 +422,7 @@ export default function Game() {
         <main className={styles.mapArea}>
           <HexGrid
             tiles={tiles}
+            ports={ports}
             buildings={buildings}
             roads={roads}
             players={players}

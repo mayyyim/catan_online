@@ -86,11 +86,12 @@ WINNING_VP = 10
 
 @dataclass
 class Port:
-    # The vertex (q, r, direction) closest to the port — used to check eligibility
+    # Tile (q, r) on which the port sits, plus the coastal side (0-5) it faces.
     q: int
     r: int
     resource: Optional[Resource]  # None = 3:1 generic port
-    ratio: int = 3  # 2 for specific-resource ports, 3 for generic
+    ratio: int = 3               # 2 for specific-resource ports, 3 for generic
+    side: Optional[int] = None   # coastal edge index (HEX_DIRECTIONS), set by normalize_ports
 
     def to_dict(self):
         return {
@@ -98,6 +99,7 @@ class Port:
             "r": self.r,
             "resource": self.resource.value if self.resource else None,
             "ratio": self.ratio,
+            "side": self.side,
         }
 
     @staticmethod
@@ -107,6 +109,7 @@ class Port:
             r=int(d.get("r", 0)),
             resource=Resource(d["resource"]) if d.get("resource") else None,
             ratio=int(d.get("ratio", 3)),
+            side=int(d["side"]) if d.get("side") is not None else None,
         )
 
 

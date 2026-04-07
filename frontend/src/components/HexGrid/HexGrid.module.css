@@ -48,3 +48,11 @@
 .buildableEdge {
   cursor: pointer;
 }
+
+.port {
+  pointer-events: none;
+}
+
+.port circle {
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7));
+}

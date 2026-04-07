@@ -42,6 +42,16 @@ export const RESOURCE_LABELS: Record<ResourceType, string> = {
   ore: '⛏️',
 }
 
+// ─── Ports ───────────────────────────────────────────────────────────────────
+
+export interface Port {
+  q: number
+  r: number
+  side: number        // coastal edge index (0-5), matches backend HEX_DIRECTIONS
+  resource: ResourceType | null  // null = 3:1 generic port
+  ratio: number       // 2 for specific, 3 for generic
+}
+
 // ─── Map / Hex ────────────────────────────────────────────────────────────────
 
 export interface HexTile {
@@ -126,6 +136,7 @@ export interface GameState {
   currentPlayerId: string
   players: Player[]
   tiles: HexTile[]
+  ports: Port[]
   buildings: Building[]
   roads: Road[]
   lastDiceRoll?: [number, number]

@@ -7,6 +7,7 @@ import random
 from typing import List, Optional, Set, Tuple
 
 from app.game.models import Tile, Port, MapData, TileType, Resource
+from app.maps.ports import normalize_ports
 
 
 # Standard Catan resource counts
@@ -31,16 +32,18 @@ STANDARD_COORDS = [
 ]
 
 # Port definitions: (q, r, resource_or_None)
+# All coordinates are ring-2 (perimeter) land tiles so there is no snapping ambiguity.
+# normalize_ports() will assign the correct coastal side automatically.
 STANDARD_PORTS = [
-    (2, -2, None),       # 3:1
-    (1, -3, None),       # 3:1  (these q,r refer to a land tile near the port)
-    (-1, -2, Resource.WOOD),
-    (-2, -1, Resource.BRICK),
-    (-3, 1, None),
-    (-2, 2, Resource.SHEEP),
-    (0, 3, None),
-    (1, 2, Resource.WHEAT),
-    (3, -1, Resource.ORE),
+    (0, -2, None),              # 3:1  — top
+    (2, -2, Resource.ORE),      # ore  — top-right corner
+    (2, -1, None),              # 3:1  — right-upper
+    (2,  0, None),              # 3:1  — right
+    (1,  1, Resource.WHEAT),    # wheat — lower-right
+    (-1, 2, Resource.SHEEP),    # sheep — lower-left
+    (-2, 2, None),              # 3:1  — bottom-left corner
+    (-2, 0, Resource.BRICK),    # brick — left
+    (-1,-1, Resource.WOOD),     # wood  — upper-left
 ]
 
 HEX_DIRECTIONS = [
@@ -124,4 +127,5 @@ def generate_random_map(seed: Optional[int] = None) -> MapData:
             ports.append(Port(q=q, r=r, resource=res, ratio=2))
 
     map_id = f"random_{seed}" if seed is not None else "random"
-    return MapData(map_id=map_id, tiles=tiles, ports=ports)
+    map_data = MapData(map_id=map_id, tiles=tiles, ports=ports)
+    return normalize_ports(map_data)

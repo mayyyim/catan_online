@@ -356,12 +356,18 @@ def handle_trade(game: GameState, player_id: str, offer: Dict, want: Dict) -> Di
 
     player = game.player_by_id(player_id)
 
-    # Determine best trade ratio for each resource
+    # Determine best trade ratio for each resource.
+    # A player can use a port if they have a settlement/city on either of the
+    # two vertices that border the port's coastal edge.
     port_ratios: Dict[Optional[Resource], int] = {}
     for port in game.map_data.ports:
-        vk = canonical_vertex(port.q, port.r, 0)  # simplified: check owner tile vertex
-        # Check if player has settlement/city on port vertex (any corner of port tile)
-        for corner in range(6):
+        if port.side is not None:
+            # Exact check: only the two vertices of the coastal edge.
+            port_corners = (port.side, (port.side + 1) % 6)
+        else:
+            # Fallback: any corner of the tile (legacy data without side).
+            port_corners = range(6)
+        for corner in port_corners:
             cvk = canonical_vertex(port.q, port.r, corner)
             ckey = f"{cvk[0]},{cvk[1]},{cvk[2]}"
             piece = game.vertices.get(ckey)
