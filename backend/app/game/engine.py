@@ -9,13 +9,15 @@ from app.game.models import (
     GameState, GamePhase, TurnStep, Player, PlacedPiece,
     PieceType, Resource, TileType, TILE_RESOURCE,
     BUILD_COST, VP_TABLE, WINNING_VP,
+    MAX_ROADS, MAX_SETTLEMENTS, MAX_CITIES,
     MapData,
 )
 from app.game.board import (
     canonical_vertex, canonical_edge,
-    vertices_of_tile, edges_of_vertex,
+    vertices_of_tile, edges_of_vertex, vertices_of_edge,
     can_place_settlement, can_place_road, can_upgrade_city,
 )
+from app.game.road_stats import recompute_longest_road
 
 
 PLAYER_COLORS = ["red", "blue", "green", "orange"]
@@ -89,11 +91,15 @@ def setup_order_for_players(n: int) -> List[int]:
 # ---------------------------------------------------------------------------
 
 def recalculate_vp(game: GameState):
+    recompute_longest_road(game)
     for player in game.players:
         vp = 0
         for piece in game.vertices.values():
             if piece.player_id == player.player_id:
                 vp += VP_TABLE[piece.piece_type]
+        if (game.longest_road_holder == player.player_id
+                and game.longest_road_length >= 5):
+            vp += 2
         player.victory_points = vp
 
 
@@ -149,12 +155,111 @@ def handle_roll_dice(game: GameState, player_id: str) -> Dict:
     game.last_dice = values
 
     if total == 7:
-        move_robber_random(game)
+        # Collect players who must discard (>7 cards)
+        game.players_to_discard = [
+            p.player_id
+            for p in game.players
+            if sum(p.resources.values()) > 7
+        ]
+        if game.players_to_discard:
+            game.turn_step = TurnStep.ROBBER_DISCARD
+        else:
+            game.turn_step = TurnStep.ROBBER_PLACE
     else:
         produce_resources(game, total)
+        game.turn_step = TurnStep.POST_ROLL
 
-    game.turn_step = TurnStep.POST_ROLL
     return {"values": values, "total": total}
+
+
+def handle_discard(game: GameState, player_id: str, resources: Dict) -> None:
+    """Player discards half their cards when a 7 is rolled."""
+    if game.turn_step != TurnStep.ROBBER_DISCARD:
+        raise ActionError("No discard required right now")
+    if player_id not in game.players_to_discard:
+        raise ActionError("You don't need to discard")
+
+    player = game.player_by_id(player_id)
+    if not player:
+        raise ActionError("Player not found")
+
+    hand_size = sum(player.resources.values())
+    required = hand_size // 2
+    discard_res = {Resource(k): v for k, v in resources.items() if v > 0}
+    discard_total = sum(discard_res.values())
+
+    if discard_total != required:
+        raise ActionError(f"Must discard exactly {required} cards (you have {hand_size})")
+
+    for res, amt in discard_res.items():
+        if player.resources.get(res, 0) < amt:
+            raise ActionError(f"Not enough {res.value} to discard")
+        player.resources[res] -= amt
+
+    game.players_to_discard.remove(player_id)
+    if not game.players_to_discard:
+        game.turn_step = TurnStep.ROBBER_PLACE
+
+
+def handle_place_robber(game: GameState, player_id: str, q: int, r: int) -> None:
+    """Rolling player moves the robber to a chosen land tile."""
+    if game.turn_step != TurnStep.ROBBER_PLACE:
+        raise ActionError("Not time to place the robber")
+    if game.current_player().player_id != player_id:
+        raise ActionError("Not your turn")
+
+    from app.game.models import TileType
+    tile_coords = {(t.q, t.r) for t in game.map_data.tiles if t.tile_type != TileType.OCEAN}
+    if (q, r) not in tile_coords:
+        raise ActionError("Must place robber on a land tile")
+    if (q, r) == (game.robber_q, game.robber_r):
+        raise ActionError("Must move robber to a different tile")
+
+    game.robber_q, game.robber_r = q, r
+
+    # Find players (other than roller) with buildings adjacent to new robber hex
+    from app.game.board import vertices_of_tile as _vot
+    steal_targets: set = set()
+    for vk in _vot(q, r):
+        vkey = f"{vk[0]},{vk[1]},{vk[2]}"
+        piece = game.vertices.get(vkey)
+        if piece and piece.player_id != player_id:
+            steal_targets.add(piece.player_id)
+
+    game.robber_steal_targets = list(steal_targets)
+    if game.robber_steal_targets:
+        game.turn_step = TurnStep.ROBBER_STEAL
+    else:
+        game.turn_step = TurnStep.POST_ROLL
+
+
+def handle_steal(game: GameState, player_id: str, target_id: str) -> Dict:
+    """Rolling player steals one random resource from a target player."""
+    if game.turn_step != TurnStep.ROBBER_STEAL:
+        raise ActionError("Not time to steal")
+    if game.current_player().player_id != player_id:
+        raise ActionError("Not your turn")
+    if target_id not in game.robber_steal_targets:
+        raise ActionError("Invalid steal target")
+
+    target = game.player_by_id(target_id)
+    if not target:
+        raise ActionError("Target player not found")
+
+    available = [res for res, amt in target.resources.items() for _ in range(amt)]
+    if not available:
+        game.robber_steal_targets = []
+        game.turn_step = TurnStep.POST_ROLL
+        return {"stolen": None}
+
+    import random
+    stolen = random.choice(available)
+    target.resources[stolen] -= 1
+    game.player_by_id(player_id).add_resource(stolen, 1)
+
+    game.robber_steal_targets = []
+    game.turn_step = TurnStep.POST_ROLL
+    return {"stolen": stolen.value}
 
 
 def handle_build(
@@ -198,6 +303,9 @@ def handle_build(
             raise ActionError("Not your turn")
 
     if piece == PieceType.SETTLEMENT or piece == "settlement":
+        if player.settlements_placed >= MAX_SETTLEMENTS:
+            raise ActionError("No settlements remaining")
+
         vk = canonical_vertex(q, r, direction)
         vkey = f"{vk[0]},{vk[1]},{vk[2]}"
 
@@ -225,6 +333,9 @@ def handle_build(
         return {"placed": "settlement", "vk": vkey}
 
     elif piece == PieceType.ROAD or piece == "road":
+        if player.roads_placed >= MAX_ROADS:
+            raise ActionError("No roads remaining")
+
         ek = canonical_edge(q, r, direction)
         ekey = f"{ek[0]},{ek[1]},{ek[2]}"
 
@@ -259,6 +370,9 @@ def handle_build(
         return {"placed": "road", "ek": ekey}
 
     elif piece == PieceType.CITY or piece == "city":
+        if player.cities_placed >= MAX_CITIES:
+            raise ActionError("No cities remaining")
+
         vk = canonical_vertex(q, r, direction)
         ok, msg = can_upgrade_city(vk, player_id, game)
         if not ok:
@@ -391,14 +505,19 @@ def handle_trade(game: GameState, player_id: str, offer: Dict, want: Dict) -> Di
         if player.resources.get(res, 0) < amt:
             raise ActionError(f"Not enough {res.value}")
 
-    # Validate ratio: sum(offer) / sum(want) must meet ratio requirements
-    # We check each offered resource individually
+    # Validate each offered resource meets its ratio and is offered in exact multiples
+    want_allowed = 0
     for res, amt in offer_res.items():
         ratio = port_ratios.get(res, generic_ratio)
-        want_total = sum(want_res.values())
-        offer_total = amt  # simplified: treat each resource separately
-        if offer_total < ratio:
-            raise ActionError(f"Need {ratio} {res.value} to trade")
+        if amt % ratio != 0:
+            raise ActionError(f"Must offer multiples of {ratio} {res.value}")
+        want_allowed += amt // ratio
+
+    want_total = sum(want_res.values())
+    if want_total != want_allowed:
+        raise ActionError(
+            f"This trade allows exactly {want_allowed} resource(s) in return, not {want_total}"
+        )
 
     # Execute trade
     for res, amt in offer_res.items():

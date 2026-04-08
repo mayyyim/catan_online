@@ -18,13 +18,14 @@ def _edge_key_to_edge(ekey: str) -> Tuple[int, int, int]:
 def longest_road_length_for_player(game: GameState, player_id: str) -> int:
     """
     Compute longest continuous road length for a player.
-    Brute-force DFS over edges is fine (<= 15 roads).
+    Brute-force DFS over edges (≤15 roads per player).
+    Opponent settlements on shared vertices break road continuity.
     """
     edge_keys = _player_edge_keys(game, player_id)
     if not edge_keys:
         return 0
 
-    # Build adjacency: edge -> neighboring edges that share a vertex.
+    # Map each edge to its two endpoint vertex keys
     edge_vertices: Dict[str, Tuple[str, str]] = {}
     vertex_to_edges: Dict[str, Set[str]] = {}
 
@@ -37,11 +38,18 @@ def longest_road_length_for_player(game: GameState, player_id: str) -> int:
         vertex_to_edges.setdefault(v1k, set()).add(ekey)
         vertex_to_edges.setdefault(v2k, set()).add(ekey)
 
+    # Build adjacency graph.
+    # Two edges are neighbors only if their shared vertex is NOT occupied by an opponent.
     neighbors: Dict[str, Set[str]] = {ekey: set() for ekey in edge_keys}
-    for ekey, (a, b) in edge_vertices.items():
-        neighbors[ekey].update(vertex_to_edges.get(a, set()))
-        neighbors[ekey].update(vertex_to_edges.get(b, set()))
-        neighbors[ekey].discard(ekey)
+    for vkey, edges_at_v in vertex_to_edges.items():
+        piece = game.vertices.get(vkey)
+        if piece and piece.player_id != player_id:
+            # Opponent's building severs road continuity at this vertex
+            continue
+        for e1 in edges_at_v:
+            for e2 in edges_at_v:
+                if e1 != e2:
+                    neighbors[e1].add(e2)
 
     best = 0
 
@@ -62,15 +70,36 @@ def longest_road_length_for_player(game: GameState, player_id: str) -> int:
 
 
 def recompute_longest_road(game: GameState) -> None:
-    best_len = 0
-    best_pid = None
+    """
+    Recompute longest road for all players and update the game-level holder.
+    The holder must have ≥5 roads. In case of a tie, the current holder keeps it.
+    """
     for p in game.players:
-        length = longest_road_length_for_player(game, p.player_id)
-        p.longest_road = length
-        if length > best_len:
-            best_len = length
-            best_pid = p.player_id
+        p.longest_road = longest_road_length_for_player(game, p.player_id)
 
+    # Determine new best length (ignoring current holder for initial comparison)
+    best_len = max((p.longest_road for p in game.players), default=0)
+
+    if best_len < 5:
+        game.longest_road_holder = None
+        game.longest_road_length = best_len
+        return
+
+    # Find who has the best length; current holder keeps title on tie
+    new_holder = game.longest_road_holder
+    current_holder_len = 0
+    if game.longest_road_holder:
+        for p in game.players:
+            if p.player_id == game.longest_road_holder:
+                current_holder_len = p.longest_road
+                break
+
+    if best_len > current_holder_len:
+        # Someone beat the current holder — find who (first match wins)
+        for p in game.players:
+            if p.longest_road == best_len and p.player_id != game.longest_road_holder:
+                new_holder = p.player_id
+                break
+
+    game.longest_road_holder = new_holder
     game.longest_road_length = best_len
-    game.longest_road_player_id = best_pid
-

@@ -232,9 +232,13 @@ def can_place_road(
     for vk in endpoints:
         vkey = f"{vk[0]},{vk[1]},{vk[2]}"
         piece = game.vertices.get(vkey)
-        if piece and piece.player_id == player_id:
-            return True, "ok"
-        # connected via another road
+        if piece:
+            if piece.player_id == player_id:
+                return True, "ok"
+            else:
+                # Opponent's building blocks road connectivity through this vertex
+                continue
+        # Empty vertex: connected if an adjacent road of ours touches it
         for adj_ek in edges_of_vertex(vk):
             adj_ekey = f"{adj_ek[0]},{adj_ek[1]},{adj_ek[2]}"
             if adj_ekey != ekey and adj_ekey in game.edges and game.edges[adj_ekey].player_id == player_id:

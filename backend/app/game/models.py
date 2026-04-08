@@ -56,8 +56,11 @@ class GamePhase(str, Enum):
 
 
 class TurnStep(str, Enum):
-    PRE_ROLL = "pre_roll"   # player must roll dice first
-    POST_ROLL = "post_roll"  # player can build / trade / end turn
+    PRE_ROLL = "pre_roll"           # player must roll dice first
+    ROBBER_DISCARD = "robber_discard"  # players with >7 cards must discard
+    ROBBER_PLACE = "robber_place"    # rolling player places robber
+    ROBBER_STEAL = "robber_steal"    # rolling player may steal one resource
+    POST_ROLL = "post_roll"          # player can build / trade / end turn
 
 
 # ---------------------------------------------------------------------------
@@ -78,6 +81,11 @@ VP_TABLE: Dict[PieceType, int] = {
 }
 
 WINNING_VP = 10
+
+# Piece supply limits per player
+MAX_ROADS = 15
+MAX_SETTLEMENTS = 5
+MAX_CITIES = 4
 
 
 # ---------------------------------------------------------------------------
@@ -204,6 +212,8 @@ class Player:
     roads_placed: int = 0
     # initial setup tracking
     setup_settlements: List[VertexKey] = field(default_factory=list)
+    # longest road cache
+    longest_road: int = 0
 
     def has_resources(self, cost: Dict[Resource, int]) -> bool:
         return all(self.resources.get(res, 0) >= amt for res, amt in cost.items())
@@ -230,6 +240,7 @@ class Player:
             "settlements_placed": self.settlements_placed,
             "cities_placed": self.cities_placed,
             "roads_placed": self.roads_placed,
+            "longest_road": self.longest_road,
             "setup_settlements": [[vk[0], vk[1], vk[2]] for vk in self.setup_settlements],
         }
 
@@ -261,6 +272,7 @@ class Player:
             roads_placed=int(d.get("roads_placed") or 0),
         )
         p.setup_settlements = setup_settlements
+        p.longest_road = int(d.get("longest_road") or 0)
         return p
 
 
@@ -291,6 +303,14 @@ class GameState:
     last_dice: Optional[List[int]] = None
 
     winner_id: Optional[str] = None
+
+    # Longest road tracking
+    longest_road_holder: Optional[str] = None
+    longest_road_length: int = 0
+
+    # Robber flow state
+    players_to_discard: List[str] = field(default_factory=list)   # player_ids that still need to discard
+    robber_steal_targets: List[str] = field(default_factory=list)  # eligible steal targets at new robber hex
 
     def current_player(self) -> Optional[Player]:
         if not self.players:
@@ -330,6 +350,10 @@ class GameState:
             "robber": {"q": self.robber_q, "r": self.robber_r},
             "last_dice": self.last_dice,
             "winner_id": self.winner_id,
+            "longest_road_holder": self.longest_road_holder,
+            "longest_road_length": self.longest_road_length,
+            "players_to_discard": self.players_to_discard,
+            "robber_steal_targets": self.robber_steal_targets,
             "vertices": {k: v.to_dict() for k, v in self.vertices.items()},
             "edges": {k: v.to_dict() for k, v in self.edges.items()},
         }
@@ -351,6 +375,10 @@ class GameState:
         game.robber_r = int(robber.get("r") or 0)
         game.last_dice = d.get("last_dice") or None
         game.winner_id = d.get("winner_id") or None
+        game.longest_road_holder = d.get("longest_road_holder") or None
+        game.longest_road_length = int(d.get("longest_road_length") or 0)
+        game.players_to_discard = list(d.get("players_to_discard") or [])
+        game.robber_steal_targets = list(d.get("robber_steal_targets") or [])
         game.vertices = {k: PlacedPiece.from_dict(v) for k, v in (d.get("vertices") or {}).items()}
         game.edges = {k: PlacedPiece.from_dict(v) for k, v in (d.get("edges") or {}).items()}
         return game

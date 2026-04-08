@@ -20,6 +20,7 @@ from app.game.engine import (
     ActionError,
     handle_start_game, handle_roll_dice, handle_build,
     handle_end_turn, handle_trade,
+    handle_discard, handle_place_robber, handle_steal,
 )
 from app.maps.generator import generate_random_map
 from app.maps.definitions import get_static_map
@@ -176,6 +177,25 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
             offer = msg.get("offer", {})
             want = msg.get("want", {})
             handle_trade(game, player_id, offer, want)
+            await broadcast(room, _game_state_msg(game))
+            save_game(room.room_id, game)
+
+        elif msg_type == "discard":
+            resources = msg.get("resources", {})
+            handle_discard(game, player_id, resources)
+            await broadcast(room, _game_state_msg(game))
+            save_game(room.room_id, game)
+
+        elif msg_type == "place_robber":
+            q = int(msg.get("q", 0))
+            r = int(msg.get("r", 0))
+            handle_place_robber(game, player_id, q, r)
+            await broadcast(room, _game_state_msg(game))
+            save_game(room.room_id, game)
+
+        elif msg_type == "steal":
+            target_id = msg.get("target_id", "")
+            result = handle_steal(game, player_id, target_id)
             await broadcast(room, _game_state_msg(game))
             save_game(room.room_id, game)
 
