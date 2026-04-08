@@ -152,6 +152,8 @@ export interface MapConfig {
   name: string
   description: string
   preview: TerrainType[][]  // rough grid for thumbnail
+  tags?: string[]           // e.g. ['ore ↑↑', 'wood ↑']
+  size?: 'standard' | 'large'
 }
 
 // ─── Map editor payloads (HTTP) ──────────────────────────────────────────────

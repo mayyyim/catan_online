@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { createRoom, joinRoom } from '../api'
 import { useRoom } from '../context/RoomContext'
 import styles from './Home.module.css'
@@ -92,6 +92,9 @@ export default function Home() {
             >
               Join Room
             </button>
+            <Link to="/maps" className={styles.mapGalleryLink}>
+              🗺 Map Gallery
+            </Link>
           </div>
         )}
 

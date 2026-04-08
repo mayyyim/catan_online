@@ -184,6 +184,25 @@
   border: 1px solid rgba(230, 57, 70, 0.2);
 }
 
+.mapGalleryLink {
+  display: block;
+  padding: 10px 24px;
+  background: transparent;
+  color: #6c757d;
+  border: 1.5px solid #2c3e50;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.mapGalleryLink:hover {
+  color: #adb5bd;
+  border-color: #495057;
+}
+
 .footer {
   position: absolute;
   bottom: 20px;

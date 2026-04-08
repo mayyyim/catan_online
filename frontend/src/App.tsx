@@ -6,6 +6,7 @@ import { GameProvider } from './context/GameContext'
 const Home = lazy(() => import('./pages/Home'))
 const Room = lazy(() => import('./pages/Room'))
 const Game = lazy(() => import('./pages/Game'))
+const Maps = lazy(() => import('./pages/Maps'))
 
 function PageFallback() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
           <Suspense fallback={<PageFallback />}>
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/maps" element={<Maps />} />
               <Route path="/room/:roomId" element={<Room />} />
               <Route path="/game/:roomId" element={<Game />} />
               <Route path="*" element={<Navigate to="/" replace />} />

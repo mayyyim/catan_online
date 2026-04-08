@@ -576,28 +576,437 @@ def germany_map() -> MapData:
 
 
 # ---------------------------------------------------------------------------
+# LARGE MAP LAYOUT — ring 0 + ring 1 + ring 2 + ring 3 = 37 tiles
+# Ring 3 goes clockwise from (3, 0).
+# ---------------------------------------------------------------------------
+
+LARGE_HEX_COORDS = [
+    # Ring 0
+    (0, 0),
+    # Ring 1
+    (1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1), (0, 1),
+    # Ring 2
+    (2, 0), (2, -1), (2, -2), (1, -2), (0, -2),
+    (-1, -1), (-2, 0), (-2, 1), (-2, 2), (-1, 2), (0, 2), (1, 1),
+    # Ring 3
+    (3, 0), (2, 1), (1, 2), (0, 3), (-1, 3), (-2, 3),
+    (-3, 3), (-3, 2), (-3, 1), (-3, 0), (-2, -1), (-1, -2),
+    (0, -3), (1, -3), (2, -3), (3, -3), (3, -2), (3, -1),
+]
+
+
+def _from_large(map_id: str, tt: List[Tuple[str, object]], ports: List[Port]) -> MapData:
+    """Build a MapData from 37-tile LARGE_HEX_COORDS."""
+    tiles = [_tile(q, r, t, tok) for (q, r), (t, tok) in zip(LARGE_HEX_COORDS, tt)]
+    return MapData(map_id=map_id, tiles=tiles, ports=ports)
+
+
+# ---------------------------------------------------------------------------
+# Argentina — 木材↑↑ 牧羊↑  (巴塔哥尼亚·潘帕斯)
+# forest=6 pasture=5 fields=3 mountains=2 hills=2 desert=1
+# ---------------------------------------------------------------------------
+
+def argentina_map() -> MapData:
+    tt = [
+        ("desert",    None), ("forest",    9),  ("pasture",   6),
+        ("forest",    4),    ("pasture",  11),  ("hills",     3),
+        ("forest",    8),    ("mountains",10),  ("fields",    5),
+        ("forest",    2),    ("pasture",   9),  ("forest",    6),
+        ("hills",     5),    ("fields",    4),  ("pasture",  11),
+        ("mountains",12),    ("fields",    3),  ("forest",    8),
+        ("pasture",  10),
+    ]
+    return _from_std("argentina", tt, [
+        _port( 2, -1, "wood",  side=0),
+        _port(-2,  1, "sheep", side=3),
+        _port( 2, -2, ratio=3, side=1),
+        _port( 0, -2, ratio=3, side=2),
+        _port(-2,  2, ratio=3, side=4),
+        _port( 0,  2, ratio=3, side=5),
+    ])
+
+
+# ---------------------------------------------------------------------------
+# South Africa — 矿石↑↑ 砖块↑  (黄金·钻石矿)
+# mountains=5 hills=4 fields=4 pasture=3 forest=2 desert=1
+# ---------------------------------------------------------------------------
+
+def south_africa_map() -> MapData:
+    tt = [
+        ("desert",    None), ("mountains", 9),  ("mountains", 6),
+        ("hills",     4),    ("mountains",11),  ("fields",    3),
+        ("mountains", 8),    ("mountains",10),  ("hills",     5),
+        ("fields",    2),    ("mountains", 9),  ("hills",     6),
+        ("pasture",   5),    ("fields",    4),  ("hills",    11),
+        ("fields",   12),    ("forest",    3),  ("pasture",   8),
+        ("forest",   10),
+    ]
+    return _from_std("south_africa", tt, [
+        _port( 2, -1, "ore",   side=0),
+        _port(-2,  1, "brick", side=3),
+        _port( 2, -2, ratio=3, side=1),
+        _port( 0, -2, ratio=3, side=2),
+        _port( 0,  2, ratio=3, side=5),
+        _port(-2,  2, ratio=3, side=4),
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Italy — 砖块↑↑ 矿石↑  (亚平宁山脉·波河平原)
+# hills=5 mountains=4 fields=4 pasture=3 forest=2 desert=1
+# ---------------------------------------------------------------------------
+
+def italy_map() -> MapData:
+    tt = [
+        ("desert",    None), ("hills",     9),  ("mountains", 6),
+        ("fields",    4),    ("hills",    11),  ("mountains", 3),
+        ("fields",    8),    ("mountains",10),  ("hills",     5),
+        ("pasture",   2),    ("fields",    9),  ("mountains", 6),
+        ("hills",     5),    ("forest",    4),  ("pasture",  11),
+        ("fields",   12),    ("forest",    3),  ("pasture",   8),
+        ("hills",    10),
+    ]
+    return _from_std("italy", tt, [
+        _port( 2, -1, "brick", side=0),
+        _port( 1, -2, "ore",   side=1),
+        _port(-2,  1, ratio=3, side=3),
+        _port( 0, -2, ratio=3, side=2),
+        _port(-2,  2, ratio=3, side=4),
+        _port( 0,  2, ratio=3, side=5),
+        _port( 1,  1, ratio=3, side=0),
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Scandinavia — 木材↑↑ 矿石↑  (北欧针叶林·斯堪的纳维亚山脉)
+# forest=6 mountains=4 hills=4 pasture=2 fields=2 desert=1
+# ---------------------------------------------------------------------------
+
+def scandinavia_map() -> MapData:
+    tt = [
+        ("desert",    None), ("forest",    9),  ("mountains", 6),
+        ("forest",    4),    ("mountains",11),  ("hills",     3),
+        ("forest",    8),    ("mountains",10),  ("forest",    5),
+        ("hills",     2),    ("forest",    9),  ("mountains", 6),
+        ("hills",     5),    ("forest",    4),  ("hills",    11),
+        ("hills",    12),    ("fields",    3),  ("pasture",   8),
+        ("fields",   10),
+    ]
+    return _from_std("scandinavia", tt, [
+        _port( 2, -1, "wood",  side=0),
+        _port( 0, -2, "ore",   side=2),
+        _port( 2, -2, ratio=3, side=1),
+        _port(-2,  0, ratio=3, side=3),
+        _port(-2,  2, ratio=3, side=4),
+        _port( 0,  2, ratio=3, side=5),
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Spain — 小麦↑ 牧羊↑ 砖块↑  (伊比利亚半岛)
+# fields=5 pasture=5 hills=4 mountains=2 forest=2 desert=1
+# ---------------------------------------------------------------------------
+
+def spain_map() -> MapData:
+    tt = [
+        ("desert",    None), ("fields",    9),  ("pasture",   6),
+        ("hills",     4),    ("pasture",  11),  ("hills",     3),
+        ("fields",    8),    ("mountains",10),  ("pasture",   5),
+        ("hills",     2),    ("fields",    9),  ("mountains", 6),
+        ("hills",     5),    ("forest",    4),  ("pasture",  11),
+        ("fields",   12),    ("forest",    3),  ("fields",    8),
+        ("pasture",  10),
+    ]
+    return _from_std("spain", tt, [
+        _port( 2, -1, "wheat", side=0),
+        _port(-2,  1, "sheep", side=3),
+        _port( 1, -2, "brick", side=1),
+        _port( 0, -2, ratio=3, side=2),
+        _port(-2,  2, ratio=3, side=4),
+        _port( 0,  2, ratio=3, side=5),
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Turkey — 小麦↑ 牧羊↑ 矿石↑  (安纳托利亚高原)
+# fields=5 mountains=4 pasture=4 hills=3 forest=2 desert=1
+# ---------------------------------------------------------------------------
+
+def turkey_map() -> MapData:
+    tt = [
+        ("desert",    None), ("fields",    9),  ("mountains", 6),
+        ("pasture",   4),    ("fields",   11),  ("hills",     3),
+        ("fields",    8),    ("mountains",10),  ("pasture",   5),
+        ("hills",     2),    ("fields",    9),  ("mountains", 6),
+        ("pasture",   5),    ("forest",    4),  ("hills",    11),
+        ("mountains",12),    ("forest",    3),  ("pasture",   8),
+        ("fields",   10),
+    ]
+    return _from_std("turkey", tt, [
+        _port( 2, -1, "wheat", side=0),
+        _port( 0, -2, "ore",   side=2),
+        _port(-2,  1, "sheep", side=3),
+        _port( 2, -2, ratio=3, side=1),
+        _port(-2,  2, ratio=3, side=4),
+        _port( 0,  2, ratio=3, side=5),
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Vietnam — 木材↑↑ 砖块↑  (热带雨林·石灰岩丘陵)
+# forest=7 hills=4 fields=3 pasture=2 mountains=2 desert=1
+# ---------------------------------------------------------------------------
+
+def vietnam_map() -> MapData:
+    tt = [
+        ("desert",    None), ("forest",    9),  ("forest",    6),
+        ("hills",     4),    ("forest",   11),  ("hills",     3),
+        ("forest",    8),    ("mountains",10),  ("forest",    5),
+        ("fields",    2),    ("forest",    9),  ("hills",     6),
+        ("pasture",   5),    ("mountains", 4),  ("hills",    11),
+        ("forest",   12),    ("fields",    3),  ("pasture",   8),
+        ("fields",   10),
+    ]
+    return _from_std("vietnam", tt, [
+        _port( 2, -1, "wood",  side=0),
+        _port(-2,  1, "brick", side=3),
+        _port( 2, -2, ratio=3, side=1),
+        _port( 0, -2, ratio=3, side=2),
+        _port(-2,  2, ratio=3, side=4),
+        _port( 1,  1, ratio=3, side=0),
+    ])
+
+
+# ===========================================================================
+# LARGE MAPS — 37-tile ring-3 layout (LARGE_HEX_COORDS)
+# Token distribution for ~30 resource tiles (7 deserts per map):
+#   2(2), 3(3), 4(3), 5(4), 6(3), 8(3), 9(4), 10(3), 11(3), 12(2) = 30
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# Africa XL — 矿石↑↑ 木材↑↑  (大型非洲大陆，沙漠横贯北部)
+# Layout note: negative r = north, positive r = south, negative q = west
+# ---------------------------------------------------------------------------
+
+def africa_xl_map() -> MapData:
+    tt = [
+        # Ring 0
+        ("forest",    9),    # (0,0)  Congo Basin center
+        # Ring 1
+        ("mountains", 6),    # (1,0)  East Africa Rift
+        ("fields",    4),    # (1,-1) Ethiopia/Nile
+        ("desert",    None), # (0,-1) Sudan border
+        ("forest",   11),    # (-1,0) DRC
+        ("hills",     3),    # (-1,1) Angola/Zambia
+        ("forest",    8),    # (0,1)  Congo South
+        # Ring 2
+        ("mountains",10),    # (2,0)  Tanzania/Rift Valley
+        ("fields",    5),    # (2,-1) Somalia/Kenya coast
+        ("desert",    None), # (2,-2) Horn of Africa
+        ("desert",    None), # (1,-2) North Sudan
+        ("desert",    None), # (0,-2) Sahara East
+        ("desert",    None), # (-1,-1) Sahara Central
+        ("forest",    2),    # (-2,0) Nigeria/Cameroon
+        ("pasture",   9),    # (-2,1) Gabon/DRC West
+        ("hills",     6),    # (-2,2) Namibia
+        ("fields",    5),    # (-1,2) Zambia/Zimbabwe
+        ("mountains", 4),    # (0,2)  Mozambique
+        ("mountains",11),    # (1,1)  Uganda/Kenya
+        # Ring 3
+        ("mountains",12),    # (3,0)  Madagascar
+        ("hills",     3),    # (2,1)  South Africa East
+        ("hills",     8),    # (1,2)  KwaZulu-Natal
+        ("fields",   10),    # (0,3)  Cape of Good Hope
+        ("pasture",   5),    # (-1,3) Botswana/Kalahari
+        ("hills",     9),    # (-2,3) Namibia South
+        ("forest",    6),    # (-3,3) Angola South
+        ("forest",    4),    # (-3,2) DRC South
+        ("forest",   11),    # (-3,1) Nigeria/Benin
+        ("pasture",   2),    # (-3,0) Ivory Coast/Ghana
+        ("forest",    9),    # (-2,-1) West Sahel
+        ("desert",    None), # (-1,-2) Mali/Niger
+        ("desert",    None), # (0,-3) Algeria/Tunisia
+        ("desert",    None), # (1,-3) Libya/Egypt
+        ("desert",    None), # (2,-3) Egypt/Sinai
+        ("desert",    None), # (3,-3) Arabian peninsula
+        ("desert",    None), # (3,-2) Red Sea coast
+        ("fields",    8),    # (3,-1) East Africa coast
+    ]
+    return _from_large("africa_xl", tt, [
+        _port( 3,  0, "ore",   side=0),
+        _port( 1,  2, ratio=3, side=5),
+        _port( 0,  3, ratio=3, side=5),
+        _port(-2,  3, "wood",  side=4),
+        _port(-3,  1, ratio=3, side=3),
+        _port(-3,  0, "sheep", side=3),
+        _port(-2, -1, ratio=3, side=2),
+        _port( 3, -1, ratio=3, side=1),
+        _port( 2,  1, ratio=3, side=0),
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Eurasia XL — 资源均衡大陆  (欧亚大陆，从西欧到东亚)
+# desert=5, forest=8, fields=7, mountains=7, pasture=6, hills=4
+# ---------------------------------------------------------------------------
+
+def eurasia_xl_map() -> MapData:
+    tt = [
+        # Ring 0
+        ("fields",    9),    # (0,0)  Central Asia steppe
+        # Ring 1
+        ("mountains", 6),    # (1,0)  Himalayas
+        ("fields",    4),    # (1,-1) North China
+        ("forest",   11),    # (0,-1) Siberia
+        ("fields",    3),    # (-1,0) Middle East/Persia
+        ("pasture",   8),    # (-1,1) Central Europe
+        ("mountains",10),    # (0,1)  South Asia
+        # Ring 2
+        ("mountains", 5),    # (2,0)  Southeast Asia/China coast
+        ("fields",    2),    # (2,-1) Korea/Japan
+        ("forest",    9),    # (2,-2) Far East Russia
+        ("forest",    6),    # (1,-2) Siberia East
+        ("forest",    5),    # (0,-2) West Siberia
+        ("desert",    None), # (-1,-1) Sahara/Arabia
+        ("desert",    None), # (-2,0) North Africa
+        ("pasture",   4),    # (-2,1) Western Europe
+        ("fields",   11),    # (-2,2) France/Germany
+        ("hills",    12),    # (-1,2) Alpine/Balkans
+        ("mountains", 3),    # (0,2)  Turkey/Caucasus
+        ("pasture",   8),    # (1,1)  India
+        # Ring 3
+        ("mountains",10),    # (3,0)  Pacific Rim
+        ("mountains", 5),    # (2,1)  Indochina
+        ("hills",     9),    # (1,2)  Indian Subcontinent S
+        ("pasture",   6),    # (0,3)  Arabian Sea coast
+        ("desert",    None), # (-1,3) Gulf region
+        ("desert",    None), # (-2,3) North Africa W
+        ("desert",    None), # (-3,3) Morocco/Sahara
+        ("fields",    4),    # (-3,2) Iberian Peninsula
+        ("pasture",  11),    # (-3,1) British Isles
+        ("forest",    2),    # (-3,0) Scandinavia/Iceland
+        ("forest",    9),    # (-2,-1) Northern Russia
+        ("forest",    6),    # (-1,-2) Ural region
+        ("forest",    4),    # (0,-3)  North Siberia
+        ("forest",   11),    # (1,-3)  Yakutia
+        ("forest",    3),    # (2,-3)  Kamchatka
+        ("mountains", 8),    # (3,-3) Japan/Sakhalin
+        ("mountains",10),    # (3,-2) Taiwan/Philippines
+        ("hills",     5),    # (3,-1) South China
+    ]
+    return _from_large("eurasia_xl", tt, [
+        _port( 3,  0, ratio=3, side=0),
+        _port( 2,  1, "ore",   side=0),
+        _port( 0,  3, ratio=3, side=5),
+        _port(-2,  3, ratio=3, side=4),
+        _port(-3,  2, "wheat", side=3),
+        _port(-3,  0, "wood",  side=3),
+        _port(-2, -1, ratio=3, side=2),
+        _port( 0, -3, ratio=3, side=2),
+        _port( 2, -3, ratio=3, side=1),
+        _port( 3, -1, "sheep", side=1),
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Americas XL — 木材↑↑ 小麦↑ 牧羊↑  (南北美洲全图)
+# desert=3, forest=10, fields=8, pasture=7, hills=5, mountains=4
+# ---------------------------------------------------------------------------
+
+def americas_xl_map() -> MapData:
+    tt = [
+        # Ring 0
+        ("forest",    9),    # (0,0)  Amazon Center
+        # Ring 1
+        ("forest",    6),    # (1,0)  Brazil East
+        ("fields",    4),    # (1,-1) Caribbean/Cuba
+        ("forest",   11),    # (0,-1) Central America
+        ("pasture",   3),    # (-1,0) Pacific Coast
+        ("fields",    8),    # (-1,1) Pampas/Uruguay
+        ("hills",    10),    # (0,1)  Argentina North
+        # Ring 2
+        ("mountains", 5),    # (2,0)  Atlantic Coast Brazil
+        ("fields",    2),    # (2,-1) Florida/SE USA
+        ("forest",    9),    # (2,-2) Eastern USA
+        ("fields",    6),    # (1,-2) Great Lakes/NE USA
+        ("forest",    5),    # (0,-2) Midwest USA
+        ("fields",    4),    # (-1,-1) Great Plains
+        ("forest",   11),    # (-2,0) Pacific Northwest
+        ("pasture",  12),    # (-2,1) Chilean coast
+        ("mountains", 3),    # (-2,2) Andes South
+        ("hills",     8),    # (-1,2) Patagonia
+        ("pasture",  10),    # (0,2)  Argentina South
+        ("hills",     5),    # (1,1)  Atlantic coast S
+        # Ring 3
+        ("mountains", 9),    # (3,0)  Caribbean Islands
+        ("forest",    6),    # (2,1)  Guyana/Suriname
+        ("forest",    4),    # (1,2)  Southern Brazil
+        ("hills",    11),    # (0,3)  Tierra del Fuego
+        ("mountains", 2),    # (-1,3) Cape Horn
+        ("pasture",   9),    # (-2,3) West Patagonia
+        ("pasture",   6),    # (-3,3) Chilean fjords
+        ("mountains", 4),    # (-3,2) Andes Central
+        ("fields",   11),    # (-3,1) Peru/Ecuador
+        ("forest",    3),    # (-3,0) Colombia
+        ("forest",    8),    # (-2,-1) Mexico
+        ("desert",    None), # (-1,-2) Sonora Desert
+        ("fields",   10),    # (0,-3) California
+        ("fields",    5),    # (1,-3) SW USA/Texas
+        ("pasture",   9),    # (2,-3) SE USA/Gulf Coast
+        ("desert",    None), # (3,-3) Bermuda/Atlantic
+        ("desert",    None), # (3,-2) Open Atlantic
+        ("forest",    8),    # (3,-1) Labrador/Newfoundland
+    ]
+    return _from_large("americas_xl", tt, [
+        _port( 3,  0, "wood",  side=0),
+        _port( 2,  1, ratio=3, side=0),
+        _port( 0,  3, ratio=3, side=5),
+        _port(-2,  3, "sheep", side=4),
+        _port(-3,  1, "ore",   side=3),
+        _port(-3,  0, ratio=3, side=3),
+        _port(-2, -1, ratio=3, side=2),
+        _port( 0, -3, "wheat", side=2),
+        _port( 2, -3, ratio=3, side=1),
+        _port( 3, -1, ratio=3, side=1),
+    ])
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
 MAP_REGISTRY = {
-    "china":       china_map,
-    "japan":       japan_map,
-    "usa":         usa_map,
-    "europe":      europe_map,
-    "uk":          uk_map,
-    "australia":   australia_map,
-    "brazil":      brazil_map,
-    "antarctica":  antarctica_map,
-    "india":       india_map,
-    "canada":      canada_map,
-    "russia":      russia_map,
-    "egypt":       egypt_map,
-    "mexico":      mexico_map,
-    "korea":       korea_map,
-    "indonesia":   indonesia_map,
-    "new_zealand": new_zealand_map,
-    "france":      france_map,
-    "germany":     germany_map,
+    # Standard maps (19 tiles)
+    "china":        china_map,
+    "japan":        japan_map,
+    "usa":          usa_map,
+    "europe":       europe_map,
+    "uk":           uk_map,
+    "australia":    australia_map,
+    "brazil":       brazil_map,
+    "antarctica":   antarctica_map,
+    "india":        india_map,
+    "canada":       canada_map,
+    "russia":       russia_map,
+    "egypt":        egypt_map,
+    "mexico":       mexico_map,
+    "korea":        korea_map,
+    "indonesia":    indonesia_map,
+    "new_zealand":  new_zealand_map,
+    "france":       france_map,
+    "germany":      germany_map,
+    # New standard maps
+    "argentina":    argentina_map,
+    "south_africa": south_africa_map,
+    "italy":        italy_map,
+    "scandinavia":  scandinavia_map,
+    "spain":        spain_map,
+    "turkey":       turkey_map,
+    "vietnam":      vietnam_map,
+    # Large maps (37 tiles)
+    "africa_xl":    africa_xl_map,
+    "eurasia_xl":   eurasia_xl_map,
+    "americas_xl":  americas_xl_map,
 }
 
 
