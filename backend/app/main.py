@@ -40,7 +40,10 @@ async def list_maps():
     """List all available map IDs."""
     return {
         "maps": [
-            "random", "china", "japan", "usa",
-            "europe", "uk", "australia", "brazil", "antarctica",
+            "random",
+            "china", "japan", "usa", "europe", "uk",
+            "australia", "brazil", "antarctica",
+            "india", "canada", "russia", "egypt", "mexico",
+            "korea", "indonesia", "new_zealand", "france", "germany",
         ]
     }

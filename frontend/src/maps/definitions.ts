@@ -1,133 +1,236 @@
 import type { MapConfig, TerrainType } from '../types'
 
-// Each preview is a rough 5-row grid of terrain types to visualise
-// resource distribution in the lobby map thumbnail.
+// 5-row preview grids — each row is a list of TerrainType cells
 
-const standard: TerrainType[][] = [
-  ['ocean', 'ocean', 'ocean', 'ocean'],
-  ['ocean', 'forest', 'hills', 'ocean'],
-  ['ocean', 'fields', 'pasture', 'mountains', 'ocean'],
-  ['ocean', 'desert', 'fields', 'ocean'],
-  ['ocean', 'ocean', 'ocean', 'ocean'],
-]
-
-const seafarers: TerrainType[][] = [
-  ['ocean', 'ocean', 'ocean', 'ocean', 'ocean'],
-  ['ocean', 'forest', 'ocean', 'hills', 'ocean'],
-  ['ocean', 'fields', 'pasture', 'mountains', 'ocean'],
-  ['ocean', 'ocean', 'desert', 'ocean', 'ocean'],
-  ['ocean', 'ocean', 'ocean', 'ocean', 'ocean'],
-]
-
-const australia: TerrainType[][] = [
-  ['ocean', 'ocean', 'ocean', 'ocean'],
-  ['ocean', 'desert', 'desert', 'ocean'],
-  ['ocean', 'hills', 'desert', 'fields', 'ocean'],
-  ['ocean', 'pasture', 'forest', 'ocean'],
-  ['ocean', 'ocean', 'ocean', 'ocean'],
-]
-
-const japan: TerrainType[][] = [
-  ['ocean', 'ocean', 'ocean', 'ocean', 'ocean'],
-  ['ocean', 'mountains', 'forest', 'ocean', 'ocean'],
-  ['ocean', 'forest', 'fields', 'ocean', 'ocean'],
-  ['ocean', 'ocean', 'ocean', 'ocean', 'ocean'],
-  ['ocean', 'ocean', 'ocean', 'ocean', 'ocean'],
-]
-
-const nordic: TerrainType[][] = [
-  ['ocean', 'ocean', 'ocean', 'ocean'],
-  ['ocean', 'mountains', 'forest', 'ocean'],
-  ['ocean', 'mountains', 'forest', 'pasture', 'ocean'],
-  ['ocean', 'desert', 'hills', 'ocean'],
-  ['ocean', 'ocean', 'ocean', 'ocean'],
-]
-
-const tropics: TerrainType[][] = [
-  ['ocean', 'ocean', 'ocean', 'ocean'],
-  ['ocean', 'pasture', 'fields', 'ocean'],
-  ['ocean', 'forest', 'pasture', 'fields', 'ocean'],
-  ['ocean', 'desert', 'pasture', 'ocean'],
-  ['ocean', 'ocean', 'ocean', 'ocean'],
-]
-
-const volcanic: TerrainType[][] = [
-  ['ocean', 'ocean', 'ocean', 'ocean'],
-  ['ocean', 'hills', 'mountains', 'ocean'],
-  ['ocean', 'hills', 'desert', 'mountains', 'ocean'],
-  ['ocean', 'forest', 'fields', 'ocean'],
-  ['ocean', 'ocean', 'ocean', 'ocean'],
-]
-
-const highlands: TerrainType[][] = [
-  ['ocean', 'ocean', 'ocean', 'ocean'],
-  ['ocean', 'mountains', 'hills', 'ocean'],
-  ['ocean', 'mountains', 'pasture', 'fields', 'ocean'],
-  ['ocean', 'forest', 'fields', 'ocean'],
-  ['ocean', 'ocean', 'ocean', 'ocean'],
-]
-
-const archipelago: TerrainType[][] = [
-  ['ocean', 'ocean', 'ocean', 'ocean', 'ocean'],
-  ['ocean', 'forest', 'ocean', 'pasture', 'ocean'],
-  ['ocean', 'hills', 'ocean', 'fields', 'ocean'],
-  ['ocean', 'ocean', 'mountains', 'ocean', 'ocean'],
-  ['ocean', 'ocean', 'ocean', 'ocean', 'ocean'],
-]
+const P = (rows: TerrainType[][]): TerrainType[][] => rows
 
 export const MAP_CONFIGS: MapConfig[] = [
   {
-    id: 'standard',
-    name: 'Standard',
-    description: 'The classic Catan board. Balanced resource distribution.',
-    preview: standard,
+    id: 'random',
+    name: '🎲 Random',
+    description: 'Fully randomised board — different every game.',
+    preview: P([
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+      ['ocean', 'forest', 'hills', 'ocean'],
+      ['ocean', 'fields', 'pasture', 'mountains', 'ocean'],
+      ['ocean', 'desert', 'fields', 'ocean'],
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+    ]),
   },
   {
-    id: 'seafarers',
-    name: 'Seafarers',
-    description: 'Islands scattered across a wide ocean. Exploration required.',
-    preview: seafarers,
-  },
-  {
-    id: 'australia',
-    name: 'Australia',
-    description: 'Desert-heavy interior with resources on the coast.',
-    preview: australia,
+    id: 'china',
+    name: '🇨🇳 China',
+    description: 'Ore-heavy mainland with vast mountains and sparse ports.',
+    preview: P([
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+      ['ocean', 'mountains', 'mountains', 'ocean'],
+      ['ocean', 'mountains', 'desert', 'fields', 'ocean'],
+      ['ocean', 'hills', 'pasture', 'ocean'],
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+    ]),
   },
   {
     id: 'japan',
-    name: 'Japan',
-    description: 'Narrow landmass surrounded by deep ocean.',
-    preview: japan,
+    name: '🇯🇵 Japan',
+    description: 'Four islands rich in ports — maritime trade nation.',
+    preview: P([
+      ['ocean', 'ocean', 'ocean', 'ocean', 'ocean'],
+      ['ocean', 'forest', 'ocean', 'mountains', 'ocean'],
+      ['ocean', 'hills', 'pasture', 'ocean', 'ocean'],
+      ['ocean', 'ocean', 'pasture', 'ocean', 'ocean'],
+      ['ocean', 'ocean', 'ocean', 'ocean', 'ocean'],
+    ]),
   },
   {
-    id: 'nordic',
-    name: 'Nordic',
-    description: 'Mountains and forests dominate this frozen frontier.',
-    preview: nordic,
+    id: 'usa',
+    name: '🇺🇸 USA',
+    description: 'Wheat-dominant plains stretching coast to coast.',
+    preview: P([
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+      ['ocean', 'forest', 'fields', 'ocean'],
+      ['ocean', 'fields', 'desert', 'fields', 'ocean'],
+      ['ocean', 'hills', 'pasture', 'ocean'],
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+    ]),
   },
   {
-    id: 'tropics',
-    name: 'Tropics',
-    description: 'Lush pastures and fields in a warm climate.',
-    preview: tropics,
+    id: 'europe',
+    name: '🇪🇺 Europe',
+    description: 'Fertile fields and pastoral lands with many ports.',
+    preview: P([
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+      ['ocean', 'fields', 'pasture', 'ocean'],
+      ['ocean', 'pasture', 'desert', 'mountains', 'ocean'],
+      ['ocean', 'mountains', 'hills', 'ocean'],
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+    ]),
   },
   {
-    id: 'volcanic',
-    name: 'Volcanic',
-    description: 'Rich in ore and brick but harsh terrain.',
-    preview: volcanic,
+    id: 'uk',
+    name: '🇬🇧 UK',
+    description: 'Sheep-rich island chain with ore in the highlands.',
+    preview: P([
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+      ['ocean', 'pasture', 'mountains', 'ocean'],
+      ['ocean', 'pasture', 'desert', 'pasture', 'ocean'],
+      ['ocean', 'hills', 'pasture', 'ocean'],
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+    ]),
   },
   {
-    id: 'highlands',
-    name: 'Highlands',
-    description: 'Rolling hills and mountain peaks.',
-    preview: highlands,
+    id: 'australia',
+    name: '🇦🇺 Australia',
+    description: 'Vast desert interior — ore and sheep on the coasts.',
+    preview: P([
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+      ['ocean', 'desert', 'mountains', 'ocean'],
+      ['ocean', 'desert', 'desert', 'pasture', 'ocean'],
+      ['ocean', 'fields', 'hills', 'ocean'],
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+    ]),
   },
   {
-    id: 'archipelago',
-    name: 'Archipelago',
-    description: 'Separate islands — longest road is a challenge.',
-    preview: archipelago,
+    id: 'brazil',
+    name: '🇧🇷 Brazil',
+    description: 'Dense Amazon rainforest — wood floods the market.',
+    preview: P([
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+      ['ocean', 'forest', 'forest', 'ocean'],
+      ['ocean', 'forest', 'desert', 'fields', 'ocean'],
+      ['ocean', 'hills', 'pasture', 'ocean'],
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+    ]),
+  },
+  {
+    id: 'india',
+    name: '🇮🇳 India',
+    description: 'Ganges plains brimming with wheat and spice trade ports.',
+    preview: P([
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+      ['ocean', 'fields', 'pasture', 'ocean'],
+      ['ocean', 'fields', 'desert', 'fields', 'ocean'],
+      ['ocean', 'pasture', 'hills', 'ocean'],
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+    ]),
+  },
+  {
+    id: 'canada',
+    name: '🇨🇦 Canada',
+    description: 'Boreal forest nation — wood-rich with fertile prairies.',
+    preview: P([
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+      ['ocean', 'forest', 'forest', 'ocean'],
+      ['ocean', 'forest', 'desert', 'fields', 'ocean'],
+      ['ocean', 'fields', 'pasture', 'ocean'],
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+    ]),
+  },
+  {
+    id: 'russia',
+    name: '🇷🇺 Russia',
+    description: 'Taiga and Ural mountains — wood and ore dominate.',
+    preview: P([
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+      ['ocean', 'forest', 'mountains', 'ocean'],
+      ['ocean', 'forest', 'desert', 'mountains', 'ocean'],
+      ['ocean', 'hills', 'fields', 'ocean'],
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+    ]),
+  },
+  {
+    id: 'egypt',
+    name: '🇪🇬 Egypt',
+    description: 'Nile Valley wheat and pyramid brick — few ports.',
+    preview: P([
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+      ['ocean', 'fields', 'hills', 'ocean'],
+      ['ocean', 'fields', 'desert', 'mountains', 'ocean'],
+      ['ocean', 'hills', 'pasture', 'ocean'],
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+    ]),
+  },
+  {
+    id: 'mexico',
+    name: '🇲🇽 Mexico',
+    description: 'Silver mines and ranches — brick and sheep abound.',
+    preview: P([
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+      ['ocean', 'hills', 'pasture', 'ocean'],
+      ['ocean', 'hills', 'desert', 'pasture', 'ocean'],
+      ['ocean', 'fields', 'mountains', 'ocean'],
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+    ]),
+  },
+  {
+    id: 'korea',
+    name: '🇰🇷 Korea',
+    description: 'Mountainous peninsula — ore-heavy with few flat lands.',
+    preview: P([
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+      ['ocean', 'mountains', 'mountains', 'ocean'],
+      ['ocean', 'mountains', 'desert', 'hills', 'ocean'],
+      ['ocean', 'hills', 'forest', 'ocean'],
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+    ]),
+  },
+  {
+    id: 'indonesia',
+    name: '🇮🇩 Indonesia',
+    description: 'Tropical archipelago — endless wood and brick.',
+    preview: P([
+      ['ocean', 'ocean', 'ocean', 'ocean', 'ocean'],
+      ['ocean', 'forest', 'ocean', 'hills', 'ocean'],
+      ['ocean', 'forest', 'desert', 'forest', 'ocean'],
+      ['ocean', 'ocean', 'pasture', 'ocean', 'ocean'],
+      ['ocean', 'ocean', 'ocean', 'ocean', 'ocean'],
+    ]),
+  },
+  {
+    id: 'new_zealand',
+    name: '🇳🇿 New Zealand',
+    description: 'Sheep paradise with dramatic alpine peaks.',
+    preview: P([
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+      ['ocean', 'pasture', 'mountains', 'ocean'],
+      ['ocean', 'pasture', 'desert', 'pasture', 'ocean'],
+      ['ocean', 'mountains', 'forest', 'ocean'],
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+    ]),
+  },
+  {
+    id: 'france',
+    name: '🇫🇷 France',
+    description: 'Balanced agricultural empire — wine, wheat and wood.',
+    preview: P([
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+      ['ocean', 'fields', 'pasture', 'ocean'],
+      ['ocean', 'forest', 'desert', 'fields', 'ocean'],
+      ['ocean', 'pasture', 'mountains', 'ocean'],
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+    ]),
+  },
+  {
+    id: 'germany',
+    name: '🇩🇪 Germany',
+    description: 'Black Forest timber meets Ruhr industrial ore.',
+    preview: P([
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+      ['ocean', 'forest', 'mountains', 'ocean'],
+      ['ocean', 'forest', 'desert', 'mountains', 'ocean'],
+      ['ocean', 'fields', 'hills', 'ocean'],
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+    ]),
+  },
+  {
+    id: 'antarctica',
+    name: '🧊 Antarctica',
+    description: 'Hardcore mode — nearly all desert, almost no resources.',
+    preview: P([
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+      ['ocean', 'desert', 'desert', 'ocean'],
+      ['ocean', 'desert', 'mountains', 'desert', 'ocean'],
+      ['ocean', 'desert', 'fields', 'ocean'],
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+    ]),
   },
 ]

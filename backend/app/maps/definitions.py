@@ -314,18 +314,290 @@ def antarctica_map() -> MapData:
 
 
 # ---------------------------------------------------------------------------
+# Helper — build MapData from STANDARD_COORDS
+# tt = list of (terrain_str, token_or_None) in STANDARD_COORDS order (len 19)
+# Standard token sequence (18 non-desert tiles):
+#   pos 1-18: 9,6,4,11,3,8,10,5,2,9,6,5,4,11,12,3,8,10
+#   sorted:   2,3,3,4,4,5,5,6,6,8,8,9,9,10,10,11,11,12  ✓
+# ---------------------------------------------------------------------------
+
+def _from_std(map_id: str, tt: List[Tuple[str, object]], ports: List[Port]) -> MapData:
+    tiles = [_tile(q, r, t, tok) for (q, r), (t, tok) in zip(STANDARD_COORDS, tt)]
+    return MapData(map_id=map_id, tiles=tiles, ports=ports)
+
+
+# ---------------------------------------------------------------------------
+# India — 小麦↑↑ 牧羊↑  (恒河平原·香料贸易)
+# fields=6 pasture=5 hills=3 mountains=2 forest=2 desert=1
+# ---------------------------------------------------------------------------
+
+def india_map() -> MapData:
+    tt = [
+        ("desert",    None), ("fields",    9),  ("pasture",   6),
+        ("fields",    4),    ("pasture",  11),  ("hills",     3),
+        ("fields",    8),    ("mountains",10),  ("fields",    5),
+        ("pasture",   2),    ("fields",    9),  ("mountains", 6),
+        ("hills",     5),    ("forest",    4),  ("pasture",  11),
+        ("hills",    12),    ("fields",    3),  ("pasture",   8),
+        ("forest",   10),
+    ]
+    return _from_std("india", tt, [
+        _port( 2, -1, "wheat", side=0),
+        _port(-2,  1, "sheep", side=3),
+        _port( 2, -2, ratio=3, side=1),
+        _port( 0, -2, ratio=3, side=2),
+        _port(-2,  2, ratio=3, side=4),
+        _port( 0,  2, ratio=3, side=5),
+        _port( 1,  1, ratio=3, side=5),
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Canada — 木材↑↑ 小麦↑  (北方森林·大草原)
+# forest=6 fields=5 pasture=3 mountains=2 hills=2 desert=1
+# ---------------------------------------------------------------------------
+
+def canada_map() -> MapData:
+    tt = [
+        ("desert",    None), ("forest",    9),  ("fields",    6),
+        ("forest",    4),    ("fields",   11),  ("pasture",   3),
+        ("forest",    8),    ("mountains",10),  ("forest",    5),
+        ("hills",     2),    ("forest",    9),  ("fields",    6),
+        ("pasture",   5),    ("mountains", 4),  ("fields",   11),
+        ("hills",    12),    ("fields",    3),  ("pasture",   8),
+        ("forest",   10),
+    ]
+    return _from_std("canada", tt, [
+        _port( 2, -1, "wood",  side=0),
+        _port(-2,  1, "wheat", side=3),
+        _port( 2, -2, ratio=3, side=1),
+        _port( 0, -2, ratio=3, side=2),
+        _port(-2,  0, ratio=3, side=3),
+        _port( 0,  2, ratio=3, side=5),
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Russia — 木材↑ 矿石↑↑  (泰加林·乌拉尔山)
+# forest=5 mountains=4 fields=3 hills=3 pasture=3 desert=1
+# ---------------------------------------------------------------------------
+
+def russia_map() -> MapData:
+    tt = [
+        ("desert",    None), ("forest",    9),  ("mountains", 6),
+        ("forest",    4),    ("mountains",11),  ("hills",     3),
+        ("fields",    8),    ("mountains",10),  ("forest",    5),
+        ("pasture",   2),    ("fields",    9),  ("mountains", 6),
+        ("hills",     5),    ("forest",    4),  ("pasture",  11),
+        ("hills",    12),    ("forest",    3),  ("pasture",   8),
+        ("fields",   10),
+    ]
+    return _from_std("russia", tt, [
+        _port( 2, -1, "wood", side=0),
+        _port( 0, -2, "ore",  side=2),
+        _port( 2, -2, ratio=3, side=1),
+        _port(-2,  0, ratio=3, side=3),
+        _port(-2,  2, ratio=3, side=4),
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Egypt — 小麦↑↑ 砖块↑  (尼罗河·金字塔)
+# fields=6 hills=5 pasture=3 mountains=2 forest=2 desert=1
+# ---------------------------------------------------------------------------
+
+def egypt_map() -> MapData:
+    tt = [
+        ("desert",    None), ("fields",    9),  ("hills",     6),
+        ("fields",    4),    ("pasture",  11),  ("hills",     3),
+        ("fields",    8),    ("mountains",10),  ("fields",    5),
+        ("hills",     2),    ("fields",    9),  ("mountains", 6),
+        ("hills",     5),    ("forest",    4),  ("pasture",  11),
+        ("hills",    12),    ("fields",    3),  ("pasture",   8),
+        ("forest",   10),
+    ]
+    return _from_std("egypt", tt, [
+        _port( 2, -1, "wheat", side=0),
+        _port( 0, -2, "brick", side=2),
+        _port( 2, -2, ratio=3, side=1),
+        _port(-2,  1, ratio=3, side=3),
+        _port( 0,  2, ratio=3, side=5),
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Mexico — 砖块↑↑ 牧羊↑  (白银矿山·牧场)
+# hills=5 pasture=5 fields=4 mountains=2 forest=2 desert=1
+# ---------------------------------------------------------------------------
+
+def mexico_map() -> MapData:
+    tt = [
+        ("desert",    None), ("hills",     9),  ("pasture",   6),
+        ("hills",     4),    ("pasture",  11),  ("fields",    3),
+        ("pasture",   8),    ("mountains",10),  ("hills",     5),
+        ("pasture",   2),    ("fields",    9),  ("mountains", 6),
+        ("hills",     5),    ("forest",    4),  ("pasture",  11),
+        ("fields",   12),    ("forest",    3),  ("fields",    8),
+        ("hills",    10),
+    ]
+    return _from_std("mexico", tt, [
+        _port( 2, -1, "brick", side=0),
+        _port( 1, -2, "ore",   side=1),
+        _port(-2,  1, "sheep", side=3),
+        _port( 0, -2, ratio=3, side=2),
+        _port(-2,  2, ratio=3, side=4),
+        _port( 0,  2, ratio=3, side=5),
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Korea — 矿石↑↑ 砖块↑  (朝鲜半岛山脉)
+# mountains=6 hills=4 forest=3 fields=3 pasture=2 desert=1
+# ---------------------------------------------------------------------------
+
+def korea_map() -> MapData:
+    tt = [
+        ("desert",    None), ("mountains", 9),  ("mountains", 6),
+        ("hills",     4),    ("mountains",11),  ("hills",     3),
+        ("mountains", 8),    ("mountains",10),  ("fields",    5),
+        ("hills",     2),    ("mountains", 9),  ("forest",    6),
+        ("hills",     5),    ("forest",    4),  ("pasture",  11),
+        ("fields",   12),    ("forest",    3),  ("pasture",   8),
+        ("fields",   10),
+    ]
+    return _from_std("korea", tt, [
+        _port( 2, -1, "ore",   side=0),
+        _port(-1, -1, "brick", side=2),
+        _port( 2, -2, ratio=3, side=1),
+        _port(-2,  0, ratio=3, side=3),
+        _port( 1,  1, ratio=3, side=5),
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Indonesia — 木材↑↑ 砖块↑  (热带雨林·群岛)
+# forest=7 hills=4 pasture=3 fields=2 mountains=2 desert=1
+# ---------------------------------------------------------------------------
+
+def indonesia_map() -> MapData:
+    tt = [
+        ("desert",    None), ("forest",    9),  ("forest",    6),
+        ("hills",     4),    ("forest",   11),  ("pasture",   3),
+        ("forest",    8),    ("mountains",10),  ("forest",    5),
+        ("hills",     2),    ("forest",    9),  ("hills",     6),
+        ("pasture",   5),    ("mountains", 4),  ("hills",    11),
+        ("forest",   12),    ("fields",    3),  ("pasture",   8),
+        ("fields",   10),
+    ]
+    return _from_std("indonesia", tt, [
+        _port( 2, -1, "wood",  side=0),
+        _port(-2,  1, "brick", side=3),
+        _port( 2, -2, ratio=3, side=1),
+        _port( 0, -2, ratio=3, side=2),
+        _port(-2,  2, ratio=3, side=4),
+        _port( 0,  2, ratio=3, side=5),
+        _port( 1,  1, ratio=3, side=0),
+    ])
+
+
+# ---------------------------------------------------------------------------
+# New Zealand — 牧羊↑↑ 矿石↑  (白羊国·南阿尔卑斯)
+# pasture=7 mountains=4 forest=3 hills=2 fields=2 desert=1
+# ---------------------------------------------------------------------------
+
+def new_zealand_map() -> MapData:
+    tt = [
+        ("desert",    None), ("pasture",   9),  ("pasture",   6),
+        ("mountains", 4),    ("pasture",  11),  ("forest",    3),
+        ("pasture",   8),    ("mountains",10),  ("pasture",   5),
+        ("forest",    2),    ("pasture",   9),  ("mountains", 6),
+        ("hills",     5),    ("mountains", 4),  ("forest",   11),
+        ("hills",    12),    ("pasture",   3),  ("fields",    8),
+        ("fields",   10),
+    ]
+    return _from_std("new_zealand", tt, [
+        _port( 2, -1, "sheep", side=0),
+        _port( 0, -2, "ore",   side=2),
+        _port( 2, -2, ratio=3, side=1),
+        _port(-2,  0, ratio=3, side=3),
+        _port(-2,  2, ratio=3, side=4),
+        _port( 0,  2, ratio=3, side=5),
+    ])
+
+
+# ---------------------------------------------------------------------------
+# France — 小麦↑ 牧羊↑ 木材↑  (均衡农业帝国)
+# fields=5 pasture=5 forest=4 mountains=2 hills=2 desert=1
+# ---------------------------------------------------------------------------
+
+def france_map() -> MapData:
+    tt = [
+        ("desert",    None), ("fields",    9),  ("pasture",   6),
+        ("forest",    4),    ("pasture",  11),  ("hills",     3),
+        ("fields",    8),    ("mountains",10),  ("pasture",   5),
+        ("forest",    2),    ("fields",    9),  ("mountains", 6),
+        ("pasture",   5),    ("forest",    4),  ("fields",   11),
+        ("hills",    12),    ("forest",    3),  ("pasture",   8),
+        ("fields",   10),
+    ]
+    return _from_std("france", tt, [
+        _port( 2, -1, "wheat", side=0),
+        _port( 2, -2, "sheep", side=1),
+        _port(-2,  1, "wood",  side=3),
+        _port( 0, -2, ratio=3, side=2),
+        _port(-2,  2, ratio=3, side=4),
+        _port( 0,  2, ratio=3, side=5),
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Germany — 木材↑ 矿石↑  (黑森林·鲁尔工业)
+# forest=5 mountains=4 fields=4 hills=3 pasture=2 desert=1
+# ---------------------------------------------------------------------------
+
+def germany_map() -> MapData:
+    tt = [
+        ("desert",    None), ("forest",    9),  ("mountains", 6),
+        ("fields",    4),    ("forest",   11),  ("hills",     3),
+        ("fields",    8),    ("mountains",10),  ("forest",    5),
+        ("pasture",   2),    ("fields",    9),  ("mountains", 6),
+        ("hills",     5),    ("forest",    4),  ("fields",   11),
+        ("mountains",12),    ("forest",    3),  ("pasture",   8),
+        ("hills",    10),
+    ]
+    return _from_std("germany", tt, [
+        _port( 2, -1, "ore",  side=0),
+        _port(-2,  1, "wood", side=3),
+        _port( 2, -2, ratio=3, side=1),
+        _port( 0, -2, ratio=3, side=2),
+        _port(-2,  0, ratio=3, side=3),
+        _port( 0,  2, ratio=3, side=5),
+    ])
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
 MAP_REGISTRY = {
-    "china": china_map,
-    "japan": japan_map,
-    "usa": usa_map,
-    "europe": europe_map,
-    "uk": uk_map,
-    "australia": australia_map,
-    "brazil": brazil_map,
-    "antarctica": antarctica_map,
+    "china":       china_map,
+    "japan":       japan_map,
+    "usa":         usa_map,
+    "europe":      europe_map,
+    "uk":          uk_map,
+    "australia":   australia_map,
+    "brazil":      brazil_map,
+    "antarctica":  antarctica_map,
+    "india":       india_map,
+    "canada":      canada_map,
+    "russia":      russia_map,
+    "egypt":       egypt_map,
+    "mexico":      mexico_map,
+    "korea":       korea_map,
+    "indonesia":   indonesia_map,
+    "new_zealand": new_zealand_map,
+    "france":      france_map,
+    "germany":     germany_map,
 }
 
 
