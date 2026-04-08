@@ -141,17 +141,6 @@ function validSettlementVertices(
   return [...adj.keys()].filter(vid => !blocked.has(vid))
 }
 
-function allVertexIdsFromTiles(tiles: Array<{ q: number; r: number; s: number; terrain: string }>): string[] {
-  const set = new Set<string>()
-  for (const t of tiles) {
-    if (t.terrain === 'ocean') continue
-    for (let corner = 0; corner < 6; corner++) {
-      set.add(`${t.q},${t.r},${t.s}:v${corner}`)
-    }
-  }
-  return [...set]
-}
-
 function allEdgeIdsFromTiles(tiles: Array<{ q: number; r: number; s: number; terrain: string }>): string[] {
   const set = new Set<string>()
   for (const t of tiles) {
