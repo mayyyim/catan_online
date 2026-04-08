@@ -97,6 +97,32 @@ export function addBot(roomId: string, name = 'Bot'): Promise<AddBotResponse> {
   })
 }
 
+// ─── Map gallery endpoints ────────────────────────────────────────────────────
+
+export interface MapSummaryTile { q: number; r: number; tile_type: string }
+export interface MapSummary { map_id: string; size: 'standard' | 'large'; tiles: MapSummaryTile[] }
+export interface MapSummaryList { maps: MapSummary[] }
+
+export function fetchMapSummaries(): Promise<MapSummaryList> {
+  return request<MapSummaryList>('/maps')
+}
+
+export interface MapDetailTile {
+  q: number; r: number
+  tile_type: string; token: number | null; resource: string | null
+}
+export interface MapDetailPort {
+  q: number; r: number; side: number; resource: string | null; ratio: number
+}
+export interface MapDetailData {
+  map_id: string; size: 'standard' | 'large'
+  tiles: MapDetailTile[]; ports: MapDetailPort[]
+}
+
+export function fetchMapDetail(mapId: string): Promise<MapDetailData> {
+  return request<MapDetailData>(`/maps/${mapId}`)
+}
+
 // ─── Map editor endpoints (dev/admin) ─────────────────────────────────────────
 // These endpoints may be served by the backend when map editing is enabled.
 

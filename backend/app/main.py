@@ -37,13 +37,36 @@ async def health():
 
 @app.get("/maps")
 async def list_maps():
-    """List all available map IDs."""
+    """Return all static map summaries (tile coords + terrain, no tokens)."""
+    from app.maps.definitions import MAP_REGISTRY
+    result = []
+    for map_id, fn in MAP_REGISTRY.items():
+        data = fn()
+        result.append({
+            "map_id": map_id,
+            "size": "large" if len(data.tiles) > 20 else "standard",
+            "tiles": [
+                {"q": t.q, "r": t.r, "tile_type": t.tile_type.value}
+                for t in data.tiles
+            ],
+        })
+    return {"maps": [{"map_id": "random", "size": "standard", "tiles": []}] + result}
+
+
+@app.get("/maps/{map_id}")
+async def get_map_detail(map_id: str):
+    """Return full map data: tiles (with tokens) + ports."""
+    from fastapi import HTTPException
+    from app.maps.definitions import get_static_map
+    if map_id == "random":
+        raise HTTPException(status_code=404, detail="Random map has no static definition")
+    try:
+        data = get_static_map(map_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     return {
-        "maps": [
-            "random",
-            "china", "japan", "usa", "europe", "uk",
-            "australia", "brazil", "antarctica",
-            "india", "canada", "russia", "egypt", "mexico",
-            "korea", "indonesia", "new_zealand", "france", "germany",
-        ]
+        "map_id": map_id,
+        "size": "large" if len(data.tiles) > 20 else "standard",
+        "tiles": [t.to_dict() for t in data.tiles],
+        "ports": [p.to_dict() for p in data.ports],
     }
