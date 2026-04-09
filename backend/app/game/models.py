@@ -343,6 +343,7 @@ class GameState:
             "players": players_data,
             "phase": self.phase.value,
             "turn_step": self.turn_step.value,
+            "current_player_index": self.current_player_index,
             "current_player_id": self.current_player().player_id if self.current_player() else None,
             # Setup ordering (snake draft) for UI + rule clarity
             "setup_order": self.setup_order,

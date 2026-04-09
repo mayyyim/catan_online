@@ -359,6 +359,9 @@ def handle_build(
         game.edges[ekey] = PlacedPiece(PieceType.ROAD, player_id)
         player.roads_placed += 1
 
+        if not is_setup:
+            recalculate_vp(game)
+
         if is_setup:
             was_backward = (game.phase == GamePhase.SETUP_BACKWARD)
             game.setup_step += 1
@@ -442,8 +445,8 @@ def handle_end_turn(game: GameState, player_id: str):
         raise ActionError("Not in playing phase")
     if game.current_player().player_id != player_id:
         raise ActionError("Not your turn")
-    if game.turn_step == TurnStep.PRE_ROLL:
-        raise ActionError("Must roll dice before ending turn")
+    if game.turn_step != TurnStep.POST_ROLL:
+        raise ActionError("Must complete all actions before ending turn")
 
     # Check for winner
     recalculate_vp(game)
