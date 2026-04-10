@@ -18,6 +18,15 @@
   pointer-events: none;
 }
 
+/* Subtle gradient overlay on top of hex pattern */
+.hexBg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(30, 58, 95, 0.4) 0%, transparent 70%);
+  pointer-events: none;
+}
+
 .main {
   position: relative;
   z-index: 1;
@@ -30,18 +39,23 @@
   padding: 0 24px;
 }
 
+/* Logo with soft glow */
 .logo {
   margin-bottom: 4px;
-  filter: drop-shadow(0 4px 12px rgba(255, 214, 10, 0.3));
+  filter: drop-shadow(0 0 20px rgba(255, 214, 10, 0.3));
 }
 
+/* Title with gradient text effect */
 .title {
-  font-size: 42px;
+  font-size: 48px;
   font-weight: 800;
-  color: #f8f9fa;
   letter-spacing: -0.02em;
   margin: 0;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(180deg, #ffd60a 0%, #ffffff 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
 }
 
 .subtitle {
@@ -59,15 +73,19 @@
   width: 100%;
 }
 
+/* Card / form container with backdrop blur and glow border */
 .form {
   display: flex;
   flex-direction: column;
   gap: 10px;
   width: 100%;
-  background: #16213e;
-  border: 1px solid #1e3a5f;
-  border-radius: 14px;
+  background: rgba(22, 33, 62, 0.85);
+  border: 1px solid rgba(74, 111, 165, 0.25);
+  border-radius: 12px;
   padding: 24px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 0 20px rgba(30, 58, 95, 0.2);
 }
 
 .formTitle {
@@ -85,16 +103,17 @@
   letter-spacing: 0.07em;
 }
 
+/* Input fields with standardized border-radius and focus glow */
 .input {
   width: 100%;
   padding: 11px 14px;
   background: #0d1b2a;
   border: 1.5px solid #1e3a5f;
-  border-radius: 8px;
+  border-radius: 10px;
   color: #f8f9fa;
   font-size: 15px;
   font-family: inherit;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
   box-sizing: border-box;
 }
 
@@ -105,6 +124,7 @@
 .input:focus {
   outline: none;
   border-color: #4a6fa5;
+  box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.2);
 }
 
 .formActions {
@@ -113,28 +133,32 @@
   margin-top: 6px;
 }
 
+/* Primary button with glow, scale on hover, smooth transition */
 .primaryBtn {
   flex: 1;
   padding: 13px 24px;
   background: #ffd60a;
   color: #0d1b2a;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 15px;
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
+  box-shadow: 0 4px 20px rgba(255, 214, 10, 0.25);
+  transition: background 0.2s ease, transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
 }
 
 .primaryBtn:hover:not(:disabled) {
   background: #ffe347;
-  transform: translateY(-1px);
+  transform: scale(1.02);
+  box-shadow: 0 6px 28px rgba(255, 214, 10, 0.35);
 }
 
 .primaryBtn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .secondaryBtn {
@@ -143,17 +167,18 @@
   background: transparent;
   color: #f8f9fa;
   border: 1.5px solid #4a6fa5;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 15px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
 .secondaryBtn:hover {
   background: rgba(74, 111, 165, 0.15);
   border-color: #6a9fd8;
+  transform: scale(1.02);
 }
 
 .ghostBtn {
@@ -161,12 +186,12 @@
   background: transparent;
   color: #6c757d;
   border: 1.5px solid #2c3e50;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 14px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
+  transition: color 0.2s ease, border-color 0.2s ease;
 }
 
 .ghostBtn:hover {
@@ -174,14 +199,15 @@
   border-color: #495057;
 }
 
+/* Error text with softer red tone */
 .error {
   font-size: 13px;
-  color: #e63946;
+  color: #f0726f;
   margin: 0;
   padding: 8px 10px;
-  background: rgba(230, 57, 70, 0.1);
-  border-radius: 6px;
-  border: 1px solid rgba(230, 57, 70, 0.2);
+  background: rgba(240, 114, 111, 0.08);
+  border-radius: 8px;
+  border: 1px solid rgba(240, 114, 111, 0.15);
 }
 
 .mapGalleryLink {
@@ -190,12 +216,12 @@
   background: transparent;
   color: #6c757d;
   border: 1.5px solid #2c3e50;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 14px;
   font-weight: 600;
   text-align: center;
   text-decoration: none;
-  transition: color 0.15s, border-color 0.15s;
+  transition: color 0.2s ease, border-color 0.2s ease;
 }
 
 .mapGalleryLink:hover {
@@ -203,9 +229,16 @@
   border-color: #495057;
 }
 
+/* Footer with refined styling and separator */
 .footer {
   position: absolute;
-  bottom: 20px;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
   font-size: 12px;
-  color: #343a40;
+  color: #495057;
+  border-top: 1px solid rgba(74, 111, 165, 0.12);
 }

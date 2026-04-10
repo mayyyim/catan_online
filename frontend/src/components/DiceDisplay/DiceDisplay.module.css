@@ -15,14 +15,16 @@
 }
 
 .total {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 700;
   color: #f8f9fa;
   margin-left: 4px;
+  transition: text-shadow 0.3s ease;
 }
 
 .total.seven {
   color: #e63946;
+  text-shadow: 0 0 12px rgba(230, 57, 70, 0.5), 0 0 24px rgba(230, 57, 70, 0.25);
 }
 
 @keyframes spin {

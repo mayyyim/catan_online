@@ -84,16 +84,22 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
+  padding: 6px 14px;
   border-radius: 20px;
   border: 1.5px solid transparent;
-  background: #16213e;
-  transition: border-color 0.15s ease;
+  background: linear-gradient(135deg, #16213e 0%, #1a2a4a 100%);
+  transition: border-color 0.15s ease, box-shadow 0.3s ease;
 }
 
 .scoreCard.activeScore {
   border-color: var(--player-color);
   background: color-mix(in srgb, var(--player-color) 10%, #16213e);
+  animation: activeGlow 2s ease-in-out infinite;
+}
+
+@keyframes activeGlow {
+  0%, 100% { box-shadow: 0 0 6px rgba(255, 214, 10, 0.15); }
+  50%      { box-shadow: 0 0 14px rgba(255, 214, 10, 0.35); }
 }
 
 .scoreCard.myScore {
@@ -101,7 +107,7 @@
 }
 
 .scoreVP {
-  font-size: 13px;
+  font-size: 18px;
   font-weight: 700;
   color: #f8f9fa;
 }
@@ -121,7 +127,7 @@
 .body {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 280px;
+  grid-template-columns: 1fr 340px;
   overflow: hidden;
 }
 
@@ -158,8 +164,9 @@
 .panel {
   background: #16213e;
   border: 1px solid #1e3a5f;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .panelTitle {
@@ -175,8 +182,9 @@
 .turnSection {
   background: #16213e;
   border: 1px solid #1e3a5f;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .turnHeader {
@@ -187,7 +195,7 @@
 }
 
 .turnLabel {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   color: #f8f9fa;
 }
@@ -206,12 +214,12 @@
   padding: 8px 10px;
   background: #0d1b2a;
   border: 1.5px solid #1e3a5f;
-  border-radius: 8px;
+  border-radius: 10px;
   color: #adb5bd;
   font-size: 13px;
   font-family: inherit;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease, box-shadow 0.2s ease;
   text-align: left;
 }
 
@@ -219,12 +227,14 @@
   border-color: #4a6fa5;
   color: #f8f9fa;
   background: #16213e;
+  box-shadow: 0 0 10px rgba(74, 111, 165, 0.25);
 }
 
 .buildBtn.active {
   border-color: #ffd60a;
   color: #ffd60a;
   background: rgba(255, 214, 10, 0.06);
+  box-shadow: 0 0 16px rgba(255, 214, 10, 0.3);
 }
 
 .buildIcon {
@@ -251,12 +261,13 @@
 .logPanel {
   background: #16213e;
   border: 1px solid #1e3a5f;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 12px;
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 100px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .logScroll {
@@ -274,16 +285,21 @@
 }
 
 .logEntry {
-  font-size: 11px;
-  color: #6c757d;
+  font-size: 12px;
+  color: #8a9bb0;
   line-height: 1.4;
+}
+
+.logEntry:first-child {
+  border-left: 2px solid #ffd60a;
+  padding-left: 8px;
 }
 
 /* ── Robber panels ──────────────────────────────────────────────────────── */
 
 .robberPanel {
-  border-color: #e63946;
-  background: color-mix(in srgb, #e63946 8%, #16213e);
+  border-color: #8b2232;
+  background: color-mix(in srgb, #e63946 6%, #16213e);
 }
 
 .robberHint {
@@ -427,20 +443,22 @@
 }
 
 .rollBtn {
-  padding: 10px 20px;
+  padding: 14px 32px;
   background: #ffd60a;
   color: #0d1b2a;
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 10px;
+  font-size: 16px;
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.15s ease, opacity 0.15s ease;
+  box-shadow: 0 4px 20px rgba(255, 214, 10, 0.3);
+  transition: background 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
 }
 
 .rollBtn:hover:not(:disabled) {
   background: #ffe347;
+  transform: scale(1.05);
 }
 
 .rollBtn:disabled {
@@ -449,12 +467,12 @@
 }
 
 .endTurnBtn {
-  padding: 10px 20px;
+  padding: 10px 28px;
   background: transparent;
   color: #f8f9fa;
   border: 1.5px solid #4a6fa5;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 10px;
+  font-size: 15px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -494,6 +512,12 @@
   align-items: center;
   gap: 16px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: winnerGlow 2s ease-in-out infinite;
+}
+
+@keyframes winnerGlow {
+  0%, 100% { box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 214, 10, 0.15); }
+  50%      { box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(255, 214, 10, 0.35); }
 }
 
 .winnerEmoji {
@@ -501,7 +525,7 @@
 }
 
 .winnerTitle {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 800;
   color: #ffd60a;
   margin: 0;
@@ -512,7 +536,7 @@
   background: #ffd60a;
   color: #0d1b2a;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 15px;
   font-weight: 700;
   font-family: inherit;

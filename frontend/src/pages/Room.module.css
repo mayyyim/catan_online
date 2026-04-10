@@ -54,7 +54,7 @@
   border: 1px solid #1e3a5f;
   color: #8ab4f8;
   padding: 4px 10px;
-  border-radius: 6px;
+  border-radius: 10px;
   font-size: 13px;
   cursor: pointer;
   transition: background 0.15s;
@@ -65,17 +65,18 @@
 }
 
 .roomCode {
-  font-size: 13px;
-  color: #6c757d;
+  font-size: 15px;
+  color: #adb5bd;
   background: #16213e;
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: 1px solid #1e3a5f;
+  padding: 6px 14px;
+  border-radius: 10px;
+  border: 1.5px solid #2a4a7f;
 }
 
 .roomCode strong {
   color: #ffd60a;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.14em;
+  font-size: 16px;
 }
 
 .wsIndicator {
@@ -103,13 +104,12 @@
 .body {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: 0;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 24px;
   max-width: 1200px;
   width: 100%;
   margin: 0 auto;
   padding: 24px;
-  gap: 24px;
   box-sizing: border-box;
 }
 
@@ -126,6 +126,8 @@
   letter-spacing: 0.08em;
   color: #6c757d;
   margin: 0 0 14px;
+  padding-left: 12px;
+  border-left: 3px solid #ffd60a;
 }
 
 /* Map section */
@@ -145,20 +147,23 @@
 .mapCard {
   background: #16213e;
   border: 2px solid #1e3a5f;
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .mapCard:hover {
   border-color: #4a6fa5;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.3);
 }
 
 .mapCardSelected {
   border-color: #ffd60a;
-  box-shadow: 0 0 0 1px rgba(255, 214, 10, 0.3);
+  box-shadow: 0 0 12px rgba(255, 214, 10, 0.2), 0 2px 8px rgba(0,0,0,0.2);
 }
 
 .mapCardMain {
@@ -206,16 +211,17 @@
   border: none;
   border-top: 1px solid #1e3a5f;
   padding: 5px;
-  font-size: 11px;
+  font-size: 12px;
   font-family: inherit;
   color: #4a6fa5;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, text-decoration 0.15s;
 }
 
 .previewBtn:hover {
   background: #1e3a5f;
   color: #8ab4f8;
+  text-decoration: underline;
 }
 
 /* Detail overlay */
@@ -228,18 +234,28 @@
   justify-content: center;
   z-index: 100;
   backdrop-filter: blur(4px);
+  animation: fadeIn 0.25s ease;
 }
+
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
 
 .detailPanel {
   background: #16213e;
   border: 2px solid #1e3a5f;
-  border-radius: 16px;
+  border-radius: 20px;
   padding: 28px 32px;
   max-width: 520px;
   width: 90%;
   max-height: 85vh;
   overflow-y: auto;
   position: relative;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  animation: slideUp 0.25s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(14px); opacity: 0 }
+  to   { transform: translateY(0);    opacity: 1 }
 }
 
 .closeBtn {
@@ -291,10 +307,10 @@
 }
 
 .tag {
-  font-size: 11px;
+  font-size: 12px;
   padding: 2px 8px;
   background: #0d1b2a;
-  border: 1px solid #1e3a5f;
+  border: 1px solid #2a4a7f;
   border-radius: 10px;
   color: #adb5bd;
 }
@@ -406,7 +422,7 @@
   padding: 9px 12px;
   background: #16213e;
   border: 1.5px solid #1e3a5f;
-  border-radius: 8px;
+  border-radius: 10px;
   color: #f8f9fa;
   font-size: 14px;
   font-family: inherit;
@@ -433,11 +449,12 @@
 .playerPanel {
   background: #16213e;
   border: 1px solid #1e3a5f;
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
 }
 
 .playerList {
@@ -448,11 +465,12 @@
 
 .emptySlot {
   padding: 10px 10px;
-  border: 1px dashed #1e3a5f;
-  border-radius: 8px;
+  border: 1.5px dashed #2a3f5f;
+  border-radius: 10px;
   font-size: 13px;
   color: #343a40;
   text-align: center;
+  background: linear-gradient(135deg, rgba(22,33,62,0.6), rgba(13,27,42,0.4));
 }
 
 .inviteBtn {
@@ -460,19 +478,21 @@
   padding: 10px;
   background: transparent;
   border: 1.5px solid #4a6fa5;
-  border-radius: 8px;
+  border-radius: 10px;
   color: #4a6fa5;
   font-size: 14px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
   margin-top: 4px;
 }
 
 .inviteBtn:hover {
   background: rgba(74, 111, 165, 0.15);
   color: #6a9fd8;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(74, 111, 165, 0.15);
 }
 
 .startBtn {
@@ -490,17 +510,20 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  transition: background 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
+  box-shadow: 0 4px 20px rgba(255,214,10,0.25);
+  transition: background 0.15s ease, transform 0.1s ease, opacity 0.15s ease, box-shadow 0.15s ease;
 }
 
 .startBtn:hover:not(:disabled) {
   background: #ffe347;
-  transform: translateY(-1px);
+  transform: scale(1.02);
+  box-shadow: 0 6px 28px rgba(255,214,10,0.35);
 }
 
 .startBtn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .startHint {
@@ -515,7 +538,7 @@
   text-align: center;
   padding: 12px;
   background: #16213e;
-  border-radius: 8px;
+  border-radius: 12px;
   border: 1px solid #1e3a5f;
   margin: 0;
 }

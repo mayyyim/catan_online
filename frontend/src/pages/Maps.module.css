@@ -18,17 +18,19 @@
   z-index: 0;
 }
 
-/* ─── Header ─────────────────────────────────────────────────────────────── */
+/* --- Header ------------------------------------------------------------ */
 
 .header {
   position: relative;
   z-index: 1;
   width: 100%;
   max-width: 1100px;
-  padding: 32px 24px 0;
+  padding: 32px 24px 16px;
   display: flex;
   align-items: flex-start;
   gap: 20px;
+  border-bottom: none;
+  background: linear-gradient(to bottom, transparent 70%, rgba(13,27,42,0));
 }
 
 .backBtn {
@@ -37,7 +39,7 @@
   background: transparent;
   color: #6c757d;
   border: 1.5px solid #2c3e50;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 13px;
   font-weight: 600;
   font-family: inherit;
@@ -63,7 +65,7 @@
   letter-spacing: 0.07em;
 }
 
-/* ─── Filters ────────────────────────────────────────────────────────────── */
+/* --- Filters ----------------------------------------------------------- */
 
 .filters {
   position: relative;
@@ -81,7 +83,7 @@
   background: transparent;
   color: #6c757d;
   border: 1.5px solid #2c3e50;
-  border-radius: 20px;
+  border-radius: 24px;
   font-size: 13px;
   font-weight: 600;
   font-family: inherit;
@@ -89,17 +91,22 @@
   transition: all 0.15s;
 }
 .filterBtn:hover { color: #adb5bd; border-color: #495057; }
-.filterActive { background: #ffd60a; color: #0d1b2a; border-color: #ffd60a; }
+.filterActive {
+  background: #ffd60a;
+  color: #0d1b2a;
+  border-color: #ffd60a;
+  box-shadow: 0 0 10px rgba(255, 214, 10, 0.25);
+}
 .filterActive:hover { background: #ffe347; border-color: #ffe347; color: #0d1b2a; }
 
-/* ─── Grid ───────────────────────────────────────────────────────────────── */
+/* --- Grid -------------------------------------------------------------- */
 
 .grid {
   position: relative;
   z-index: 1;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 14px;
+  gap: 16px;
   width: 100%;
   max-width: 1100px;
   padding: 20px 24px 0;
@@ -113,12 +120,12 @@
   z-index: 1;
 }
 
-/* ─── Card ───────────────────────────────────────────────────────────────── */
+/* --- Card -------------------------------------------------------------- */
 
 .card {
   background: #16213e;
   border: 1.5px solid #1e3a5f;
-  border-radius: 14px;
+  border-radius: 12px;
   padding: 0;
   cursor: pointer;
   text-align: left;
@@ -126,12 +133,13 @@
   display: flex;
   flex-direction: column;
   font-family: inherit;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 .card:hover {
   border-color: #4a6fa5;
   transform: translateY(-3px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.45);
 }
 
 .cardPreview {
@@ -143,6 +151,18 @@
   border-bottom: 1px solid #1e3a5f;
   min-height: 100px;
   overflow: hidden;
+  position: relative;
+}
+
+.cardPreview::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 24px;
+  background: linear-gradient(to top, rgba(10,22,40,0.6), transparent);
+  pointer-events: none;
 }
 
 .thumbSvg { display: block; }
@@ -169,11 +189,11 @@
   color: #ffd60a;
   background: rgba(255,214,10,0.1);
   border: 1px solid rgba(255,214,10,0.2);
-  border-radius: 10px;
+  border-radius: 24px;
   padding: 2px 7px;
 }
 
-/* ─── Overlay & Panel ────────────────────────────────────────────────────── */
+/* --- Overlay & Panel --------------------------------------------------- */
 
 .overlay {
   position: fixed;
@@ -185,21 +205,22 @@
   z-index: 100;
   padding: 20px;
   backdrop-filter: blur(4px);
-  animation: fadeIn 0.12s ease;
+  animation: fadeIn 0.25s ease;
 }
 @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
 
 .panel {
   background: #16213e;
   border: 1.5px solid #1e3a5f;
-  border-radius: 18px;
+  border-radius: 20px;
   padding: 26px 26px 28px;
   width: 100%;
   max-width: 560px;
   max-height: 92vh;
   overflow-y: auto;
   position: relative;
-  animation: slideUp 0.16s ease;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  animation: slideUp 0.25s ease;
 }
 @keyframes slideUp {
   from { transform: translateY(14px); opacity: 0 }
@@ -234,7 +255,7 @@
 .sizeBadge {
   font-size: 11px; font-weight: 700;
   color: #0d1b2a; background: #ffd60a;
-  border-radius: 10px; padding: 3px 9px;
+  border-radius: 24px; padding: 3px 9px;
   text-transform: uppercase; letter-spacing: 0.06em;
   white-space: nowrap;
 }
@@ -242,7 +263,7 @@
   font-size: 11px; font-weight: 600;
   color: #6c757d; background: rgba(108,117,125,0.15);
   border: 1px solid #2c3e50;
-  border-radius: 10px; padding: 3px 9px;
+  border-radius: 24px; padding: 3px 9px;
   white-space: nowrap;
 }
 
@@ -252,16 +273,16 @@
 
 .tagRow { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
 .tag {
-  font-size: 11px; font-weight: 600;
+  font-size: 12px; font-weight: 600;
   color: #ffd60a;
   background: rgba(255,214,10,0.1);
-  border: 1px solid rgba(255,214,10,0.25);
-  border-radius: 12px; padding: 3px 10px;
+  border: 1px solid rgba(255,214,10,0.3);
+  border-radius: 24px; padding: 3px 10px;
 }
 
 .divider { height: 1px; background: #1e3a5f; margin: 14px 0; }
 
-/* ─── Map render area ────────────────────────────────────────────────────── */
+/* --- Map render area --------------------------------------------------- */
 
 .mapWrap {
   background: #0a1628;
@@ -278,7 +299,7 @@
 
 .loadingText { font-size: 13px; color: #495057; }
 
-/* ─── Stats row ──────────────────────────────────────────────────────────── */
+/* --- Stats row --------------------------------------------------------- */
 
 .statsRow {
   display: grid;
@@ -293,7 +314,7 @@
   margin: 0 0 10px;
 }
 
-/* ─── Resource bars ──────────────────────────────────────────────────────── */
+/* --- Resource bars ----------------------------------------------------- */
 
 .resBars { display: flex; flex-direction: column; gap: 7px; }
 .resRow { display: flex; align-items: center; gap: 8px; }
@@ -302,7 +323,7 @@
 .barFill { height: 100%; border-radius: 4px; transition: width 0.3s ease; }
 .resCount { font-size: 11px; color: #495057; width: 14px; text-align: right; flex-shrink: 0; }
 
-/* ─── Port badges ────────────────────────────────────────────────────────── */
+/* --- Port badges ------------------------------------------------------- */
 
 .portList { display: flex; flex-wrap: wrap; gap: 5px; }
 .portBadge {
@@ -310,7 +331,7 @@
   color: #adb5bd;
   background: rgba(255,255,255,0.06);
   border: 1px solid #2c3e50;
-  border-radius: 10px; padding: 3px 8px;
+  border-radius: 24px; padding: 3px 8px;
 }
 .portSpecific {
   color: #ffd60a;
