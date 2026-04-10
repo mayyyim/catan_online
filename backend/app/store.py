@@ -279,6 +279,7 @@ def add_bot_player(room_id: str, name: str = "Bot") -> Optional[Player]:
         player_id=str(uuid.uuid4())[:8],
         name=name,
         color=color,
+        is_bot=True,
     )
     players.append(player)
     r = _r()
@@ -291,6 +292,29 @@ def add_bot_player(room_id: str, name: str = "Bot") -> Optional[Player]:
 
     _touch(room_id)
     return player
+
+
+# ---------------------------------------------------------------------------
+# Room lifecycle
+# ---------------------------------------------------------------------------
+
+def delete_room(room_id: str):
+    """Remove all Redis keys for a room (called when no human players remain)."""
+    r = _r()
+    room = get_room(room_id)
+    if room:
+        # Remove invite code reverse lookup
+        invite_key = _k_invite(room.invite_code)
+        r.delete(invite_key)
+    r.delete(_k_room(room_id))
+    r.delete(_k_players(room_id))
+    r.delete(_k_game(room_id))
+
+
+def has_human_players(room_id: str) -> bool:
+    """Return True if any non-bot player is registered in the room."""
+    players = get_room_players(room_id)
+    return any(not p.is_bot for p in players)
 
 
 # ---------------------------------------------------------------------------

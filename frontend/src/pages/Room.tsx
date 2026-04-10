@@ -138,6 +138,11 @@ export default function Room() {
 
   const isHost = room?.hostId === myPlayerId
 
+  const handleLeaveRoom = useCallback(() => {
+    gameSocket.disconnect()
+    navigate('/')
+  }, [navigate])
+
   if (!room) {
     return (
       <div className={styles.loading}>
@@ -152,6 +157,14 @@ export default function Room() {
       {/* Header */}
       <header className={styles.header}>
         <div className={styles.headerLeft}>
+          <button
+            className={styles.leaveBtn}
+            onClick={handleLeaveRoom}
+            type="button"
+            title="Leave room"
+          >
+            ← Leave
+          </button>
           <span className={styles.roomCode}>
             Room: <strong>{room.inviteCode}</strong>
           </span>

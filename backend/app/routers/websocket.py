@@ -15,6 +15,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.store import (
     get_room, get_player_in_room, ensure_game_state,
     connect_player, disconnect_player, broadcast, send_to_player, save_game, load_game,
+    delete_room, has_human_players,
 )
 from app.game.engine import (
     ActionError,
@@ -135,7 +136,11 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
 
     except WebSocketDisconnect:
         disconnect_player(room, player_id)
-        # Notify remaining players
+        # If no human players remain, destroy the room silently
+        if not has_human_players(room.room_id):
+            delete_room(room.room_id)
+            return
+        # Otherwise notify remaining players
         await broadcast(room, _room_update_msg(room, game))
 
 
