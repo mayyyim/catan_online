@@ -15,7 +15,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.store import (
     get_room, get_player_in_room, ensure_game_state,
     connect_player, disconnect_player, broadcast, send_to_player, save_game, load_game,
-    delete_room, has_human_players,
+    delete_room, has_human_players, remove_player_from_room,
 )
 from app.game.engine import (
     ActionError,
@@ -25,6 +25,7 @@ from app.game.engine import (
 )
 from app.maps.generator import generate_random_map
 from app.maps.definitions import get_static_map
+from app.game.models import GamePhase
 
 
 router = APIRouter(tags=["websocket"])
@@ -136,6 +137,9 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
 
     except WebSocketDisconnect:
         disconnect_player(room, player_id)
+        # In waiting phase, remove the player entirely so they don't ghost the slot
+        if game is None or game.phase == GamePhase.WAITING:
+            remove_player_from_room(room.room_id, player_id)
         # If no human players remain, destroy the room silently
         if not has_human_players(room.room_id):
             delete_room(room.room_id)

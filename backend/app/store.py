@@ -317,6 +317,15 @@ def has_human_players(room_id: str) -> bool:
     return any(not p.is_bot for p in players)
 
 
+def remove_player_from_room(room_id: str, player_id: str):
+    """Remove a player from the Redis players list (used on disconnect in waiting phase)."""
+    r = _r()
+    players = get_room_players(room_id)
+    players = [p for p in players if p.player_id != player_id]
+    r.set(_k_players(room_id), json.dumps([p.to_dict(hide_resources=False) for p in players]), ex=ROOM_TTL_SECONDS)
+    _touch(room_id)
+
+
 # ---------------------------------------------------------------------------
 # WebSocket connection management
 # ---------------------------------------------------------------------------
