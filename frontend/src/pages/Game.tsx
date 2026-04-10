@@ -58,9 +58,8 @@ function vertexKeyToId(vkey: string): string {
   const q = Number(qRaw)
   const r = Number(rRaw)
   const s = cubeS(q, r)
-  // Backend corner 0 = top-right; frontend corner 0 = right (0°).
-  // Backend corner N corresponds to frontend corner (N-1+6)%6.
-  const corner = ((Number(cornerRaw) - 1) + 6) % 6
+  // Backend and frontend use the same corner numbering (0-5, clockwise from right for flat-top).
+  const corner = Number(cornerRaw)
   return `${q},${r},${s}:v${corner}`
 }
 
@@ -69,8 +68,8 @@ function edgeKeyToId(ekey: string): string {
   const q = Number(qRaw)
   const r = Number(rRaw)
   const s = cubeS(q, r)
-  // Same -1 offset as vertices: backend side N → frontend side (N-1+6)%6.
-  const side = ((Number(sideRaw) - 1) + 6) % 6
+  // Backend and frontend use the same side numbering.
+  const side = Number(sideRaw)
   return `${q},${r},${s}:e${side}`
 }
 
@@ -81,10 +80,8 @@ function parseVertexId(id: string): { q: number; r: number; direction: number } 
   const [qRaw, rRaw] = coord.split(',')
   const q = Number(qRaw)
   const r = Number(rRaw)
-  // Frontend renders corners starting at "right-most" (0) clockwise.
-  // Backend expects corner indices starting from a different reference.
-  // Empirically, shifting by +1 aligns click → placed vertex visually.
-  const direction = (Number(v) + 1) % 6
+  // Backend and frontend share the same corner numbering — no offset needed.
+  const direction = Number(v)
   if (!Number.isFinite(q) || !Number.isFinite(r) || !Number.isFinite(direction)) return null
   return { q, r, direction }
 }
@@ -96,8 +93,8 @@ function parseEdgeId(id: string): { q: number; r: number; direction: number } | 
   const [qRaw, rRaw] = coord.split(',')
   const q = Number(qRaw)
   const r = Number(rRaw)
-  // Same indexing shift as vertices.
-  const direction = (Number(e) + 1) % 6
+  // Backend and frontend share the same side numbering — no offset needed.
+  const direction = Number(e)
   if (!Number.isFinite(q) || !Number.isFinite(r) || !Number.isFinite(direction)) return null
   return { q, r, direction }
 }
