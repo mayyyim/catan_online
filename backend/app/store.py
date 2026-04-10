@@ -185,6 +185,24 @@ def join_room(invite_code: str, player_name: str) -> Optional[tuple]:
     return room, player
 
 
+def save_room_info(room: RoomInfo):
+    """Persist room metadata (selected map, seed, etc.) to Redis."""
+    r = _r()
+    r.set(
+        _k_room(room.room_id),
+        json.dumps({
+            "room_id": room.room_id,
+            "invite_code": room.invite_code,
+            "host_player_id": room.host_player_id,
+            "max_players": room.max_players,
+            "selected_map_id": room.selected_map_id,
+            "random_seed": room.random_seed,
+        }),
+        ex=ROOM_TTL_SECONDS,
+    )
+    _touch(room.room_id)
+
+
 def get_room(room_id: str) -> Optional[RoomInfo]:
     r = _r()
     raw = r.get(_k_room(room_id))

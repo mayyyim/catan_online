@@ -166,6 +166,9 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
             seed = msg.get("seed")
             room.selected_map_id = map_id
             room.random_seed = seed
+            # Persist to Redis so selection survives WS reconnects
+            from app.store import save_room_info
+            save_room_info(room)
             await broadcast(room, _room_update_msg(room, game))
 
         elif msg_type == "roll_dice":

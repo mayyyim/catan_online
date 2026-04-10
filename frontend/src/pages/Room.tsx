@@ -1,12 +1,266 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getRoomState, addBot } from '../api'
+import { getRoomState, addBot, fetchMapSummaries, fetchMapDetail } from '../api'
+import type { MapSummary, MapDetailData, MapDetailPort } from '../api'
 import { useRoom } from '../context/RoomContext'
 import { gameSocket } from '../ws/gameSocket'
-import { MapThumbnail } from '../components/MapThumbnail'
 import { PlayerAvatar } from '../components/PlayerAvatar'
 import { MAP_CONFIGS } from '../maps/definitions'
+import { TERRAIN_COLORS, TERRAIN_LABELS, RESOURCE_LABELS } from '../types'
+import type { MapConfig } from '../types'
+import { cubeToPixel, hexCorners, cornersToSvgPoints } from '../engine/hexMath'
 import styles from './Room.module.css'
+
+// ─── Hex thumbnail for map cards ────────────────────────────────────────────
+
+function buildHexSvg(
+  tiles: { q: number; r: number; tile_type: string }[],
+  hexSize: number,
+) {
+  if (!tiles.length) return { paths: [] as { cx: number; cy: number; tile_type: string }[], viewBox: '0 0 1 1', w: 1, h: 1 }
+  const pts = tiles.map(t => cubeToPixel(t.q, t.r, hexSize))
+  const minX = Math.min(...pts.map(p => p.x)) - hexSize
+  const minY = Math.min(...pts.map(p => p.y)) - hexSize * 0.9
+  const maxX = Math.max(...pts.map(p => p.x)) + hexSize
+  const maxY = Math.max(...pts.map(p => p.y)) + hexSize * 0.9
+  const w = maxX - minX
+  const h = maxY - minY
+  const paths = tiles.map((t, i) => ({
+    cx: pts[i].x - minX,
+    cy: pts[i].y - minY,
+    tile_type: t.tile_type,
+  }))
+  return { paths, viewBox: `0 0 ${w.toFixed(1)} ${h.toFixed(1)}`, w, h }
+}
+
+function HexThumbnail({ summary, size = 10 }: { summary: MapSummary; size?: number }) {
+  const { paths, viewBox, w, h } = useMemo(
+    () => buildHexSvg(summary.tiles, size),
+    [summary, size],
+  )
+  if (!paths.length) return <div className={styles.thumbPlaceholder}>?</div>
+  return (
+    <svg viewBox={viewBox} width={w} height={h} style={{ maxWidth: '100%', maxHeight: 90 }}>
+      {paths.map(({ cx, cy, tile_type }, i) => {
+        const corners = hexCorners(cx, cy, size)
+        const points = cornersToSvgPoints(corners)
+        const fill = TERRAIN_COLORS[tile_type as keyof typeof TERRAIN_COLORS] ?? '#444'
+        return (
+          <polygon key={i} points={points} fill={fill} stroke="#0d1b2a" strokeWidth={0.6} />
+        )
+      })}
+    </svg>
+  )
+}
+
+// ─── Detail map (full size with tokens + ports) ─────────────────────────────
+
+const SQ3 = Math.sqrt(3)
+const SIDE_DIRS: [number, number][] = [
+  [1.5, SQ3 / 2], [1.5, -SQ3 / 2], [0, -SQ3],
+  [-1.5, -SQ3 / 2], [-1.5, SQ3 / 2], [0, SQ3],
+]
+
+const TERRAIN_RESOURCE: Record<string, string> = {
+  forest: 'Wood', hills: 'Brick', fields: 'Wheat',
+  pasture: 'Sheep', mountains: 'Ore',
+}
+const RESOURCE_COLOR: Record<string, string> = {
+  Wood: '#2d6a4f', Brick: '#b85c38', Wheat: '#d4aa00',
+  Sheep: '#52b788', Ore: '#6c757d',
+}
+
+function HexDetailMap({ data }: { data: MapDetailData }) {
+  const hexSize = data.size === 'large' ? 20 : 28
+  const { paths, viewBox, w, h } = useMemo(() => buildHexSvg(data.tiles, hexSize), [data, hexSize])
+
+  const portMarkers = useMemo(() => {
+    const pts = data.tiles.map(t => cubeToPixel(t.q, t.r, hexSize))
+    const minX = Math.min(...pts.map(p => p.x)) - hexSize
+    const minY = Math.min(...pts.map(p => p.y)) - hexSize * 0.9
+    return data.ports.map((port, idx) => {
+      const { x, y } = cubeToPixel(port.q, port.r, hexSize)
+      const cx = x - minX
+      const cy = y - minY
+      const [ddx, ddy] = SIDE_DIRS[port.side] ?? [0, 0]
+      const px = cx + ddx * hexSize * 0.65
+      const py = cy + ddy * hexSize * 0.65
+      const label = port.resource ? RESOURCE_LABELS[port.resource as keyof typeof RESOURCE_LABELS] : '?'
+      return { idx, px, py, label, ratio: port.ratio }
+    })
+  }, [data, hexSize])
+
+  if (!paths.length) return null
+  return (
+    <svg viewBox={viewBox} width={w} height={h} style={{ maxWidth: '100%', maxHeight: 340 }}>
+      {paths.map(({ cx, cy, tile_type }, i) => {
+        const tile = data.tiles[i]
+        const corners = hexCorners(cx, cy, hexSize)
+        const points = cornersToSvgPoints(corners)
+        const fill = TERRAIN_COLORS[tile_type as keyof typeof TERRAIN_COLORS] ?? '#444'
+        const emoji = TERRAIN_LABELS[tile_type as keyof typeof TERRAIN_LABELS] ?? ''
+        const isHigh = tile.token === 6 || tile.token === 8
+        const tokenY = cy + hexSize * 0.38
+        return (
+          <g key={i}>
+            <polygon points={points} fill={fill} stroke="#0d1b2a" strokeWidth={1.2} />
+            {emoji && tile_type !== 'desert' && (
+              <text x={cx} y={cy - hexSize * 0.1} textAnchor="middle" dominantBaseline="middle" fontSize={hexSize * 0.72}>{emoji}</text>
+            )}
+            {tile.token != null && (
+              <>
+                <circle cx={cx} cy={tokenY} r={hexSize * 0.38} fill="rgba(248,249,250,0.92)" stroke={isHigh ? '#e63946' : '#adb5bd'} strokeWidth={1} />
+                <text x={cx} y={tokenY + hexSize * 0.13} textAnchor="middle" dominantBaseline="middle" fontSize={hexSize * 0.42} fontWeight="bold" fill={isHigh ? '#e63946' : '#212529'}>{tile.token}</text>
+              </>
+            )}
+          </g>
+        )
+      })}
+      {portMarkers.map(({ idx, px, py, label, ratio }) => (
+        <g key={idx}>
+          <circle cx={px} cy={py} r={hexSize * 0.45} fill="#1a3a5c" stroke="#ffd60a" strokeWidth={1.2} />
+          <text x={px} y={py - hexSize * 0.08} textAnchor="middle" dominantBaseline="middle" fontSize={hexSize * 0.38}>{label}</text>
+          <text x={px} y={py + hexSize * 0.3} textAnchor="middle" fontSize={hexSize * 0.28} fill="#ffd60a" fontWeight="bold">{ratio}:1</text>
+        </g>
+      ))}
+    </svg>
+  )
+}
+
+function ResourceBars({ tiles }: { tiles: { tile_type: string }[] }) {
+  const counts: Record<string, number> = {}
+  tiles.forEach(t => {
+    const r = TERRAIN_RESOURCE[t.tile_type]
+    if (r) counts[r] = (counts[r] ?? 0) + 1
+  })
+  const total = Object.values(counts).reduce((a, b) => a + b, 0)
+  if (!total) return null
+  return (
+    <div className={styles.resBars}>
+      {Object.entries(counts).sort(([, a], [, b]) => b - a).map(([res, cnt]) => (
+        <div key={res} className={styles.resRow}>
+          <span className={styles.resLabel}>{res}</span>
+          <div className={styles.barTrack}>
+            <div className={styles.barFill} style={{ width: `${(cnt / total) * 100}%`, background: RESOURCE_COLOR[res] }} />
+          </div>
+          <span className={styles.resCount}>{cnt}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function PortList({ ports }: { ports: MapDetailPort[] }) {
+  if (!ports.length) return null
+  return (
+    <div className={styles.portList}>
+      {ports.map((p, i) => (
+        <span key={i} className={`${styles.portBadge} ${p.resource ? styles.portSpecific : ''}`}>
+          {p.resource ? RESOURCE_LABELS[p.resource as keyof typeof RESOURCE_LABELS] : '?'} {p.ratio}:1
+        </span>
+      ))}
+    </div>
+  )
+}
+
+// ─── Map detail overlay ─────────────────────────────────────────────────────
+
+function MapDetailOverlay({
+  map,
+  summary,
+  onClose,
+}: {
+  map: MapConfig
+  summary: MapSummary | undefined
+  onClose: () => void
+}) {
+  const [detail, setDetail] = useState<MapDetailData | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (map.id === 'random') return
+    setLoading(true)
+    fetchMapDetail(map.id).then(setDetail).finally(() => setLoading(false))
+  }, [map.id])
+
+  return (
+    <div className={styles.overlay} onClick={onClose}>
+      <div className={styles.detailPanel} onClick={e => e.stopPropagation()}>
+        <button className={styles.closeBtn} onClick={onClose} type="button">x</button>
+        <h2 className={styles.detailName}>{map.name}</h2>
+        {map.size === 'large' && <span className={styles.sizeBadge}>Large</span>}
+        <p className={styles.detailDesc}>{map.description}</p>
+        {map.tags && (
+          <div className={styles.tagRow}>
+            {map.tags.map(t => <span key={t} className={styles.tag}>{t}</span>)}
+          </div>
+        )}
+        <div className={styles.detailMapWrap}>
+          {loading && <span className={styles.detailLoading}>Loading...</span>}
+          {!loading && detail && <HexDetailMap data={detail} />}
+          {!loading && !detail && summary && summary.tiles.length > 0 && (
+            <HexThumbnail summary={summary} size={map.size === 'large' ? 16 : 22} />
+          )}
+        </div>
+        {detail && (
+          <div className={styles.detailStats}>
+            <div>
+              <h3 className={styles.detailStatsTitle}>Resources</h3>
+              <ResourceBars tiles={detail.tiles} />
+            </div>
+            <div>
+              <h3 className={styles.detailStatsTitle}>Ports ({detail.ports.length})</h3>
+              <PortList ports={detail.ports} />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Map card in selection grid ─────────────────────────────────────────────
+
+function MapCard({
+  map,
+  summary,
+  selected,
+  onSelect,
+  onPreview,
+}: {
+  map: MapConfig
+  summary: MapSummary | undefined
+  selected: boolean
+  onSelect: () => void
+  onPreview: () => void
+}) {
+  return (
+    <div className={`${styles.mapCard} ${selected ? styles.mapCardSelected : ''}`}>
+      <button className={styles.mapCardMain} onClick={onSelect} type="button">
+        <div className={styles.mapCardPreview}>
+          {summary && summary.tiles.length > 0 ? (
+            <HexThumbnail summary={summary} size={map.size === 'large' ? 7 : 10} />
+          ) : (
+            <div className={styles.thumbPlaceholder}>{map.id === 'random' ? '🎲' : '?'}</div>
+          )}
+        </div>
+        <span className={styles.mapCardName}>{map.name}</span>
+      </button>
+      {map.id !== 'random' && (
+        <button
+          className={styles.previewBtn}
+          onClick={e => { e.stopPropagation(); onPreview() }}
+          type="button"
+          title="Preview map details"
+        >
+          Details
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ─── Room page ──────────────────────────────────────────────────────────────
 
 export default function Room() {
   const { roomId } = useParams<{ roomId: string }>()
@@ -18,6 +272,15 @@ export default function Room() {
   const [copied, setCopied] = useState(false)
   const [wsStatus, setWsStatus] = useState<'connected' | 'disconnected' | 'error'>('disconnected')
   const [wsError, setWsError] = useState('')
+  const [summaries, setSummaries] = useState<Map<string, MapSummary>>(new Map())
+  const [detailMap, setDetailMap] = useState<MapConfig | null>(null)
+
+  // Fetch map summaries from API
+  useEffect(() => {
+    fetchMapSummaries().then(data => {
+      setSummaries(new Map(data.maps.map(m => [m.map_id, m])))
+    })
+  }, [])
 
   // Restore player_id from session if context was lost (e.g. refresh)
   useEffect(() => {
@@ -40,7 +303,6 @@ export default function Room() {
 
     const unsubStatus = gameSocket.onStatus(setWsStatus)
     const unsubMsg = gameSocket.onMessage(msg => {
-      // Backend sends "room_update" with { players, map, state }
       if ((msg as any).type === 'room_update') {
         const m = msg as any
         setWsError('')
@@ -58,7 +320,6 @@ export default function Room() {
         }))
 
         setRoom(prev => {
-          // Keep invite code from existing room/session (WS payload doesn't include it)
           const inviteCode =
             prev?.inviteCode ||
             sessionStorage.getItem('invite_code') ||
@@ -95,14 +356,9 @@ export default function Room() {
 
   const handleMapSelect = useCallback(
     (mapId: string) => {
-      // Optimistic UI: highlight immediately, then persist server-side so refresh/other players see it.
       setRoom(prev => {
         if (!prev) return prev
-        return {
-          ...prev,
-          selectedMapId: mapId,
-          randomSeed: seed || prev.randomSeed,
-        }
+        return { ...prev, selectedMapId: mapId, randomSeed: seed || prev.randomSeed }
       })
       gameSocket.send({ type: 'select_map', mapId, seed: seed || undefined })
     },
@@ -110,7 +366,6 @@ export default function Room() {
   )
 
   const handleStartGame = useCallback(() => {
-    // Backend accepts mapId/map_id + seed
     gameSocket.send({
       type: 'start_game',
       map_id: room?.selectedMapId,
@@ -124,7 +379,6 @@ export default function Room() {
     try {
       await addBot(roomId, `Bot ${Math.max(1, (room?.players?.length ?? 1))}`)
     } catch (e) {
-      // Room will update via WS when successful; show minimal error if not.
       console.error(e)
     }
   }, [roomId, room?.players?.length])
@@ -154,24 +408,15 @@ export default function Room() {
 
   return (
     <div className={styles.page}>
-      {/* Header */}
       <header className={styles.header}>
         <div className={styles.headerLeft}>
-          <button
-            className={styles.leaveBtn}
-            onClick={handleLeaveRoom}
-            type="button"
-            title="Leave room"
-          >
+          <button className={styles.leaveBtn} onClick={handleLeaveRoom} type="button" title="Leave room">
             ← Leave
           </button>
           <span className={styles.roomCode}>
             Room: <strong>{room.inviteCode}</strong>
           </span>
-          <span
-            className={`${styles.wsIndicator} ${styles[wsStatus]}`}
-            title={wsStatus}
-          />
+          <span className={`${styles.wsIndicator} ${styles[wsStatus]}`} title={wsStatus} />
         </div>
         <h1 className={styles.pageTitle}>Waiting Room</h1>
         <div className={styles.headerRight} />
@@ -183,11 +428,13 @@ export default function Room() {
           <h2 className={styles.sectionTitle}>Select Map</h2>
           <div className={styles.mapGrid}>
             {MAP_CONFIGS.map(map => (
-              <MapThumbnail
+              <MapCard
                 key={map.id}
                 map={map}
+                summary={summaries.get(map.id)}
                 selected={room.selectedMapId === map.id}
-                onClick={() => isHost && handleMapSelect(map.id)}
+                onSelect={() => isHost && handleMapSelect(map.id)}
+                onPreview={() => setDetailMap(map)}
               />
             ))}
           </div>
@@ -215,71 +462,42 @@ export default function Room() {
             </h2>
             <div className={styles.playerList}>
               {room.players.map(player => (
-                <PlayerAvatar
-                  key={player.id}
-                  player={player}
-                  isMe={player.id === myPlayerId}
-                  compact={false}
-                />
+                <PlayerAvatar key={player.id} player={player} isMe={player.id === myPlayerId} compact={false} />
               ))}
-              {Array.from({
-                length: room.maxPlayers - room.players.length,
-              }).map((_, i) => (
-                <div key={`empty-${i}`} className={styles.emptySlot}>
-                  Waiting for player...
-                </div>
+              {Array.from({ length: room.maxPlayers - room.players.length }).map((_, i) => (
+                <div key={`empty-${i}`} className={styles.emptySlot}>Waiting for player...</div>
               ))}
             </div>
-
-            <button
-              className={styles.inviteBtn}
-              onClick={handleCopyInvite}
-              type="button"
-            >
+            <button className={styles.inviteBtn} onClick={handleCopyInvite} type="button">
               {copied ? 'Copied!' : 'Copy Invite Link'}
             </button>
           </div>
 
           {isHost && (
             <>
-              <button
-                className={styles.inviteBtn}
-                onClick={handleAddBot}
-                disabled={room.players.length >= room.maxPlayers}
-                type="button"
-              >
+              <button className={styles.inviteBtn} onClick={handleAddBot} disabled={room.players.length >= room.maxPlayers} type="button">
                 Add Bot
               </button>
-
-              <button
-                className={styles.startBtn}
-                onClick={handleStartGame}
-                disabled={room.players.length < 2}
-                type="button"
-              >
+              <button className={styles.startBtn} onClick={handleStartGame} disabled={room.players.length < 2} type="button">
                 Start Game
-                {room.players.length < 2 && (
-                  <span className={styles.startHint}>
-                    (need at least 2 players)
-                  </span>
-                )}
+                {room.players.length < 2 && <span className={styles.startHint}>(need at least 2 players)</span>}
               </button>
             </>
           )}
 
-          {!isHost && (
-            <p className={styles.waitingText}>
-              Waiting for host to start the game...
-            </p>
-          )}
-
-          {wsError && (
-            <p className={styles.waitingText} style={{ color: '#e63946' }}>
-              {wsError}
-            </p>
-          )}
+          {!isHost && <p className={styles.waitingText}>Waiting for host to start the game...</p>}
+          {wsError && <p className={styles.waitingText} style={{ color: '#e63946' }}>{wsError}</p>}
         </section>
       </div>
+
+      {/* Map detail overlay */}
+      {detailMap && (
+        <MapDetailOverlay
+          map={detailMap}
+          summary={summaries.get(detailMap.id)}
+          onClose={() => setDetailMap(null)}
+        />
+      )}
     </div>
   )
 }
