@@ -21,6 +21,16 @@ class GameSocket {
   }
 
   private openSocket(): void {
+    // Close existing connection before opening a new one
+    if (this.ws) {
+      this.cleanup()
+      this.ws.onclose = null
+      this.ws.onerror = null
+      this.ws.onmessage = null
+      this.ws.close()
+      this.ws = null
+    }
+
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
     const host = window.location.host
     const url = `${protocol}://${host}/ws/${this.roomId}/${this.playerId}`

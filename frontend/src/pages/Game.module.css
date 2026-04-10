@@ -279,6 +279,119 @@
   line-height: 1.4;
 }
 
+/* ── Robber panels ──────────────────────────────────────────────────────── */
+
+.robberPanel {
+  border-color: #e63946;
+  background: color-mix(in srgb, #e63946 8%, #16213e);
+}
+
+.robberHint {
+  font-size: 13px;
+  color: #e9ecef;
+  margin: 0;
+}
+
+.discardGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.discardRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.discardLabel {
+  width: 50px;
+  text-transform: capitalize;
+  color: #adb5bd;
+}
+
+.discardBtn {
+  width: 26px;
+  height: 26px;
+  border: 1px solid #4a6fa5;
+  border-radius: 4px;
+  background: #0d1b2a;
+  color: #f8f9fa;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.discardBtn:hover:not(:disabled) {
+  background: #1e3a5f;
+}
+
+.discardBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.discardCount {
+  width: 20px;
+  text-align: center;
+  font-weight: 700;
+  color: #ffd60a;
+}
+
+.discardHave {
+  color: #6c757d;
+  font-size: 12px;
+}
+
+.discardSubmitBtn {
+  width: 100%;
+  padding: 8px;
+  background: #e63946;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.discardSubmitBtn:hover:not(:disabled) {
+  background: #ff4d5a;
+}
+
+.discardSubmitBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.stealGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stealBtn {
+  padding: 8px 12px;
+  background: #0d1b2a;
+  border: 2px solid #4a6fa5;
+  border-radius: 8px;
+  color: #f8f9fa;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.stealBtn:hover {
+  background: #1e3a5f;
+}
+
 /* ── Bottom action bar ───────────────────────────────────────────────────── */
 
 .actionBar {

@@ -56,6 +56,21 @@ def start_bot(server_base: str, room_id: str, player_id: str, seed: Optional[int
                 direction = random.randint(0, 5)
                 return {"q": q, "r": r, "direction": direction}
 
+            def my_resources(game_data: dict) -> Dict[str, int]:
+                for p in game_data.get("players") or []:
+                    if p.get("player_id") == player_id:
+                        return p.get("resources") or {}
+                return {}
+
+            def my_player(game_data: dict) -> Optional[dict]:
+                for p in game_data.get("players") or []:
+                    if p.get("player_id") == player_id:
+                        return p
+                return None
+
+            def has_resources(res: Dict[str, int], cost: Dict[str, int]) -> bool:
+                return all(res.get(k, 0) >= v for k, v in cost.items())
+
             while True:
                 raw = await ws.recv()
                 try:
@@ -79,6 +94,25 @@ def start_bot(server_base: str, room_id: str, player_id: str, seed: Optional[int
                 current = game.get("current_player_id")
                 setup_step = int(game.get("setup_step") or 0)
 
+                # Handle discard even when it's not our "turn" — all players with >7 must discard
+                if phase == "playing" and turn_step == "robber_discard":
+                    discard_list = game.get("players_to_discard") or []
+                    if player_id in discard_list:
+                        res = my_resources(game)
+                        total = sum(res.values())
+                        to_discard = total // 2
+                        discard_payload: Dict[str, int] = {}
+                        remaining = to_discard
+                        for rname, amt in res.items():
+                            give = min(amt, remaining)
+                            if give > 0:
+                                discard_payload[rname] = give
+                                remaining -= give
+                            if remaining <= 0:
+                                break
+                        await send({"type": "discard", "resources": discard_payload})
+                    continue
+
                 if current != player_id:
                     continue
 
@@ -95,7 +129,69 @@ def start_bot(server_base: str, room_id: str, player_id: str, seed: Optional[int
                     if turn_step == "pre_roll":
                         await send({"type": "roll_dice"})
                         continue
+
+                    if turn_step == "robber_place":
+                        # Move robber to a random land tile (not current position)
+                        tiles = (game.get("map") or {}).get("tiles") or []
+                        robber = game.get("robber") or {}
+                        rq, rr = robber.get("q", 0), robber.get("r", 0)
+                        candidates = [
+                            t for t in tiles
+                            if t.get("tile_type") not in ("ocean",)
+                            and (t.get("q"), t.get("r")) != (rq, rr)
+                        ]
+                        if candidates:
+                            t = random.choice(candidates)
+                            await send({"type": "place_robber", "q": t["q"], "r": t["r"]})
+                        continue
+
+                    if turn_step == "robber_steal":
+                        targets = game.get("robber_steal_targets") or []
+                        if targets:
+                            await send({"type": "steal", "target_id": random.choice(targets)})
+                        continue
+
                     if turn_step == "post_roll":
+                        # Try to build something before ending turn
+                        res = my_resources(game)
+                        built = False
+
+                        # Try settlement: wood+brick+wheat+sheep
+                        if has_resources(res, {"wood": 1, "brick": 1, "wheat": 1, "sheep": 1}):
+                            for _ in range(30):
+                                await send({"type": "build", "piece": "settlement", "position": random_build_position(game)})
+                                await asyncio.sleep(0.05)
+                                # Check if state changed
+                                try:
+                                    peek = await asyncio.wait_for(ws.recv(), timeout=0.1)
+                                    peek_msg = json.loads(peek)
+                                    if peek_msg.get("type") == "game_state":
+                                        last_game = peek_msg.get("data")
+                                        new_res = my_resources(last_game or {})
+                                        if new_res != res:
+                                            built = True
+                                            break
+                                except (asyncio.TimeoutError, Exception):
+                                    pass
+
+                        # Try road: wood+brick
+                        res = my_resources(last_game or game)
+                        if has_resources(res, {"wood": 1, "brick": 1}):
+                            for _ in range(30):
+                                await send({"type": "build", "piece": "road", "position": random_build_position(game)})
+                                await asyncio.sleep(0.05)
+                                try:
+                                    peek = await asyncio.wait_for(ws.recv(), timeout=0.1)
+                                    peek_msg = json.loads(peek)
+                                    if peek_msg.get("type") == "game_state":
+                                        last_game = peek_msg.get("data")
+                                        new_res = my_resources(last_game or {})
+                                        if new_res != res:
+                                            built = True
+                                            break
+                                except (asyncio.TimeoutError, Exception):
+                                    pass
+
                         await send({"type": "end_turn"})
                         continue
 

@@ -124,6 +124,9 @@ export type GamePhase =
 export type TurnPhase =
   | 'pre_roll'
   | 'post_roll'
+  | 'robber_discard'
+  | 'robber_place'
+  | 'robber_steal'
   | 'robber'
   | 'discard'
   | 'building'

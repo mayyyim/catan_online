@@ -24,15 +24,18 @@ const EMPTY_RESOURCES: Record<ResourceType, number> = {
 type BackendGameState = {
   room_id: string
   phase: string
-  turn_step: 'pre_roll' | 'post_roll'
+  turn_step: 'pre_roll' | 'post_roll' | 'robber_discard' | 'robber_place' | 'robber_steal'
   current_player_id: string | null
   players: Array<{
     player_id: string
     name: string
     color: string
     resources?: Record<string, number>
+    resource_count?: number
     victory_points?: number
   }>
+  players_to_discard?: string[]
+  robber_steal_targets?: string[]
   map?: {
     tiles?: Array<{ q: number; r: number; tile_type: string; token?: number | null }>
     ports?: Array<{ q: number; r: number; side: number; resource: string | null; ratio: number }>
@@ -163,6 +166,9 @@ export default function Game() {
   const [rolling, setRolling] = useState(false)
   const [wsStatus, setWsStatus] = useState<'connected' | 'disconnected' | 'error'>('disconnected')
   const [log, setLog] = useState<string[]>([])
+  const [playersToDiscard, setPlayersToDiscard] = useState<string[]>([])
+  const [robberStealTargets, setRobberStealTargets] = useState<string[]>([])
+  const [discardSelection, setDiscardSelection] = useState<Record<string, number>>({})
 
   // Restore identity
   useEffect(() => {
@@ -172,6 +178,10 @@ export default function Game() {
       setRoomPlayerId(storedId)
     }
   }, [myPlayerId, setMyPlayerId, setRoomPlayerId])
+
+  const appendLog = useCallback((msg: string) => {
+    setLog(prev => [...prev.slice(-49), msg])
+  }, [])
 
   // Connect WebSocket
   useEffect(() => {
@@ -266,6 +276,8 @@ export default function Game() {
         } as any
 
         setGame(mapped)
+        setPlayersToDiscard(raw.players_to_discard ?? [])
+        setRobberStealTargets(raw.robber_steal_targets ?? [])
       }
 
       if ((msg as any).type === 'error') {
@@ -278,7 +290,7 @@ export default function Game() {
       unsubMsg()
       gameSocket.disconnect()
     }
-  }, [roomId, myPlayerId, setGame])
+  }, [roomId, myPlayerId, setGame, appendLog])
 
   // Demo board when there is no server state yet
   const demoTiles = useMemo(() => generateBoard('demo'), [])
@@ -321,9 +333,7 @@ export default function Game() {
     return byIdx.length === players.length ? byIdx : players
   }, [players, setupOrder])
 
-  const appendLog = useCallback((msg: string) => {
-    setLog(prev => [...prev.slice(-49), msg])
-  }, [])
+  // appendLog moved before WebSocket useEffect — see above
 
   // Build mode: which vertices/edges to highlight
   const buildableVertices = useMemo(() => {
@@ -362,6 +372,42 @@ export default function Game() {
     selectVertex(null)
     selectEdge(null)
   }, [isMyTurn, selectVertex, selectEdge, isSetupPhase])
+
+  // Robber: discard
+  const mustDiscard = turnPhase === 'robber_discard' && playersToDiscard.includes(myPlayerId ?? '')
+  const myHandTotal = Object.values(myResources).reduce((a, b) => a + b, 0)
+  const discardRequired = Math.floor(myHandTotal / 2)
+  const discardTotal = Object.values(discardSelection).reduce((a, b) => a + b, 0)
+
+  const handleDiscardChange = useCallback((res: string, delta: number) => {
+    setDiscardSelection(prev => {
+      const cur = prev[res] ?? 0
+      const next = Math.max(0, Math.min(cur + delta, myResources[res as ResourceType] ?? 0))
+      return { ...prev, [res]: next }
+    })
+  }, [myResources])
+
+  const handleDiscardSubmit = useCallback(() => {
+    const payload: Record<string, number> = {}
+    for (const [k, v] of Object.entries(discardSelection)) {
+      if (v > 0) payload[k] = v
+    }
+    gameSocket.send({ type: 'discard', resources: payload } as any)
+    setDiscardSelection({})
+  }, [discardSelection])
+
+  // Robber: place on tile click
+  const isRobberPlace = turnPhase === 'robber_place' && isMyTurn
+  const handleTileClick = useCallback((tile: { q: number; r: number }) => {
+    if (!isRobberPlace) return
+    gameSocket.send({ type: 'place_robber', q: tile.q, r: tile.r } as any)
+  }, [isRobberPlace])
+
+  // Robber: steal
+  const isRobberSteal = turnPhase === 'robber_steal' && isMyTurn
+  const handleSteal = useCallback((targetId: string) => {
+    gameSocket.send({ type: 'steal', target_id: targetId } as any)
+  }, [])
 
   const handleVertexClick = useCallback(
     (vid: string) => {
@@ -466,6 +512,7 @@ export default function Game() {
             buildableEdges={buildableEdges}
             onVertexClick={handleVertexClick}
             onEdgeClick={handleEdgeClick}
+            onTileClick={isRobberPlace ? handleTileClick : undefined}
             width={700}
             height={680}
           />
@@ -481,9 +528,17 @@ export default function Game() {
                   ? isMyTurn
                     ? `Setup: Your turn — place a ${requiredBuildMode}`
                     : `Setup: ${currentPlayer?.name ?? '...'} — place a ${requiredBuildMode}`
-                  : isMyTurn
-                    ? 'Your Turn'
-                    : `${currentPlayer?.name ?? '...'}'s Turn`}
+                  : mustDiscard
+                    ? 'You must discard cards!'
+                    : isRobberPlace
+                      ? 'Move the robber!'
+                      : isRobberSteal
+                        ? 'Choose who to steal from!'
+                        : turnPhase === 'robber_discard'
+                          ? 'Waiting for others to discard...'
+                          : isMyTurn
+                            ? 'Your Turn'
+                            : `${currentPlayer?.name ?? '...'}'s Turn`}
               </span>
               <DiceDisplay
                 dice={game?.lastDiceRoll}
@@ -491,6 +546,68 @@ export default function Game() {
               />
             </div>
           </div>
+
+          {/* Robber: discard panel */}
+          {mustDiscard && (
+            <div className={`${styles.panel} ${styles.robberPanel}`}>
+              <p className={styles.panelTitle}>Discard {discardRequired} cards (rolled 7)</p>
+              <div className={styles.discardGrid}>
+                {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
+                  const have = myResources[res] ?? 0
+                  const sel = discardSelection[res] ?? 0
+                  if (have === 0) return null
+                  return (
+                    <div key={res} className={styles.discardRow}>
+                      <span className={styles.discardLabel}>{res}</span>
+                      <button type="button" className={styles.discardBtn} onClick={() => handleDiscardChange(res, -1)} disabled={sel <= 0}>-</button>
+                      <span className={styles.discardCount}>{sel}</span>
+                      <button type="button" className={styles.discardBtn} onClick={() => handleDiscardChange(res, 1)} disabled={sel >= have}>+</button>
+                      <span className={styles.discardHave}>/{have}</span>
+                    </div>
+                  )
+                })}
+              </div>
+              <button
+                type="button"
+                className={styles.discardSubmitBtn}
+                onClick={handleDiscardSubmit}
+                disabled={discardTotal !== discardRequired}
+              >
+                Discard {discardTotal}/{discardRequired}
+              </button>
+            </div>
+          )}
+
+          {/* Robber: place indicator */}
+          {isRobberPlace && (
+            <div className={`${styles.panel} ${styles.robberPanel}`}>
+              <p className={styles.panelTitle}>Move the Robber</p>
+              <p className={styles.robberHint}>Click a land tile on the map to move the robber.</p>
+            </div>
+          )}
+
+          {/* Robber: steal target */}
+          {isRobberSteal && robberStealTargets.length > 0 && (
+            <div className={`${styles.panel} ${styles.robberPanel}`}>
+              <p className={styles.panelTitle}>Steal a resource</p>
+              <div className={styles.stealGrid}>
+                {robberStealTargets.map(tid => {
+                  const target = players.find(p => p.id === tid)
+                  return (
+                    <button
+                      key={tid}
+                      type="button"
+                      className={styles.stealBtn}
+                      onClick={() => handleSteal(tid)}
+                      style={{ borderColor: target?.color }}
+                    >
+                      Steal from {target?.name ?? tid}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Resources */}
           <div className={styles.panel}>
@@ -595,7 +712,7 @@ export default function Game() {
           <button
             className={styles.endTurnBtn}
             onClick={handleEndTurn}
-            disabled={isSetupPhase || !isMyTurn || turnPhase === 'pre_roll'}
+            disabled={isSetupPhase || !isMyTurn || turnPhase !== 'post_roll'}
             type="button"
           >
             End Turn
