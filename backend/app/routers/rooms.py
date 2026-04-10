@@ -47,6 +47,7 @@ class RoomStatusResponse(BaseModel):
     state: str
     player_count: int
     players: list
+    selected_map_id: str = "random"
 
 
 class AddBotRequest(BaseModel):
@@ -107,6 +108,7 @@ async def get_room_status(room_id: str):
         state=room.state_label(),
         player_count=len(players),
         players=players_data,
+        selected_map_id=room.selected_map_id,
     )
 
 

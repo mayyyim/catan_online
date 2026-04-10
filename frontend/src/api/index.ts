@@ -56,6 +56,7 @@ type BackendRoomStatusResponse = {
     color: string
     connected: boolean
   }>
+  selected_map_id?: string
 }
 
 export async function getRoomState(roomId: string): Promise<RoomState> {
@@ -76,7 +77,7 @@ export async function getRoomState(roomId: string): Promise<RoomState> {
       cities: 0,
       roads: 0,
     })),
-    selectedMapId: 'random',
+    selectedMapId: raw.selected_map_id ?? 'random',
     randomSeed: '',
     maxPlayers: 4,
     status: raw.state === 'waiting' ? 'waiting' : 'started',

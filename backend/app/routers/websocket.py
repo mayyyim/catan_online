@@ -137,9 +137,11 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
 
     except WebSocketDisconnect:
         disconnect_player(room, player_id)
-        # In waiting phase, remove the player entirely so they don't ghost the slot
+        # In waiting phase, remove non-host players so they don't ghost the slot.
+        # Keep the host so they can reconnect (e.g. page refresh, network hiccup).
         if game is None or game.phase == GamePhase.WAITING:
-            remove_player_from_room(room.room_id, player_id)
+            if player_id != room.host_player_id:
+                remove_player_from_room(room.room_id, player_id)
         # If no human players remain, destroy the room silently
         if not has_human_players(room.room_id):
             delete_room(room.room_id)
