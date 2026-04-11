@@ -48,6 +48,7 @@ type BackendGameState = {
     roads_placed?: number
     longest_road?: number
     dev_cards?: Array<{ card_type: string; bought_on_turn: number }>
+    dev_card_count?: number
     knights_played?: number
     dev_card_played_this_turn?: boolean
   }>
@@ -68,6 +69,8 @@ type BackendGameState = {
   edges?: Record<string, { piece_type: string; player_id: string }>
   setup_order?: number[]
   setup_step?: number
+  turn_timer_start?: number | null
+  turn_timer_duration?: number | null
 }
 
 function cubeS(q: number, r: number): number {
@@ -216,6 +219,12 @@ export default function Game() {
     offer: Record<string, number>
     want: Record<string, number>
   } | null>(null)
+
+  // Turn timer state
+  const [turnTimerRemaining, setTurnTimerRemaining] = useState<number | null>(null)
+  const [turnTimerDuration, setTurnTimerDuration] = useState<number>(60)
+  const turnTimerStartRef = useRef<number | null>(null)
+  const turnTimerDurationRef = useRef<number>(60)
 
   // Tutorial state
   const [showTutorial, setShowTutorial] = useState(() => shouldShowTutorial())
@@ -426,6 +435,18 @@ export default function Game() {
         setCurrentTurn(raw.current_turn_number ?? 0)
         setDevCardPlayed(myPlayerData?.dev_card_played_this_turn ?? false)
         setDeckCount(raw.dev_card_deck_count ?? 0)
+
+        // P2-06: Turn timer
+        if (raw.turn_timer_start != null && raw.turn_timer_duration != null) {
+          turnTimerStartRef.current = raw.turn_timer_start
+          turnTimerDurationRef.current = raw.turn_timer_duration
+          setTurnTimerDuration(raw.turn_timer_duration)
+          const elapsed = Date.now() / 1000 - raw.turn_timer_start
+          setTurnTimerRemaining(Math.max(0, Math.ceil(raw.turn_timer_duration - elapsed)))
+        } else {
+          turnTimerStartRef.current = null
+          setTurnTimerRemaining(null)
+        }
       }
 
       if ((msg as any).type === 'dice_result') {
@@ -461,9 +482,9 @@ export default function Game() {
         const offerStr = Object.entries(td.offer ?? {}).map(([r, n]) => `${n} ${r}`).join(', ')
         const wantStr = Object.entries(td.want ?? {}).map(([r, n]) => `${n} ${r}`).join(', ')
         if (td.with_player_name) {
-          appendLog(`🤝 ${td.player_name} traded ${offerStr} with ${td.with_player_name} for ${wantStr}`)
+          appendLog(`🤝 ${td.player_name} traded with ${td.with_player_name}: gave ${offerStr}, got ${wantStr}`)
         } else {
-          appendLog(`🏦 ${td.player_name} traded ${offerStr} → ${wantStr}`)
+          appendLog(`🏦 ${td.player_name} bank trade: gave ${offerStr}, got ${wantStr}`)
         }
         playTradeComplete()
         // Clear P2P trade state on completion
@@ -928,6 +949,77 @@ export default function Game() {
     [selectVertex, selectEdge, isSetupPhase],
   )
 
+  // P2-04: Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+
+      const key = e.key.toLowerCase()
+
+      if (key === 'escape') {
+        setBuildMode('none')
+        selectVertex(null)
+        selectEdge(null)
+        setTradeOpen(false)
+        setPlayingCard(null)
+        return
+      }
+
+      if (key === 'r' && isMyTurn && turnPhase === 'pre_roll' && !isSetupPhase) {
+        handleRollDice()
+        return
+      }
+
+      if (key === 'e' && isMyTurn && turnPhase === 'post_roll' && !isSetupPhase) {
+        handleEndTurn()
+        return
+      }
+
+      if (key === '1' && !isSetupPhase) {
+        toggleBuildMode('road')
+        return
+      }
+
+      if (key === '2' && !isSetupPhase) {
+        toggleBuildMode('settlement')
+        return
+      }
+
+      if (key === '3' && !isSetupPhase) {
+        toggleBuildMode('city')
+        return
+      }
+
+      if (key === 't' && !isSetupPhase) {
+        setTradeOpen(prev => !prev)
+        return
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isMyTurn, turnPhase, isSetupPhase, handleRollDice, handleEndTurn, toggleBuildMode, selectVertex, selectEdge])
+
+  // P2-06: Turn timer countdown
+  useEffect(() => {
+    if (turnTimerStartRef.current == null) {
+      setTurnTimerRemaining(null)
+      return
+    }
+    const interval = setInterval(() => {
+      const start = turnTimerStartRef.current
+      const duration = turnTimerDurationRef.current
+      if (start == null) {
+        setTurnTimerRemaining(null)
+        return
+      }
+      const elapsed = Date.now() / 1000 - start
+      const remaining = Math.max(0, Math.ceil(duration - elapsed))
+      setTurnTimerRemaining(remaining)
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [game?.currentPlayerId, currentTurn])
+
   if (!game && !demoTiles.length) {
     return (
       <div className={styles.loading}>
@@ -1039,10 +1131,11 @@ export default function Game() {
                 return sum + r
               }, 0)
               const bankRemaining = 19 - knownTotal
+              const isDepleted = bankRemaining <= 0
               return (
-                <span key={res} className={styles.bankItem}>
+                <span key={res} className={`${styles.bankItem} ${isDepleted ? styles.bankDepleted : ''}`} title={isDepleted ? 'Depleted' : `${bankRemaining} remaining`}>
                   {RESOURCE_LABELS[res]}
-                  <span className={`${styles.bankCount} ${bankRemaining <= 3 ? styles.bankCountLow : ''}`}>
+                  <span className={`${styles.bankCount} ${isDepleted ? styles.bankCountLow : bankRemaining <= 3 ? styles.bankCountLow : ''}`}>
                     {bankRemaining}
                   </span>
                 </span>
@@ -1055,10 +1148,23 @@ export default function Game() {
             </span>
           </div>
 
+          {/* P2-06: Turn timer bar */}
+          {turnTimerRemaining != null && (
+            <div className={styles.timerBar}>
+              <div
+                className={`${styles.timerFill} ${turnTimerRemaining <= 10 ? styles.timerLow : ''}`}
+                style={{ width: `${Math.max(0, (turnTimerRemaining / turnTimerDuration) * 100)}%` }}
+              />
+            </div>
+          )}
+
           {/* Turn banner */}
           <div className={isMyTurn ? styles.turnBannerYou : styles.turnBannerWait}>
             <span className={styles.turnBannerLabel}>
               {isMyTurn ? 'YOUR TURN' : `Waiting for ${currentPlayer?.name ?? '...'}...`}
+              {turnTimerRemaining != null && (
+                <span className={`${styles.timerText} ${turnTimerRemaining <= 10 ? styles.timerTextLow : ''}`}> ({turnTimerRemaining}s)</span>
+              )}
             </span>
             <span className={styles.turnStep}>
               {isSetupPhase
@@ -1152,9 +1258,15 @@ export default function Game() {
                       </div>
                     ))}
                     <span style={{ fontSize: 11, color: '#8a9bb0', marginLeft: 2 }}>{cardCount}</span>
-                    <div className={styles.devCardBack} title="Dev cards">
-                      <span className={styles.resCardBackCount}>?</span>
-                    </div>
+                    {(() => {
+                      const rawP = rawPlayers.find(rp => rp.player_id === p.id)
+                      const devCount = rawP?.dev_card_count ?? 0
+                      return (
+                        <div className={styles.devCardBack} title={`Dev cards: ${devCount}`}>
+                          <span className={styles.resCardBackCount}>{devCount}</span>
+                        </div>
+                      )
+                    })()}
                   </div>
                   <div className={styles.playerCardBuildings}>
                     <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'🏠'}</span><span className={styles.buildingCount}>{p.settlements}</span></span>
@@ -1164,6 +1276,20 @@ export default function Game() {
                       <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'⚔️'}</span><span className={styles.buildingCount}>{knightsCount}</span></span>
                     )}
                   </div>
+                  {(hasLongestRoad || hasLargestArmy) && (
+                    <div className={styles.trophyBadges}>
+                      {hasLongestRoad && (
+                        <span className={styles.trophyBadge} title="Longest Road (+2 VP)">
+                          {'🛤️'} Longest Road
+                        </span>
+                      )}
+                      {hasLargestArmy && (
+                        <span className={styles.trophyBadge} title="Largest Army (+2 VP)">
+                          {'⚔️'} Largest Army
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -1251,11 +1377,19 @@ export default function Game() {
 
                 const CARD_ICONS: Record<string, string> = { knight: '🗡️', victory_point: '🏆', year_of_plenty: '🌽', monopoly: '💰', road_building: '🛤️' }
                 const CARD_LABELS: Record<string, string> = { knight: 'Knight', victory_point: 'Victory Point', year_of_plenty: 'Year of Plenty', monopoly: 'Monopoly', road_building: 'Road Building' }
+                const CARD_TOOLTIPS: Record<string, string> = {
+                  knight: 'Knight: Move the robber and steal a resource. Counts toward Largest Army.',
+                  victory_point: 'Victory Point: Worth 1 VP. Revealed at game end.',
+                  year_of_plenty: 'Year of Plenty: Take any 2 resources from the bank.',
+                  monopoly: 'Monopoly: Name a resource. All players give you all of that resource.',
+                  road_building: 'Road Building: Place 2 roads for free.',
+                }
 
                 return (
                   <div
                     key={i}
                     className={`${styles.devCardItem} ${canPlay ? styles.playable : ''}`}
+                    title={CARD_TOOLTIPS[card.card_type] ?? ''}
                   >
                     <span className={styles.devCardIcon}>{CARD_ICONS[card.card_type] ?? '?'}</span>
                     <span className={styles.devCardName}>{CARD_LABELS[card.card_type] ?? card.card_type}</span>
@@ -1679,6 +1813,20 @@ export default function Game() {
                   <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'⚔️'}</span><span className={styles.buildingCount}>{(me as any).knightsPlayed}</span></span>
                 )}
               </div>
+              {(game?.longestRoadPlayerId === me.id || game?.largestArmyPlayerId === me.id) && (
+                <div className={styles.trophyBadges}>
+                  {game?.longestRoadPlayerId === me.id && (
+                    <span className={styles.trophyBadge} title="Longest Road (+2 VP)">
+                      {'🛤️'} Longest Road
+                    </span>
+                  )}
+                  {game?.largestArmyPlayerId === me.id && (
+                    <span className={styles.trophyBadge} title="Largest Army (+2 VP)">
+                      {'⚔️'} Largest Army
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

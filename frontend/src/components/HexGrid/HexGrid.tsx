@@ -106,10 +106,15 @@ export function HexGrid({
     if (!bounds.contentW || !bounds.contentH) return
     const scaleX = width / bounds.contentW
     const scaleY = height / bounds.contentH
-    const fitZoom = Math.min(scaleX, scaleY, 1.0)
+    let fitZoom = Math.min(scaleX, scaleY, 1.0)
+    // P2-14: Extra padding for large maps (>25 tiles)
+    const landTiles = tiles.filter(t => t.terrain !== 'ocean')
+    if (landTiles.length > 25) {
+      fitZoom *= 0.9
+    }
     setZoom(fitZoom)
     setPan({ x: 0, y: 0 })
-  }, [bounds.contentW, bounds.contentH, width, height])
+  }, [bounds.contentW, bounds.contentH, width, height, tiles])
 
   // Wheel zoom
   const handleWheel = useCallback((e: React.WheelEvent) => {
@@ -190,9 +195,14 @@ export function HexGrid({
   const handleResetZoom = useCallback(() => {
     const scaleX = width / bounds.contentW
     const scaleY = height / bounds.contentH
-    setZoom(Math.min(scaleX, scaleY, 1.0))
+    let fitZoom = Math.min(scaleX, scaleY, 1.0)
+    const landTiles = tiles.filter(t => t.terrain !== 'ocean')
+    if (landTiles.length > 25) {
+      fitZoom *= 0.9
+    }
+    setZoom(fitZoom)
     setPan({ x: 0, y: 0 })
-  }, [width, height, bounds])
+  }, [width, height, bounds, tiles])
 
   return (
     <div
@@ -263,7 +273,7 @@ export function HexGrid({
             <g
               key={`${tile.q},${tile.r},${tile.s}`}
               onClick={() => !isOcean && onTileClick?.(tile)}
-              className={isOcean ? styles.oceanTile : styles.landTile}
+              className={`${isOcean ? styles.oceanTile : styles.landTile}${!isOcean && onTileClick ? ` ${styles.robberTarget}` : ''}`}
             >
               {/* Main terrain fill with gradient */}
               <polygon

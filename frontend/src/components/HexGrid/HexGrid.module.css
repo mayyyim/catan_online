@@ -25,11 +25,22 @@
 
 .landTile polygon {
   cursor: pointer;
-  transition: filter 0.15s ease;
+  transition: filter 0.15s ease, stroke 0.15s ease, stroke-width 0.15s ease;
 }
 
 .landTile:hover polygon {
   filter: brightness(1.12) saturate(1.1);
+}
+
+/* P2-10: Robber placement highlight */
+.robberTarget polygon {
+  cursor: crosshair;
+}
+
+.robberTarget:hover polygon {
+  filter: brightness(0.7) saturate(0.5);
+  stroke: #e63946;
+  stroke-width: 3;
 }
 
 .terrainEmoji,

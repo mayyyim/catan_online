@@ -1698,3 +1698,69 @@
   .sidePanel { padding: 8px; gap: 6px; }
   .panel { padding: 8px; }
 }
+
+/* ── P2-11: Bank resource depletion ──────────────────────────────────────── */
+
+.bankDepleted {
+  text-decoration: line-through;
+  color: #e63946;
+  opacity: 0.6;
+}
+
+/* ── P2-13: Trophy badges for Longest Road / Largest Army ────────────────── */
+
+.trophyBadges {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.trophyBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #ffd60a 0%, #f0c000 100%);
+  color: #0d1b2a;
+  box-shadow: 0 1px 4px rgba(255, 214, 10, 0.3);
+}
+
+/* ── P2-06: Turn Timer ──────────────────────────────────────────────────── */
+
+.timerBar {
+  height: 3px;
+  background: #1e3a5f;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.timerFill {
+  height: 100%;
+  background: #ffd60a;
+  transition: width 1s linear;
+}
+
+.timerFill.timerLow {
+  background: #e63946;
+  animation: timerPulse 0.5s ease-in-out infinite;
+}
+
+@keyframes timerPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.timerText {
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+.timerTextLow {
+  color: #e63946;
+  animation: pulse 0.5s ease-in-out infinite;
+}
