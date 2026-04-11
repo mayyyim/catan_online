@@ -202,6 +202,7 @@
   overflow: hidden;
   background: #0a1628;
   padding: 12px;
+  position: relative;
 }
 
 /* ── Side panel ──────────────────────────────────────────────────────────── */
@@ -1763,4 +1764,133 @@
 .timerTextLow {
   color: #e63946;
   animation: pulse 0.5s ease-in-out infinite;
+}
+
+/* ── P2-01: Chat panel ─────────────────────────────────────────────────── */
+
+.chatToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #f8f9fa;
+  cursor: pointer;
+}
+
+.chatBody {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+}
+
+.chatMessages {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-height: 0;
+  max-height: 140px;
+}
+
+.chatMsg {
+  font-size: 12px;
+  color: #adb5bd;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.chatInputRow {
+  display: flex;
+  gap: 4px;
+}
+
+.chatInputField {
+  flex: 1;
+  padding: 5px 8px;
+  background: #0d1b2a;
+  border: 1px solid #1e3a5f;
+  border-radius: 6px;
+  color: #f8f9fa;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.chatInputField:focus {
+  border-color: #4a6fa5;
+}
+
+.chatSendBtn {
+  padding: 5px 10px;
+  background: #2a9d8f;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.chatSendBtn:hover {
+  background: #38b2a3;
+}
+
+.quickChatRow {
+  display: flex;
+  gap: 4px;
+}
+
+.quickChatBtn {
+  padding: 3px 8px;
+  background: #0d1b2a;
+  border: 1px solid #1e3a5f;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  color: #f8f9fa;
+  font-family: inherit;
+}
+
+.quickChatBtn:hover {
+  background: #1e3a5f;
+  border-color: #4a6fa5;
+}
+
+/* ── P2-03: Resource production toast ──────────────────────────────────── */
+
+.resourceToast {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(22, 33, 62, 0.95);
+  border: 1px solid #ffd60a;
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffd60a;
+  z-index: 20;
+  animation: toastSlide 2.5s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes toastSlide {
+  0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
 }

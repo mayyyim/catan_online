@@ -38,10 +38,15 @@ def roll_dice() -> Tuple[List[int], int]:
 # Resource production
 # ---------------------------------------------------------------------------
 
-def produce_resources(game: GameState, roll: int):
-    """Distribute resources to all players based on dice roll."""
+def produce_resources(game: GameState, roll: int) -> Dict[str, Dict[str, int]]:
+    """Distribute resources to all players based on dice roll.
+
+    Returns ``{player_id: {resource_name: amount}}`` production log.
+    """
     if roll == 7:
-        return  # robber — handled separately
+        return {}  # robber — handled separately
+
+    production: Dict[str, Dict[str, int]] = {}
 
     for tile in game.map_data.tiles:
         if tile.token != roll:
@@ -63,6 +68,13 @@ def produce_resources(game: GameState, roll: int):
                 continue
             amount = 2 if piece.piece_type == PieceType.CITY else 1
             player.add_resource(resource, amount)
+
+            pid = piece.player_id
+            if pid not in production:
+                production[pid] = {}
+            production[pid][resource.value] = production[pid].get(resource.value, 0) + amount
+
+    return production
 
 
 def move_robber_random(game: GameState):
@@ -197,10 +209,10 @@ def handle_roll_dice(game: GameState, player_id: str) -> Dict:
         else:
             game.turn_step = TurnStep.ROBBER_PLACE
     else:
-        produce_resources(game, total)
+        production = produce_resources(game, total)
         game.turn_step = TurnStep.POST_ROLL
 
-    return {"values": values, "total": total}
+    return {"values": values, "total": total, "production": production if total != 7 else {}}
 
 
 def handle_discard(game: GameState, player_id: str, resources: Dict) -> None:

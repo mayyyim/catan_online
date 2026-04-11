@@ -198,11 +198,33 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
             save_room_info(room)
             await broadcast(room, _room_update_msg(room, game))
 
+        elif msg_type == "chat":
+            text = str(msg.get("text", ""))[:200]
+            if not text.strip():
+                return
+            player = game.player_by_id(player_id) if game else None
+            chat_msg = {
+                "type": "chat",
+                "data": {
+                    "player_id": player_id,
+                    "player_name": player.name if player else "?",
+                    "player_color": player.color if player else "gray",
+                    "text": text.strip(),
+                },
+            }
+            await broadcast(room, chat_msg)
+
         elif msg_type == "roll_dice":
             result = handle_roll_dice(game, player_id)
             # Broadcast dice result then full game state
             player = game.player_by_id(player_id)
             await broadcast(room, _dice_msg(result["values"], result["total"], player.name if player else "?"))
+            # Broadcast production details
+            if result.get("production"):
+                await broadcast(room, {
+                    "type": "resource_production",
+                    "data": {"production": result["production"]},
+                })
             await broadcast_game_state(room, game)
             save_game(room.room_id, game)
             await _maybe_restart_timer(room, game)

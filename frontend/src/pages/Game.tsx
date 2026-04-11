@@ -23,6 +23,14 @@ const EMPTY_RESOURCES: Record<ResourceType, number> = {
   ore: 0,
 }
 
+const RESOURCE_EMOJI: Record<string, string> = {
+  wood: '\u{1F332}',
+  brick: '\u{1F9F1}',
+  wheat: '\u{1F33E}',
+  sheep: '\u{1F411}',
+  ore: '\u26CF\uFE0F',
+}
+
 const RES_CARD_COLORS: Record<ResourceType, string> = {
   wood: '#4a8c3f',
   brick: '#c0392b',
@@ -225,6 +233,14 @@ export default function Game() {
   const [turnTimerDuration, setTurnTimerDuration] = useState<number>(60)
   const turnTimerStartRef = useRef<number | null>(null)
   const turnTimerDurationRef = useRef<number>(60)
+
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<Array<{player_name: string; player_color: string; text: string}>>([])
+  const [chatInput, setChatInput] = useState('')
+  const [chatOpen, setChatOpen] = useState(false)
+
+  // Resource production toast state
+  const [resourceToast, setResourceToast] = useState<string | null>(null)
 
   // Tutorial state
   const [showTutorial, setShowTutorial] = useState(() => shouldShowTutorial())
@@ -516,6 +532,32 @@ export default function Game() {
         const CARD_NAMES: Record<string, string> = { knight: '🗡️ Knight', victory_point: '🏆 VP', year_of_plenty: '🌽 Year of Plenty', monopoly: '💰 Monopoly', road_building: '🛤️ Road Building' }
         const dd = (msg as any).data
         appendLog(`${dd.player_name} played ${CARD_NAMES[dd.card_type] ?? dd.card_type}`)
+      }
+
+      if ((msg as any).type === 'chat') {
+        setChatMessages(prev => [...prev.slice(-50), (msg as any).data])
+      }
+
+      if ((msg as any).type === 'resource_production') {
+        const prod = (msg as any).data.production as Record<string, Record<string, number>>
+        for (const [pid2, resources] of Object.entries(prod)) {
+          const player = (msg as any).data.players?.find((p: any) => p.player_id === pid2) ?? players.find(p => p.id === pid2)
+          const resStr = Object.entries(resources)
+            .filter(([, n]) => n > 0)
+            .map(([r, n]) => `${n} ${r}`)
+            .join(', ')
+          if (resStr) {
+            appendLog(`\u{1F4E6} ${player?.name ?? player?.player_name ?? '?'} gained ${resStr}`)
+          }
+        }
+        const myProd = prod[pid ?? '']
+        if (myProd) {
+          const items = Object.entries(myProd).filter(([, n]) => n > 0).map(([r, n]) => `${n} ${RESOURCE_EMOJI[r] ?? r}`).join(' ')
+          if (items) {
+            setResourceToast(`+${items}`)
+            setTimeout(() => setResourceToast(null), 2500)
+          }
+        }
       }
 
       if ((msg as any).type === 'error') {
@@ -1118,6 +1160,9 @@ export default function Game() {
             width={mapSize.width}
             height={mapSize.height}
           />
+          {resourceToast && (
+            <div className={styles.resourceToast}>{resourceToast}</div>
+          )}
         </main>
 
         {/* Right panel */}
@@ -1829,6 +1874,38 @@ export default function Game() {
               )}
             </div>
           )}
+
+          {/* Chat panel */}
+          <div className={styles.panel}>
+            <button className={styles.chatToggle} onClick={() => setChatOpen(p => !p)}>
+              <span>{'\u{1F4AC}'} Chat</span>
+              <span className={styles.toggleArrow}>{chatOpen ? '\u25B2' : '\u25BC'}</span>
+            </button>
+            {chatOpen && (
+              <div className={styles.chatBody}>
+                <div className={styles.chatMessages}>
+                  {chatMessages.map((m, i) => (
+                    <div key={i} className={styles.chatMsg}>
+                      <span style={{color: m.player_color, fontWeight: 600}}>{m.player_name}</span>: {m.text}
+                    </div>
+                  ))}
+                </div>
+                <div className={styles.quickChatRow}>
+                  {['\u{1F44D}', '\u{1F604}', '\u{1F631}', 'gg'].map(emoji => (
+                    <button key={emoji} className={styles.quickChatBtn} onClick={() => { gameSocket.send({type:'chat',text:emoji} as any) }}>
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+                <div className={styles.chatInputRow}>
+                  <input value={chatInput} onChange={e => setChatInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && chatInput.trim()) { gameSocket.send({type:'chat',text:chatInput.trim()} as any); setChatInput('') }}}
+                    placeholder="Type a message..." maxLength={200} className={styles.chatInputField} />
+                  <button onClick={() => { if (chatInput.trim()) { gameSocket.send({type:'chat',text:chatInput.trim()} as any); setChatInput('') }}} className={styles.chatSendBtn}>Send</button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Event log */}
           <div className={styles.logPanel}>
