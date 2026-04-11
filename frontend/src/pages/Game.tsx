@@ -197,6 +197,7 @@ export default function Game() {
   const [yopSelection, setYopSelection] = useState<Record<string, number>>({})
   const [monopolyResource, setMonopolyResource] = useState<string>('')
   const [playingCard, setPlayingCard] = useState<DevCardType | null>(null)
+  const [rawPlayers, setRawPlayers] = useState<BackendGameState['players']>([])
 
   // Restore identity
   useEffect(() => {
@@ -308,6 +309,7 @@ export default function Game() {
         } as any
 
         setGame(mapped)
+        setRawPlayers(raw.players ?? [])
         setPlayersToDiscard(raw.players_to_discard ?? [])
         setRobberStealTargets(raw.robber_steal_targets ?? [])
 
@@ -719,6 +721,19 @@ export default function Game() {
       {/* Top score bar */}
       <header className={styles.topBar}>
         <div className={styles.topLeft}>
+          <button
+            className={styles.leaveBtn}
+            type="button"
+            title="Leave game"
+            onClick={() => {
+              const isFinished = game?.phase === 'finished' || !!game?.winner
+              if (!isFinished && !window.confirm('Leave this game?')) return
+              gameSocket.disconnect()
+              navigate('/')
+            }}
+          >
+            <span aria-hidden="true">&larr;</span> Leave
+          </button>
           <span className={styles.roomLabel}>Room {roomId}</span>
           <span
             className={`${styles.wsIndicator} ${styles[wsStatus]}`}
@@ -1296,24 +1311,109 @@ export default function Game() {
         </div>
       </footer>
 
-      {/* Winner overlay */}
-      {game?.winner && (
-        <div className={styles.winnerOverlay}>
-          <div className={styles.winnerCard}>
-            <span className={styles.winnerEmoji}>🏆</span>
-            <h2 className={styles.winnerTitle}>
-              {players.find(p => p.id === game.winner)?.name ?? 'Someone'} wins!
-            </h2>
-            <button
-              className={styles.homeBtn}
-              onClick={() => navigate('/')}
-              type="button"
-            >
-              Back to Home
-            </button>
+      {/* Victory overlay */}
+      {game?.winner && (() => {
+        const winnerName = players.find(p => p.id === game.winner)?.name ?? 'Someone'
+
+        // Build VP breakdown sorted by VP descending
+        const vpRows = players
+          .map(p => {
+            const raw = rawPlayers.find(rp => rp.player_id === p.id)
+            const settlementsVP = p.settlements
+            const citiesVP = p.cities * 2
+            const hasLR = game.longestRoadPlayerId === p.id
+            const hasLA = game.largestArmyPlayerId === p.id
+            const lrVP = hasLR ? 2 : 0
+            const laVP = hasLA ? 2 : 0
+            const vpCards = (raw?.dev_cards ?? []).filter(c => c.card_type === 'victory_point').length
+            const totalVP = p.victoryPoints
+            return {
+              id: p.id,
+              name: p.name,
+              color: p.color,
+              settlements: p.settlements,
+              cities: p.cities,
+              settlementsVP,
+              citiesVP,
+              hasLR,
+              hasLA,
+              lrVP,
+              laVP,
+              vpCards,
+              totalVP,
+              isWinner: p.id === game.winner,
+            }
+          })
+          .sort((a, b) => b.totalVP - a.totalVP)
+
+        return (
+          <div className={styles.winnerOverlay} role="dialog" aria-label="Game over">
+            {/* Confetti pieces */}
+            {Array.from({ length: 10 }).map((_, i) => (
+              <span
+                key={i}
+                className={styles.confetti}
+                style={{ '--confetti-x': `${10 + Math.random() * 80}vw`, '--confetti-delay': `${Math.random() * 2}s`, '--confetti-color': ['#ffd60a', '#e63946', '#2a9d8f', '#f4a261', '#6a4c93'][i % 5] } as CSSProperties}
+              />
+            ))}
+
+            <div className={styles.winnerCard}>
+              <span className={styles.winnerEmoji}>🏆</span>
+              <h2 className={styles.winnerTitle}>{winnerName} Wins!</h2>
+
+              {/* VP Breakdown Table */}
+              <div className={styles.vpTableWrap}>
+                <table className={styles.vpTable}>
+                  <thead>
+                    <tr>
+                      <th>Player</th>
+                      <th>Settlements</th>
+                      <th>Cities</th>
+                      <th>LR</th>
+                      <th>LA</th>
+                      <th>VP Cards</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vpRows.map(row => (
+                      <tr key={row.id} className={row.isWinner ? styles.vpRowWinner : ''}>
+                        <td>
+                          <span className={styles.vpPlayerDot} style={{ background: row.color }} />
+                          {row.name}{row.isWinner ? ' *' : ''}
+                        </td>
+                        <td>{row.settlements} ({row.settlementsVP})</td>
+                        <td>{row.cities} ({row.citiesVP})</td>
+                        <td>{row.hasLR ? '✓ (2)' : '-'}</td>
+                        <td>{row.hasLA ? '✓ (2)' : '-'}</td>
+                        <td>{row.vpCards}</td>
+                        <td className={styles.vpTotal}>{row.totalVP}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className={styles.winnerActions}>
+                <button
+                  className={styles.playAgainBtn}
+                  onClick={() => { gameSocket.disconnect(); navigate('/') }}
+                  type="button"
+                >
+                  Play Again
+                </button>
+                <button
+                  className={styles.homeBtnOutline}
+                  onClick={() => { gameSocket.disconnect(); navigate('/') }}
+                  type="button"
+                >
+                  Back to Home
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
