@@ -13,6 +13,13 @@ logger = logging.getLogger("catan.bot")
 
 _bot_tasks: Dict[str, asyncio.Task] = {}  # player_id -> task
 
+
+def stop_bot(player_id: str):
+    """Cancel a running bot task."""
+    task = _bot_tasks.pop(player_id, None)
+    if task and not task.done():
+        task.cancel()
+
 # HEX_DIRECTIONS matching backend board.py
 HEX_DIRS = [(1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1), (0, 1)]
 

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { getRoomState, addBot, fetchMapSummaries, fetchMapDetail } from '../api'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { getRoomState, addBot, removeBot, joinRoom, fetchMapSummaries, fetchMapDetail } from '../api'
 import type { MapSummary, MapDetailData, MapDetailPort } from '../api'
 import { useRoom } from '../context/RoomContext'
 import { gameSocket } from '../ws/gameSocket'
@@ -264,6 +264,7 @@ function MapCard({
 
 export default function Room() {
   const { roomId } = useParams<{ roomId: string }>()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { room, myPlayerId, setRoom, setMyPlayerId, updatePlayer, removePlayer } =
     useRoom()
@@ -274,6 +275,12 @@ export default function Room() {
   const [wsError, setWsError] = useState('')
   const [summaries, setSummaries] = useState<Map<string, MapSummary>>(new Map())
   const [detailMap, setDetailMap] = useState<MapConfig | null>(null)
+  // Join-via-link state
+  const [joinName, setJoinName] = useState('')
+  const [joining, setJoining] = useState(false)
+  const [joinError, setJoinError] = useState('')
+  const inviteCodeFromUrl = searchParams.get('code') ?? ''
+  const needsJoin = !myPlayerId && !sessionStorage.getItem('player_id') && !!inviteCodeFromUrl
 
   // Fetch map summaries from API
   useEffect(() => {
@@ -383,6 +390,32 @@ export default function Room() {
     }
   }, [roomId, room?.players?.length])
 
+  const handleRemoveBot = useCallback(async (playerId: string) => {
+    if (!roomId) return
+    try {
+      await removeBot(roomId, playerId)
+    } catch (e) {
+      console.error(e)
+    }
+  }, [roomId])
+
+  const handleJoinViaLink = useCallback(async () => {
+    if (!joinName.trim() || !inviteCodeFromUrl) return
+    setJoining(true)
+    setJoinError('')
+    try {
+      const res = await joinRoom(inviteCodeFromUrl.toUpperCase(), joinName.trim())
+      setMyPlayerId(res.player_id)
+      sessionStorage.setItem('player_id', res.player_id)
+      sessionStorage.setItem('player_name', joinName.trim())
+      sessionStorage.setItem('invite_code', inviteCodeFromUrl.toUpperCase())
+    } catch (e) {
+      setJoinError(e instanceof Error ? e.message : 'Failed to join')
+    } finally {
+      setJoining(false)
+    }
+  }, [joinName, inviteCodeFromUrl, setMyPlayerId])
+
   const handleCopyInvite = useCallback(async () => {
     const link = `${window.location.origin}/room/${roomId}?code=${room?.inviteCode ?? ''}`
     await navigator.clipboard.writeText(link)
@@ -396,6 +429,38 @@ export default function Room() {
     gameSocket.disconnect()
     navigate('/')
   }, [navigate])
+
+  // Show join form if arrived via invite link without being in the room
+  if (needsJoin) {
+    return (
+      <div className={styles.loading}>
+        <div className={styles.joinCard}>
+          <h2 className={styles.joinTitle}>Join Game</h2>
+          <p className={styles.joinSubtitle}>You've been invited! Enter your name to join.</p>
+          <input
+            className={styles.seedInput}
+            type="text"
+            placeholder="Your name..."
+            value={joinName}
+            onChange={e => setJoinName(e.target.value)}
+            maxLength={20}
+            autoFocus
+            onKeyDown={e => e.key === 'Enter' && handleJoinViaLink()}
+          />
+          {joinError && <p style={{ color: '#e63946', fontSize: 13, margin: '8px 0 0' }}>{joinError}</p>}
+          <button
+            className={styles.startBtn}
+            onClick={handleJoinViaLink}
+            disabled={joining || !joinName.trim()}
+            type="button"
+            style={{ marginTop: 12 }}
+          >
+            {joining ? 'Joining...' : 'Join Room'}
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   if (!room) {
     return (
@@ -462,7 +527,19 @@ export default function Room() {
             </h2>
             <div className={styles.playerList}>
               {room.players.map(player => (
-                <PlayerAvatar key={player.id} player={player} isMe={player.id === myPlayerId} compact={false} />
+                <div key={player.id} className={styles.playerRow}>
+                  <PlayerAvatar player={player} isMe={player.id === myPlayerId} compact={false} />
+                  {isHost && player.name.startsWith('Bot') && player.id !== myPlayerId && (
+                    <button
+                      className={styles.removeBotBtn}
+                      onClick={() => handleRemoveBot(player.id)}
+                      type="button"
+                      title="Remove bot"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               ))}
               {Array.from({ length: room.maxPlayers - room.players.length }).map((_, i) => (
                 <div key={`empty-${i}`} className={styles.emptySlot}>Waiting for player...</div>

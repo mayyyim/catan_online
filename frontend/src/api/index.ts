@@ -98,6 +98,12 @@ export function addBot(roomId: string, name = 'Bot'): Promise<AddBotResponse> {
   })
 }
 
+export function removeBot(roomId: string, playerId: string): Promise<{ status: string }> {
+  return request<{ status: string }>(`/rooms/${roomId}/players/${playerId}`, {
+    method: 'DELETE',
+  })
+}
+
 // ─── Map gallery endpoints ────────────────────────────────────────────────────
 
 export interface MapSummaryTile { q: number; r: number; tile_type: string }

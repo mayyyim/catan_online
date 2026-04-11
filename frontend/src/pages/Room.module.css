@@ -463,6 +463,62 @@
   gap: 4px;
 }
 
+.playerRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.playerRow > :first-child {
+  flex: 1;
+}
+
+.removeBotBtn {
+  width: 24px;
+  height: 24px;
+  border: 1px solid #3a2020;
+  border-radius: 6px;
+  background: rgba(230, 57, 70, 0.1);
+  color: #e63946;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.removeBotBtn:hover {
+  background: rgba(230, 57, 70, 0.25);
+  border-color: #e63946;
+}
+
+/* Join via invite link */
+.joinCard {
+  background: rgba(22, 33, 62, 0.9);
+  border: 1.5px solid rgba(74, 111, 165, 0.3);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 360px;
+  width: 90%;
+  text-align: center;
+  backdrop-filter: blur(8px);
+}
+
+.joinTitle {
+  font-size: 24px;
+  font-weight: 700;
+  color: #f8f9fa;
+  margin: 0 0 8px;
+}
+
+.joinSubtitle {
+  font-size: 14px;
+  color: #6c757d;
+  margin: 0 0 18px;
+}
+
 .emptySlot {
   padding: 10px 10px;
   border: 1.5px dashed #2a3f5f;

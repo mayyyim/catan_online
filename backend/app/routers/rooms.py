@@ -6,8 +6,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
 
-from app.store import create_room, join_room, get_room, get_room_players, add_bot_player, ensure_game_state, broadcast
-from app.bots import start_bot
+from app.store import create_room, join_room, get_room, get_room_players, add_bot_player, ensure_game_state, broadcast, remove_player_from_room, get_player_in_room
+from app.bots import start_bot, stop_bot
 from app.routers.websocket import _room_update_msg
 
 
@@ -159,3 +159,39 @@ async def add_bot_endpoint(room_id: str, body: AddBotRequest):
         player_name=player.name,
         color=player.color,
     )
+
+
+@router.delete("/{room_id}/players/{player_id}", status_code=200)
+async def remove_player_endpoint(room_id: str, player_id: str):
+    """Remove a bot player from a waiting room. Only works before game starts."""
+    room = get_room(room_id)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    player = get_player_in_room(room_id, player_id)
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found in room")
+
+    if not player.is_bot:
+        raise HTTPException(status_code=400, detail="Can only remove bot players")
+
+    if room.game and room.game.phase.value != "waiting":
+        raise HTTPException(status_code=400, detail="Cannot remove players after game started")
+
+    # Stop bot task
+    stop_bot(player_id)
+
+    # Remove from room
+    remove_player_from_room(room_id, player_id)
+
+    # Sync game state if exists
+    game = ensure_game_state(room)
+    if game:
+        game.players = get_room_players(room_id)
+        from app.store import save_game
+        save_game(room_id, game)
+
+    # Notify connected clients
+    await broadcast(room, _room_update_msg(room, game))
+
+    return {"status": "removed", "player_id": player_id}
