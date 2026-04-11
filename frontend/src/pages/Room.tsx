@@ -418,7 +418,19 @@ export default function Room() {
 
   const handleCopyInvite = useCallback(async () => {
     const link = `${window.location.origin}/room/${roomId}?code=${room?.inviteCode ?? ''}`
-    await navigator.clipboard.writeText(link)
+    try {
+      await navigator.clipboard.writeText(link)
+    } catch {
+      // Fallback for HTTP (non-secure) contexts where clipboard API is blocked
+      const ta = document.createElement('textarea')
+      ta.value = link
+      ta.style.position = 'fixed'
+      ta.style.left = '-9999px'
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+    }
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }, [roomId, room?.inviteCode])
