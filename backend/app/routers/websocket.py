@@ -22,6 +22,7 @@ from app.game.engine import (
     handle_start_game, handle_roll_dice, handle_build,
     handle_end_turn, handle_trade,
     handle_discard, handle_place_robber, handle_steal,
+    handle_buy_dev_card, handle_play_dev_card,
 )
 from app.maps.generator import generate_random_map
 from app.maps.definitions import get_static_map
@@ -227,6 +228,29 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
 
         elif msg_type == "end_turn":
             handle_end_turn(game, player_id)
+            await broadcast(room, _game_state_msg(game))
+            save_game(room.room_id, game)
+
+        elif msg_type == "buy_dev_card":
+            result = handle_buy_dev_card(game, player_id)
+            await broadcast(room, _game_state_msg(game))
+            save_game(room.room_id, game)
+
+        elif msg_type == "play_dev_card":
+            card_type = msg.get("card_type", "")
+            params = msg.get("params") or {}
+            result = handle_play_dev_card(game, player_id, card_type, params)
+            # Broadcast event for game log display
+            player = game.player_by_id(player_id)
+            dev_event = {
+                "type": "dev_card_played",
+                "data": {
+                    "player_id": player_id,
+                    "player_name": player.name if player else "?",
+                    "card_type": card_type,
+                },
+            }
+            await broadcast(room, dev_event)
             await broadcast(room, _game_state_msg(game))
             save_game(room.room_id, game)
 

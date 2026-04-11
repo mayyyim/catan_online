@@ -17,6 +17,27 @@ _bot_tasks: Dict[str, asyncio.Task] = {}  # player_id -> task
 HEX_DIRS = [(1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1), (0, 1)]
 
 
+def _find_playable_card(game: Optional[dict], player_id: str, card_type: str) -> Optional[dict]:
+    """Find a playable dev card of given type in bot's hand (not bought this turn)."""
+    if not game:
+        return None
+    current_turn = int(game.get("current_turn_number") or 0)
+    for p in game.get("players") or []:
+        if p.get("player_id") == player_id:
+            if p.get("dev_card_played_this_turn"):
+                return None
+            for c in p.get("dev_cards") or []:
+                if c.get("card_type") == card_type and int(c.get("bought_on_turn", -1)) != current_turn:
+                    return c
+    return None
+
+
+def _bot_play_dev_cards(game: Optional[dict], player_id: str, send, recv_game_state):
+    """Bot plays non-knight dev cards during post_roll. This is a sync helper that returns coroutines to await."""
+    # This is a no-op placeholder; actual async plays happen inline in the bot loop
+    pass
+
+
 def start_bot(server_base: str, room_id: str, player_id: str, seed: Optional[int] = None):
     if player_id in _bot_tasks and not _bot_tasks[player_id].done():
         return
@@ -207,6 +228,12 @@ async def _bot_loop(ws_url: str, player_id: str):
             # === Playing phase ===
             if phase == "playing":
                 if turn_step == "pre_roll":
+                    # Check if bot has a playable knight to play before rolling
+                    knight_card = _find_playable_card(game, player_id, "knight")
+                    if knight_card:
+                        await send({"type": "play_dev_card", "card_type": "knight", "params": {}})
+                        await recv_game_state(timeout=2)
+                        continue
                     await send({"type": "roll_dice"})
                     await recv_game_state(timeout=2)
                     continue
@@ -233,7 +260,74 @@ async def _bot_loop(ws_url: str, player_id: str):
                     await recv_game_state(timeout=2)
                     continue
 
+                if turn_step == "road_building":
+                    # Place free roads from Road Building card
+                    for _ in range(20):
+                        ok = await try_build_and_wait("road", random_build_pos(), timeout=0.1)
+                        if ok:
+                            break
+                    # After placing, game state updates; loop back to re-evaluate
+                    if game and str(game.get("turn_step") or "") == "road_building":
+                        # Still need another road
+                        for _ in range(20):
+                            ok = await try_build_and_wait("road", random_build_pos(), timeout=0.1)
+                            if ok:
+                                break
+                    continue
+
                 if turn_step == "post_roll":
+                    # Play non-knight dev cards before building
+                    # Year of Plenty: pick 2 resources the bot needs most
+                    yop_card = _find_playable_card(game, player_id, "year_of_plenty")
+                    if yop_card:
+                        res = my_resources()
+                        # Pick the 2 lowest resources
+                        sorted_res = sorted(res.items(), key=lambda x: x[1])
+                        picks: Dict[str, int] = {}
+                        remaining = 2
+                        for rname, _ in sorted_res:
+                            if remaining <= 0:
+                                break
+                            picks[rname] = picks.get(rname, 0) + 1
+                            remaining -= 1
+                        if remaining > 0:
+                            # Fill with first resource
+                            first = sorted_res[0][0] if sorted_res else "wood"
+                            picks[first] = picks.get(first, 0) + remaining
+                        await send({"type": "play_dev_card", "card_type": "year_of_plenty", "params": {"resources": picks}})
+                        await recv_game_state(timeout=1)
+
+                    # Monopoly: pick resource other players have most of
+                    mono_card = _find_playable_card(game, player_id, "monopoly")
+                    if mono_card and game:
+                        best_res = "wheat"
+                        best_count = 0
+                        for rname in ["wood", "brick", "wheat", "sheep", "ore"]:
+                            total_others = 0
+                            for p in game.get("players") or []:
+                                if p.get("player_id") != player_id:
+                                    total_others += (p.get("resources") or {}).get(rname, 0)
+                            if total_others > best_count:
+                                best_count = total_others
+                                best_res = rname
+                        if best_count > 0:
+                            await send({"type": "play_dev_card", "card_type": "monopoly", "params": {"resource": best_res}})
+                            await recv_game_state(timeout=1)
+
+                    # Road Building: play it and let the road_building handler take over
+                    rb_card = _find_playable_card(game, player_id, "road_building")
+                    if rb_card:
+                        await send({"type": "play_dev_card", "card_type": "road_building", "params": {}})
+                        await recv_game_state(timeout=1)
+                        continue  # re-evaluate turn_step (should be road_building now)
+
+                    # Maybe buy a dev card (50% chance if affordable and deck has cards)
+                    deck_count = int((game or {}).get("dev_card_deck_count") or 0)
+                    if deck_count > 0 and has_resources({"ore": 1, "wheat": 1, "sheep": 1}):
+                        if random.random() < 0.5:
+                            await send({"type": "buy_dev_card"})
+                            await recv_game_state(timeout=1)
+
                     # Try bank trades: trade surplus for what we're missing
                     res = my_resources()
                     settlement_cost = {"wood": 1, "brick": 1, "wheat": 1, "sheep": 1}

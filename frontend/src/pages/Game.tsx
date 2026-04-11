@@ -8,7 +8,7 @@ import { ResourceHand } from '../components/ResourceHand'
 import { DiceDisplay } from '../components/DiceDisplay'
 import { PlayerAvatar } from '../components/PlayerAvatar'
 import { generateBoard } from '../engine/boardUtils'
-import type { ResourceType, Port } from '../types'
+import type { ResourceType, Port, DevCard, DevCardType } from '../types'
 import styles from './Game.module.css'
 
 type BuildMode = 'none' | 'road' | 'settlement' | 'city'
@@ -24,7 +24,7 @@ const EMPTY_RESOURCES: Record<ResourceType, number> = {
 type BackendGameState = {
   room_id: string
   phase: string
-  turn_step: 'pre_roll' | 'post_roll' | 'robber_discard' | 'robber_place' | 'robber_steal'
+  turn_step: 'pre_roll' | 'post_roll' | 'robber_discard' | 'robber_place' | 'robber_steal' | 'road_building' | 'year_of_plenty' | 'monopoly'
   current_player_id: string | null
   players: Array<{
     player_id: string
@@ -37,7 +37,14 @@ type BackendGameState = {
     cities_placed?: number
     roads_placed?: number
     longest_road?: number
+    dev_cards?: Array<{ card_type: string; bought_on_turn: number }>
+    knights_played?: number
+    dev_card_played_this_turn?: boolean
   }>
+  dev_card_deck_count?: number
+  current_turn_number?: number
+  largest_army_holder?: string | null
+  largest_army_size?: number
   players_to_discard?: string[]
   robber_steal_targets?: string[]
   map?: {
@@ -174,6 +181,15 @@ export default function Game() {
   const [tradeOffer, setTradeOffer] = useState<Record<string, number>>({})
   const [tradeWant, setTradeWant] = useState<Record<string, number>>({})
 
+  // Dev card state
+  const [devCards, setDevCards] = useState<DevCard[]>([])
+  const [currentTurn, setCurrentTurn] = useState(0)
+  const [devCardPlayed, setDevCardPlayed] = useState(false)
+  const [deckCount, setDeckCount] = useState(0)
+  const [yopSelection, setYopSelection] = useState<Record<string, number>>({})
+  const [monopolyResource, setMonopolyResource] = useState<string>('')
+  const [playingCard, setPlayingCard] = useState<DevCardType | null>(null)
+
   // Restore identity
   useEffect(() => {
     const storedId = sessionStorage.getItem('player_id')
@@ -218,6 +234,7 @@ export default function Game() {
           roads: Number(p.roads_placed ?? 0),
           longestRoad: Number(p.longest_road ?? 0),
           resourceCount: Number(p.resource_count ?? 0),
+          knightsPlayed: Number(p.knights_played ?? 0),
         }))
 
         const robberPos = raw.robber ?? { q: 0, r: 0 }
@@ -276,6 +293,7 @@ export default function Game() {
             ? ([Number(raw.last_dice[0]), Number(raw.last_dice[1])] as [number, number])
             : undefined,
           winner: raw.winner_id ?? undefined,
+          largestArmyPlayerId: raw.largest_army_holder ?? undefined,
           // carry-through extra fields for UI ordering (optional)
           setupOrder: raw.setup_order,
           setupStep: raw.setup_step,
@@ -284,6 +302,18 @@ export default function Game() {
         setGame(mapped)
         setPlayersToDiscard(raw.players_to_discard ?? [])
         setRobberStealTargets(raw.robber_steal_targets ?? [])
+
+        // Dev card state extraction
+        const myPlayerData = (raw.players ?? []).find(p => p.player_id === pid)
+        if (myPlayerData?.dev_cards) {
+          setDevCards(myPlayerData.dev_cards.map(c => ({
+            card_type: c.card_type as DevCardType,
+            bought_on_turn: c.bought_on_turn,
+          })))
+        }
+        setCurrentTurn(raw.current_turn_number ?? 0)
+        setDevCardPlayed(myPlayerData?.dev_card_played_this_turn ?? false)
+        setDeckCount(raw.dev_card_deck_count ?? 0)
       }
 
       if ((msg as any).type === 'trade_completed') {
@@ -291,6 +321,12 @@ export default function Game() {
         const offerStr = Object.entries(td.offer ?? {}).map(([r, n]) => `${n} ${r}`).join(', ')
         const wantStr = Object.entries(td.want ?? {}).map(([r, n]) => `${n} ${r}`).join(', ')
         appendLog(`🏦 ${td.player_name} traded ${offerStr} → ${wantStr}`)
+      }
+
+      if ((msg as any).type === 'dev_card_played') {
+        const CARD_NAMES: Record<string, string> = { knight: '🗡️ Knight', victory_point: '🏆 VP', year_of_plenty: '🌽 Year of Plenty', monopoly: '💰 Monopoly', road_building: '🛤️ Road Building' }
+        const dd = (msg as any).data
+        appendLog(`${dd.player_name} played ${CARD_NAMES[dd.card_type] ?? dd.card_type}`)
       }
 
       if ((msg as any).type === 'error') {
@@ -400,6 +436,30 @@ export default function Game() {
     if (isSetupPhase && isMyTurn && requiredBuildMode === 'road') {
       return allEdgeIdsFromTiles(tiles as any)
     }
+    // Road building dev card: auto-enable road placement
+    if (isMyTurn && turnPhase === 'road_building') {
+      const allEdges = allEdgeIdsFromTiles(tiles as any)
+      const occupiedEdges = new Set(roads.map(r => r.edgeId))
+      const myBuildingVertices = new Set(
+        buildings.filter(b => b.playerId === myPlayerId).map(b => b.vertexId)
+      )
+      const myRoadVertices = new Set<string>()
+      for (const road of roads) {
+        if (road.playerId !== myPlayerId) continue
+        const eps = edgeEndpoints(road.edgeId)
+        if (eps) {
+          myRoadVertices.add(eps[0])
+          myRoadVertices.add(eps[1])
+        }
+      }
+      const networkVertices = new Set([...myBuildingVertices, ...myRoadVertices])
+      return allEdges.filter(eid => {
+        if (occupiedEdges.has(eid)) return false
+        const eps = edgeEndpoints(eid)
+        if (!eps) return false
+        return networkVertices.has(eps[0]) || networkVertices.has(eps[1])
+      })
+    }
     if (!isMyTurn || buildMode !== 'road') return []
 
     // Non-setup road mode: edges connecting to player's existing network
@@ -431,7 +491,7 @@ export default function Game() {
       // At least one endpoint must be in the player's network
       return networkVertices.has(eps[0]) || networkVertices.has(eps[1])
     })
-  }, [buildMode, isSetupPhase, isMyTurn, requiredBuildMode, tiles, buildings, roads, myPlayerId, edgeEndpoints])
+  }, [buildMode, isSetupPhase, isMyTurn, requiredBuildMode, turnPhase, tiles, buildings, roads, myPlayerId, edgeEndpoints])
 
   // Action handlers
   const handleRollDice = useCallback(() => {
@@ -527,6 +587,62 @@ export default function Game() {
     setTradeWant({})
   }, [])
 
+  // Dev card handlers
+  const handleBuyDevCard = useCallback(() => {
+    gameSocket.send({ type: 'buy_dev_card' } as any)
+  }, [])
+
+  const handlePlayKnight = useCallback(() => {
+    gameSocket.send({ type: 'play_dev_card', card_type: 'knight' } as any)
+    setPlayingCard(null)
+  }, [])
+
+  const handlePlayYearOfPlenty = useCallback(() => {
+    gameSocket.send({ type: 'play_dev_card', card_type: 'year_of_plenty', resources: yopSelection } as any)
+    setPlayingCard(null)
+    setYopSelection({})
+  }, [yopSelection])
+
+  const handlePlayMonopoly = useCallback(() => {
+    if (!monopolyResource) return
+    gameSocket.send({ type: 'play_dev_card', card_type: 'monopoly', resource: monopolyResource } as any)
+    setPlayingCard(null)
+    setMonopolyResource('')
+  }, [monopolyResource])
+
+  const handlePlayRoadBuilding = useCallback(() => {
+    gameSocket.send({ type: 'play_dev_card', card_type: 'road_building' } as any)
+    setPlayingCard(null)
+  }, [])
+
+  const handlePlayDevCard = useCallback((cardType: DevCardType) => {
+    if (cardType === 'knight') {
+      handlePlayKnight()
+    } else if (cardType === 'road_building') {
+      handlePlayRoadBuilding()
+    } else if (cardType === 'year_of_plenty') {
+      setPlayingCard('year_of_plenty')
+      setYopSelection({})
+    } else if (cardType === 'monopoly') {
+      setPlayingCard('monopoly')
+      setMonopolyResource('')
+    }
+  }, [handlePlayKnight, handlePlayRoadBuilding])
+
+  const yopTotal = Object.values(yopSelection).reduce((a, b) => a + b, 0)
+
+  const handleYopChange = useCallback((res: string, delta: number) => {
+    setYopSelection(prev => {
+      const cur = prev[res] ?? 0
+      const next = Math.max(0, cur + delta)
+      const total = Object.values(prev).reduce((a, b) => a + b, 0) - cur + next
+      if (total > 2) return prev
+      return { ...prev, [res]: next }
+    })
+  }, [])
+
+  const hasOreWheatSheep = (myResources.ore ?? 0) >= 1 && (myResources.wheat ?? 0) >= 1 && (myResources.sheep ?? 0) >= 1
+
   // Compute trade ratios from ports
   const tradeRatios = useMemo(() => {
     const ratios: Record<string, number> = { wood: 4, brick: 4, wheat: 4, sheep: 4, ore: 4 }
@@ -592,12 +708,12 @@ export default function Game() {
       if (!pos) return
 
       const mode = requiredBuildMode
-      if (mode === 'road') {
+      if (mode === 'road' || turnPhase === 'road_building') {
         gameSocket.send({ type: 'build', piece: 'road', position: pos } as any)
-        if (!isSetupPhase) setBuildMode('none')
+        if (!isSetupPhase && turnPhase !== 'road_building') setBuildMode('none')
       }
     },
-    [isMyTurn, requiredBuildMode, selectEdge, isSetupPhase],
+    [isMyTurn, requiredBuildMode, selectEdge, isSetupPhase, turnPhase],
   )
 
   const toggleBuildMode = useCallback(
@@ -696,7 +812,13 @@ export default function Game() {
                           ? 'Roll the dice'
                           : turnPhase === 'post_roll'
                             ? 'Build or trade'
-                            : turnPhase}
+                            : turnPhase === 'road_building'
+                              ? 'Place free roads'
+                              : turnPhase === 'year_of_plenty'
+                                ? 'Pick 2 resources'
+                                : turnPhase === 'monopoly'
+                                  ? 'Choose a resource to monopolize'
+                                  : turnPhase}
             </span>
           </div>
 
@@ -717,6 +839,8 @@ export default function Game() {
               {orderedPlayers.map(p => {
                 const cardCount = p.resourceCount ?? Object.values(p.resources).reduce((a, b) => a + b, 0)
                 const hasLongestRoad = game?.longestRoadPlayerId === p.id
+                const hasLargestArmy = game?.largestArmyPlayerId === p.id
+                const knightsCount = (p as any).knightsPlayed ?? 0
                 return (
                   <div
                     key={p.id}
@@ -731,8 +855,10 @@ export default function Game() {
                     <span className={styles.playerCards}>Cards: {cardCount}</span>
                     <span className={styles.playerBuildings}>
                       {'🏠'}{p.settlements} {'🏙️'}{p.cities} {'🛤️'}{p.roads}
+                      {knightsCount > 0 && <>{' ⚔️'}{knightsCount}</>}
                     </span>
                     {hasLongestRoad && <span className={styles.longestRoadBadge} title="Longest Road">🛤️</span>}
+                    {hasLargestArmy && <span className={styles.longestRoadBadge} title="Largest Army">⚔️</span>}
                   </div>
                 )
               })}
@@ -805,6 +931,127 @@ export default function Game() {
           <div className={styles.panel}>
             <ResourceHand resources={myResources} />
           </div>
+
+          {/* Development Cards */}
+          <div className={styles.panel}>
+            <p className={styles.panelTitle}>Development Cards ({devCards.length})</p>
+            <div className={styles.devCardList}>
+              {devCards.map((card, i) => {
+                const isVP = card.card_type === 'victory_point'
+                const isKnight = card.card_type === 'knight'
+                const boughtThisTurn = card.bought_on_turn === currentTurn
+                const knightPlayable = isKnight && !devCardPlayed && !boughtThisTurn && isMyTurn && (turnPhase === 'pre_roll' || turnPhase === 'post_roll')
+                const normalPlayable = !isKnight && !isVP && !devCardPlayed && !boughtThisTurn && isMyTurn && turnPhase === 'post_roll'
+                const canPlay = isVP ? false : isKnight ? knightPlayable : normalPlayable
+
+                const CARD_ICONS: Record<string, string> = { knight: '🗡️', victory_point: '🏆', year_of_plenty: '🌽', monopoly: '💰', road_building: '🛤️' }
+                const CARD_LABELS: Record<string, string> = { knight: 'Knight', victory_point: 'Victory Point', year_of_plenty: 'Year of Plenty', monopoly: 'Monopoly', road_building: 'Road Building' }
+
+                return (
+                  <div
+                    key={i}
+                    className={`${styles.devCardItem} ${canPlay ? styles.playable : ''}`}
+                  >
+                    <span className={styles.devCardIcon}>{CARD_ICONS[card.card_type] ?? '?'}</span>
+                    <span className={styles.devCardName}>{CARD_LABELS[card.card_type] ?? card.card_type}</span>
+                    {boughtThisTurn && <span className={styles.devCardNew}>NEW</span>}
+                    {canPlay && (
+                      <button
+                        type="button"
+                        className={styles.devCardPlayBtn}
+                        onClick={() => handlePlayDevCard(card.card_type)}
+                      >
+                        Play
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+              {devCards.length === 0 && (
+                <span style={{ fontSize: 12, color: '#6c757d' }}>No cards yet</span>
+              )}
+            </div>
+            {canTrade && (
+              <button
+                type="button"
+                className={styles.buyDevCardBtn}
+                onClick={handleBuyDevCard}
+                disabled={!hasOreWheatSheep || deckCount === 0}
+              >
+                Buy Card ({deckCount} left) — ⛏️🌾🐑
+              </button>
+            )}
+          </div>
+
+          {/* Year of Plenty selection */}
+          {playingCard === 'year_of_plenty' && (
+            <div className={`${styles.panel} ${styles.yopPanel}`}>
+              <p className={styles.panelTitle}>Year of Plenty — Pick 2 resources</p>
+              <div className={styles.discardGrid}>
+                {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
+                  const sel = yopSelection[res] ?? 0
+                  return (
+                    <div key={res} className={styles.discardRow}>
+                      <span className={styles.discardLabel}>{res}</span>
+                      <button type="button" className={styles.discardBtn} onClick={() => handleYopChange(res, -1)} disabled={sel <= 0}>-</button>
+                      <span className={styles.discardCount}>{sel}</span>
+                      <button type="button" className={styles.discardBtn} onClick={() => handleYopChange(res, 1)} disabled={yopTotal >= 2}>+</button>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className={styles.tradeActions}>
+                <button
+                  type="button"
+                  className={styles.tradeSubmitBtn}
+                  onClick={handlePlayYearOfPlenty}
+                  disabled={yopTotal !== 2}
+                >
+                  Confirm ({yopTotal}/2)
+                </button>
+                <button type="button" className={styles.tradeResetBtn} onClick={() => setPlayingCard(null)}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {/* Monopoly selection */}
+          {playingCard === 'monopoly' && (
+            <div className={`${styles.panel} ${styles.monopolyPanel}`}>
+              <p className={styles.panelTitle}>Monopoly — Pick a resource</p>
+              <div className={styles.devCardList}>
+                {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => (
+                  <button
+                    key={res}
+                    type="button"
+                    className={`${styles.devCardItem} ${monopolyResource === res ? styles.playable : ''}`}
+                    onClick={() => setMonopolyResource(res)}
+                    style={{ cursor: 'pointer', textTransform: 'capitalize' }}
+                  >
+                    {res}
+                  </button>
+                ))}
+              </div>
+              <div className={styles.tradeActions} style={{ marginTop: 8 }}>
+                <button
+                  type="button"
+                  className={styles.tradeSubmitBtn}
+                  onClick={handlePlayMonopoly}
+                  disabled={!monopolyResource}
+                >
+                  Confirm {monopolyResource || '...'}
+                </button>
+                <button type="button" className={styles.tradeResetBtn} onClick={() => setPlayingCard(null)}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {/* Road Building hint */}
+          {turnPhase === 'road_building' && isMyTurn && (
+            <div className={`${styles.panel} ${styles.yopPanel}`}>
+              <p className={styles.panelTitle}>Road Building</p>
+              <p className={styles.roadBuildingHint}>Place 2 free roads on the map.</p>
+            </div>
+          )}
 
           {/* Build actions */}
           {isMyTurn && (

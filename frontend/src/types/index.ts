@@ -99,6 +99,15 @@ export interface Player {
   resourceCount?: number
 }
 
+// ─── Development Cards ──────────────────────────────────────────────────────
+
+export type DevCardType = 'knight' | 'victory_point' | 'year_of_plenty' | 'monopoly' | 'road_building'
+
+export interface DevCard {
+  card_type: DevCardType
+  bought_on_turn: number
+}
+
 // ─── Buildings ───────────────────────────────────────────────────────────────
 
 export type BuildingType = 'settlement' | 'city'
@@ -132,6 +141,9 @@ export type TurnPhase =
   | 'robber'
   | 'discard'
   | 'building'
+  | 'road_building'
+  | 'year_of_plenty'
+  | 'monopoly'
   | 'done'
 
 export interface GameState {

@@ -61,6 +61,17 @@ class TurnStep(str, Enum):
     ROBBER_PLACE = "robber_place"    # rolling player places robber
     ROBBER_STEAL = "robber_steal"    # rolling player may steal one resource
     POST_ROLL = "post_roll"          # player can build / trade / end turn
+    ROAD_BUILDING = "road_building"  # placing free roads from dev card
+    YEAR_OF_PLENTY = "year_of_plenty"  # choosing 2 free resources
+    MONOPOLY = "monopoly"           # choosing resource to monopolize
+
+
+class DevCardType(str, Enum):
+    KNIGHT = "knight"
+    VICTORY_POINT = "victory_point"
+    YEAR_OF_PLENTY = "year_of_plenty"
+    MONOPOLY = "monopoly"
+    ROAD_BUILDING = "road_building"
 
 
 # ---------------------------------------------------------------------------
@@ -72,6 +83,8 @@ BUILD_COST: Dict[PieceType, Dict[Resource, int]] = {
     PieceType.SETTLEMENT: {Resource.WOOD: 1, Resource.BRICK: 1, Resource.WHEAT: 1, Resource.SHEEP: 1},
     PieceType.CITY: {Resource.WHEAT: 2, Resource.ORE: 3},
 }
+
+DEV_CARD_COST: Dict[Resource, int] = {Resource.ORE: 1, Resource.WHEAT: 1, Resource.SHEEP: 1}
 
 # Victory points per piece
 VP_TABLE: Dict[PieceType, int] = {
@@ -195,6 +208,22 @@ class PlacedPiece:
         )
 
 
+@dataclass
+class DevCard:
+    card_type: DevCardType
+    bought_on_turn: int = -1  # turn number when bought, -1 = not yet bought
+
+    def to_dict(self):
+        return {"card_type": self.card_type.value, "bought_on_turn": self.bought_on_turn}
+
+    @staticmethod
+    def from_dict(d: dict) -> "DevCard":
+        return DevCard(
+            card_type=DevCardType(d.get("card_type", "knight")),
+            bought_on_turn=int(d.get("bought_on_turn", -1)),
+        )
+
+
 # ---------------------------------------------------------------------------
 # Player state
 # ---------------------------------------------------------------------------
@@ -215,6 +244,10 @@ class Player:
     setup_settlements: List[VertexKey] = field(default_factory=list)
     # longest road cache
     longest_road: int = 0
+    # development cards
+    dev_cards: List["DevCard"] = field(default_factory=list)
+    knights_played: int = 0
+    dev_card_played_this_turn: bool = False
 
     def has_resources(self, cost: Dict[Resource, int]) -> bool:
         return all(self.resources.get(res, 0) >= amt for res, amt in cost.items())
@@ -244,6 +277,10 @@ class Player:
             "roads_placed": self.roads_placed,
             "longest_road": self.longest_road,
             "setup_settlements": [[vk[0], vk[1], vk[2]] for vk in self.setup_settlements],
+            "dev_cards": [c.to_dict() for c in self.dev_cards] if not hide_resources else [],
+            "dev_card_count": len(self.dev_cards),
+            "knights_played": self.knights_played,
+            "dev_card_played_this_turn": self.dev_card_played_this_turn,
         }
 
     @staticmethod
@@ -263,6 +300,9 @@ class Player:
             if isinstance(raw_vk, (list, tuple)) and len(raw_vk) == 3:
                 setup_settlements.append((int(raw_vk[0]), int(raw_vk[1]), int(raw_vk[2])))
 
+        dev_cards_raw = d.get("dev_cards") or []
+        dev_cards = [DevCard.from_dict(c) for c in dev_cards_raw]
+
         p = Player(
             player_id=str(d.get("player_id") or d.get("playerId") or ""),
             name=str(d.get("name") or ""),
@@ -276,6 +316,9 @@ class Player:
         )
         p.setup_settlements = setup_settlements
         p.longest_road = int(d.get("longest_road") or 0)
+        p.dev_cards = dev_cards
+        p.knights_played = int(d.get("knights_played") or 0)
+        p.dev_card_played_this_turn = bool(d.get("dev_card_played_this_turn", False))
         return p
 
 
@@ -314,6 +357,13 @@ class GameState:
     # Robber flow state
     players_to_discard: List[str] = field(default_factory=list)   # player_ids that still need to discard
     robber_steal_targets: List[str] = field(default_factory=list)  # eligible steal targets at new robber hex
+
+    # Development cards
+    dev_card_deck: List["DevCard"] = field(default_factory=list)
+    current_turn_number: int = 0
+    largest_army_holder: Optional[str] = None
+    largest_army_size: int = 0
+    road_building_remaining: int = 0  # roads left to place for road building card
 
     def current_player(self) -> Optional[Player]:
         if not self.players:
@@ -360,6 +410,12 @@ class GameState:
             "robber_steal_targets": self.robber_steal_targets,
             "vertices": {k: v.to_dict() for k, v in self.vertices.items()},
             "edges": {k: v.to_dict() for k, v in self.edges.items()},
+            "dev_card_deck": [c.to_dict() for c in self.dev_card_deck],  # persisted for Redis; frontend should use dev_card_deck_count
+            "dev_card_deck_count": len(self.dev_card_deck),
+            "current_turn_number": self.current_turn_number,
+            "largest_army_holder": self.largest_army_holder,
+            "largest_army_size": self.largest_army_size,
+            "road_building_remaining": self.road_building_remaining,
         }
 
     @staticmethod
@@ -385,4 +441,10 @@ class GameState:
         game.robber_steal_targets = list(d.get("robber_steal_targets") or [])
         game.vertices = {k: PlacedPiece.from_dict(v) for k, v in (d.get("vertices") or {}).items()}
         game.edges = {k: PlacedPiece.from_dict(v) for k, v in (d.get("edges") or {}).items()}
+        # Development cards
+        game.dev_card_deck = [DevCard.from_dict(c) for c in (d.get("dev_card_deck") or [])]
+        game.current_turn_number = int(d.get("current_turn_number") or 0)
+        game.largest_army_holder = d.get("largest_army_holder") or None
+        game.largest_army_size = int(d.get("largest_army_size") or 0)
+        game.road_building_remaining = int(d.get("road_building_remaining") or 0)
         return game

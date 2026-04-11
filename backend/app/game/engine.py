@@ -10,7 +10,7 @@ from app.game.models import (
     PieceType, Resource, TileType, TILE_RESOURCE,
     BUILD_COST, VP_TABLE, WINNING_VP,
     MAX_ROADS, MAX_SETTLEMENTS, MAX_CITIES,
-    MapData,
+    MapData, DevCard, DevCardType, DEV_CARD_COST,
 )
 from app.game.board import (
     canonical_vertex, canonical_edge,
@@ -76,6 +76,27 @@ def move_robber_random(game: GameState):
 
 
 # ---------------------------------------------------------------------------
+# Development card deck
+# ---------------------------------------------------------------------------
+
+def create_dev_card_deck() -> list:
+    """Create and shuffle a standard 25-card development deck."""
+    deck: list = []
+    for _ in range(14):
+        deck.append(DevCard(card_type=DevCardType.KNIGHT))
+    for _ in range(5):
+        deck.append(DevCard(card_type=DevCardType.VICTORY_POINT))
+    for _ in range(2):
+        deck.append(DevCard(card_type=DevCardType.YEAR_OF_PLENTY))
+    for _ in range(2):
+        deck.append(DevCard(card_type=DevCardType.MONOPOLY))
+    for _ in range(2):
+        deck.append(DevCard(card_type=DevCardType.ROAD_BUILDING))
+    random.shuffle(deck)
+    return deck
+
+
+# ---------------------------------------------------------------------------
 # Setup phase helpers
 # ---------------------------------------------------------------------------
 
@@ -99,6 +120,11 @@ def recalculate_vp(game: GameState):
                 vp += VP_TABLE[piece.piece_type]
         if (game.longest_road_holder == player.player_id
                 and game.longest_road_length >= 5):
+            vp += 2
+        # VP from dev cards (auto-counted, not played manually)
+        vp += sum(1 for c in player.dev_cards if c.card_type == DevCardType.VICTORY_POINT)
+        # Largest army bonus
+        if game.largest_army_holder == player.player_id:
             vp += 2
         player.victory_points = vp
 
@@ -135,6 +161,10 @@ def handle_start_game(game: GameState, map_data: MapData, requesting_player_id: 
             game.robber_q = tile.q
             game.robber_r = tile.r
             break
+
+    # Initialize development card deck
+    game.dev_card_deck = create_dev_card_deck()
+    game.current_turn_number = 0
 
     # Build snake draft order
     game.setup_order = setup_order_for_players(len(game.players))
@@ -297,7 +327,10 @@ def handle_build(
     else:
         if game.phase != GamePhase.PLAYING:
             raise ActionError("Game not in playing phase")
-        if game.turn_step != TurnStep.POST_ROLL:
+        # Allow building roads during ROAD_BUILDING step, otherwise require POST_ROLL
+        is_road_building = (game.turn_step == TurnStep.ROAD_BUILDING
+                            and (piece == PieceType.ROAD or piece == "road"))
+        if not is_road_building and game.turn_step != TurnStep.POST_ROLL:
             raise ActionError("Must roll dice first")
         if game.current_player().player_id != player_id:
             raise ActionError("Not your turn")
@@ -350,7 +383,8 @@ def handle_build(
         if not ok:
             raise ActionError(msg)
 
-        if not is_setup:
+        is_free_road = (not is_setup and game.turn_step == TurnStep.ROAD_BUILDING)
+        if not is_setup and not is_free_road:
             cost = BUILD_COST[PieceType.ROAD]
             if not player.has_resources(cost):
                 raise ActionError("Not enough resources")
@@ -358,6 +392,11 @@ def handle_build(
 
         game.edges[ekey] = PlacedPiece(PieceType.ROAD, player_id)
         player.roads_placed += 1
+
+        if is_free_road:
+            game.road_building_remaining -= 1
+            if game.road_building_remaining <= 0:
+                game.turn_step = TurnStep.POST_ROLL
 
         if not is_setup:
             recalculate_vp(game)
@@ -456,6 +495,12 @@ def handle_end_turn(game: GameState, player_id: str):
         game.phase = GamePhase.FINISHED
         return
 
+    # Reset dev card state and advance turn
+    cur = game.current_player()
+    if cur:
+        cur.dev_card_played_this_turn = False
+    game.current_turn_number += 1
+
     # Advance to next player
     game.current_player_index = (game.current_player_index + 1) % len(game.players)
     game.turn_step = TurnStep.PRE_ROLL
@@ -529,3 +574,156 @@ def handle_trade(game: GameState, player_id: str, offer: Dict, want: Dict) -> Di
         player.add_resource(res, amt)
 
     return {"traded": True}
+
+
+# ---------------------------------------------------------------------------
+# Development card handlers
+# ---------------------------------------------------------------------------
+
+def check_largest_army(game: GameState):
+    """Update largest army holder if someone has >= 3 knights and beats current holder."""
+    best_pid = game.largest_army_holder
+    best_count = game.largest_army_size
+
+    for player in game.players:
+        if player.knights_played >= 3 and player.knights_played > best_count:
+            best_pid = player.player_id
+            best_count = player.knights_played
+
+    if best_pid != game.largest_army_holder or best_count != game.largest_army_size:
+        game.largest_army_holder = best_pid
+        game.largest_army_size = best_count
+
+
+def handle_buy_dev_card(game: GameState, player_id: str) -> Dict:
+    """Buy a development card from the deck."""
+    if game.phase != GamePhase.PLAYING:
+        raise ActionError("Not in playing phase")
+    if game.turn_step != TurnStep.POST_ROLL:
+        raise ActionError("Can only buy dev cards after rolling")
+    if game.current_player().player_id != player_id:
+        raise ActionError("Not your turn")
+
+    player = game.player_by_id(player_id)
+    if not player:
+        raise ActionError("Player not found")
+
+    if not player.has_resources(DEV_CARD_COST):
+        raise ActionError("Not enough resources (need ore, wheat, sheep)")
+
+    if not game.dev_card_deck:
+        raise ActionError("No development cards remaining")
+
+    player.deduct(DEV_CARD_COST)
+    card = game.dev_card_deck.pop()
+    card.bought_on_turn = game.current_turn_number
+    player.dev_cards.append(card)
+
+    recalculate_vp(game)
+    return {"bought": card.card_type.value}
+
+
+def handle_play_dev_card(game: GameState, player_id: str, card_type_str: str, params: Dict) -> Dict:
+    """Play a development card from the player's hand."""
+    if game.phase != GamePhase.PLAYING:
+        raise ActionError("Not in playing phase")
+    if game.current_player().player_id != player_id:
+        raise ActionError("Not your turn")
+
+    player = game.player_by_id(player_id)
+    if not player:
+        raise ActionError("Player not found")
+
+    try:
+        card_type = DevCardType(card_type_str)
+    except ValueError:
+        raise ActionError(f"Unknown card type: {card_type_str}")
+
+    if card_type == DevCardType.VICTORY_POINT:
+        raise ActionError("Victory Point cards cannot be played manually")
+
+    if player.dev_card_played_this_turn:
+        raise ActionError("Already played a development card this turn")
+
+    # Find a playable card (in hand and not bought this turn)
+    card_index = None
+    for i, c in enumerate(player.dev_cards):
+        if c.card_type == card_type and c.bought_on_turn != game.current_turn_number:
+            card_index = i
+            break
+
+    if card_index is None:
+        raise ActionError("No playable card of that type (must not be bought this turn)")
+
+    # Knight can be played PRE_ROLL or POST_ROLL; others only POST_ROLL
+    if card_type == DevCardType.KNIGHT:
+        if game.turn_step not in (TurnStep.PRE_ROLL, TurnStep.POST_ROLL):
+            raise ActionError("Knight can only be played before or after rolling")
+    else:
+        if game.turn_step != TurnStep.POST_ROLL:
+            raise ActionError("This card can only be played after rolling")
+
+    # Remove card from hand and mark played
+    player.dev_cards.pop(card_index)
+    player.dev_card_played_this_turn = True
+
+    result: Dict = {"card_type": card_type.value}
+
+    if card_type == DevCardType.KNIGHT:
+        player.knights_played += 1
+        check_largest_army(game)
+        # Enter robber placement flow (reuse existing robber flow)
+        game.turn_step = TurnStep.ROBBER_PLACE
+        result["action"] = "robber_place"
+
+    elif card_type == DevCardType.YEAR_OF_PLENTY:
+        resources = params.get("resources") or {}
+        total = sum(int(v) for v in resources.values())
+        if total != 2:
+            # Undo: put card back
+            player.dev_cards.append(DevCard(card_type=card_type, bought_on_turn=-1))
+            player.dev_card_played_this_turn = False
+            raise ActionError("Year of Plenty: must choose exactly 2 resources")
+        for res_str, amt in resources.items():
+            amt = int(amt)
+            if amt > 0:
+                try:
+                    res = Resource(res_str)
+                except ValueError:
+                    player.dev_cards.append(DevCard(card_type=card_type, bought_on_turn=-1))
+                    player.dev_card_played_this_turn = False
+                    raise ActionError(f"Invalid resource: {res_str}")
+                player.add_resource(res, amt)
+        result["action"] = "resources_gained"
+
+    elif card_type == DevCardType.MONOPOLY:
+        res_str = params.get("resource")
+        if not res_str:
+            player.dev_cards.append(DevCard(card_type=card_type, bought_on_turn=-1))
+            player.dev_card_played_this_turn = False
+            raise ActionError("Monopoly: must specify a resource")
+        try:
+            res = Resource(res_str)
+        except ValueError:
+            player.dev_cards.append(DevCard(card_type=card_type, bought_on_turn=-1))
+            player.dev_card_played_this_turn = False
+            raise ActionError(f"Invalid resource: {res_str}")
+        stolen_total = 0
+        for other in game.players:
+            if other.player_id != player_id:
+                amt = other.resources.get(res, 0)
+                if amt > 0:
+                    other.resources[res] = 0
+                    stolen_total += amt
+        player.add_resource(res, stolen_total)
+        result["action"] = "monopoly"
+        result["resource"] = res.value
+        result["amount"] = stolen_total
+
+    elif card_type == DevCardType.ROAD_BUILDING:
+        game.road_building_remaining = 2
+        game.turn_step = TurnStep.ROAD_BUILDING
+        result["action"] = "road_building"
+
+    recalculate_vp(game)
+    return result
