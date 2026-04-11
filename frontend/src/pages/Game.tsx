@@ -397,6 +397,26 @@ export default function Game() {
         setDeckCount(raw.dev_card_deck_count ?? 0)
       }
 
+      if ((msg as any).type === 'dice_result') {
+        const d = (msg as any).data
+        appendLog(`\u{1F3B2} ${d.player_name || '?'} rolled ${d.values[0]}+${d.values[1]} = ${d.total}`)
+      }
+
+      if ((msg as any).type === 'robber_moved') {
+        const rm = (msg as any).data
+        appendLog(`\u{1F9B9} ${rm.player_name} moved the robber`)
+      }
+
+      if ((msg as any).type === 'resource_stolen') {
+        const s = (msg as any).data
+        if (s.resource) appendLog(`\u{1F4B0} ${s.player_name} stole ${s.resource} from ${s.target_name}`)
+        else appendLog(`\u{1F4B0} ${s.player_name} tried to steal but ${s.target_name} had nothing`)
+      }
+
+      if ((msg as any).type === 'turn_start') {
+        appendLog(`\u2500\u2500 ${(msg as any).data.player_name}'s turn \u2500\u2500`)
+      }
+
       if ((msg as any).type === 'build_completed') {
         const bd = (msg as any).data
         const PIECE_ICONS: Record<string, string> = { settlement: '🏠', city: '🏙️', road: '🛤️' }
@@ -973,7 +993,9 @@ export default function Game() {
             </span>
             <span className={styles.turnStep}>
               {isSetupPhase
-                ? `Setup: place a ${requiredBuildMode}`
+                ? isMyTurn
+                  ? `Setup Round ${game?.phase === 'setup_round1' ? '1' : '2'}: Place your ${game?.phase === 'setup_round1' ? '1st' : '2nd'} ${requiredBuildMode}`
+                  : `Waiting for ${currentPlayer?.name ?? '...'} to place their ${requiredBuildMode}...`
                 : mustDiscard
                   ? 'Discard cards (rolled 7)'
                   : isRobberPlace
@@ -995,6 +1017,24 @@ export default function Game() {
                                   : turnPhase}
             </span>
           </div>
+
+          {/* Setup draft order indicator */}
+          {isSetupPhase && setupOrder && setupOrder.length > 0 && (
+            <div style={{ textAlign: 'center', fontSize: '0.85rem', padding: '4px 8px', opacity: 0.85 }}>
+              Order: {setupOrder.map((idx, i) => {
+                const p = players[idx]
+                const isCurrent = p?.id === game?.currentPlayerId
+                return (
+                  <span key={i}>
+                    {i > 0 && ' \u2192 '}
+                    <span style={{ fontWeight: isCurrent ? 'bold' : 'normal', textDecoration: isCurrent ? 'underline' : 'none' }}>
+                      {p?.name ?? `P${idx + 1}`}
+                    </span>
+                  </span>
+                )
+              })}
+            </div>
+          )}
 
           {/* Turn info / dice */}
           <div className={styles.turnSection}>
@@ -1595,7 +1635,7 @@ export default function Game() {
         <div className={styles.actionLeft}>
           {isSetupPhase ? (
             <span className={styles.buildHint}>
-              Setup: place your {requiredBuildMode}
+              Setup Round {game?.phase === 'setup_round1' ? '1' : '2'}: place your {game?.phase === 'setup_round1' ? '1st' : '2nd'} {requiredBuildMode}
             </span>
           ) : buildMode !== 'none' ? (
             <span className={styles.buildHint}>

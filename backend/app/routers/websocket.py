@@ -79,8 +79,8 @@ def _error_msg(message: str):
     return {"type": "error", "data": {"message": message}}
 
 
-def _dice_msg(values, total):
-    return {"type": "dice_result", "data": {"values": values, "total": total}}
+def _dice_msg(values, total, player_name=""):
+    return {"type": "dice_result", "data": {"values": values, "total": total, "player_name": player_name}}
 
 
 # ---------------------------------------------------------------------------
@@ -201,7 +201,8 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
         elif msg_type == "roll_dice":
             result = handle_roll_dice(game, player_id)
             # Broadcast dice result then full game state
-            await broadcast(room, _dice_msg(result["values"], result["total"]))
+            player = game.player_by_id(player_id)
+            await broadcast(room, _dice_msg(result["values"], result["total"], player.name if player else "?"))
             await broadcast_game_state(room, game)
             save_game(room.room_id, game)
             await _maybe_restart_timer(room, game)
@@ -256,6 +257,8 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
             q = int(msg.get("q", 0))
             r = int(msg.get("r", 0))
             handle_place_robber(game, player_id, q, r)
+            player = game.player_by_id(player_id)
+            await broadcast(room, {"type": "robber_moved", "data": {"player_name": player.name if player else "?", "q": q, "r": r}})
             await broadcast_game_state(room, game)
             save_game(room.room_id, game)
             await _maybe_restart_timer(room, game)
@@ -263,6 +266,16 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
         elif msg_type == "steal":
             target_id = msg.get("target_id", "")
             result = handle_steal(game, player_id, target_id)
+            player = game.player_by_id(player_id)
+            target = game.player_by_id(target_id)
+            await broadcast(room, {
+                "type": "resource_stolen",
+                "data": {
+                    "player_name": player.name if player else "?",
+                    "target_name": target.name if target else "?",
+                    "resource": result.get("stolen"),
+                },
+            })
             await broadcast_game_state(room, game)
             save_game(room.room_id, game)
             await _maybe_restart_timer(room, game)
@@ -331,6 +344,8 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
 
         elif msg_type == "end_turn":
             handle_end_turn(game, player_id)
+            next_player = game.current_player()
+            await broadcast(room, {"type": "turn_start", "data": {"player_name": next_player.name if next_player else "?"}})
             await broadcast_game_state(room, game)
             save_game(room.room_id, game)
             await _maybe_restart_timer(room, game)
