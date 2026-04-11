@@ -16,6 +16,8 @@ from app.store import (
     get_room, get_player_in_room, ensure_game_state,
     connect_player, disconnect_player, broadcast, broadcast_game_state, send_to_player, save_game, load_game,
     delete_room, has_human_players, remove_player_from_room,
+    start_turn_timer, cancel_turn_timer,
+    start_disconnect_timer, cancel_disconnect_timer,
 )
 from app.game.engine import (
     ActionError,
@@ -24,6 +26,7 @@ from app.game.engine import (
     handle_discard, handle_place_robber, handle_steal,
     handle_buy_dev_card, handle_play_dev_card,
 )
+from app.bots import stop_bot
 from app.maps.generator import generate_random_map
 from app.maps.definitions import get_static_map
 from app.game.models import GamePhase
@@ -99,6 +102,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
     # Accept connection
     await connect_player(room, player_id, websocket)
 
+    # Cancel any pending bot takeover for this player (they reconnected)
+    cancel_disconnect_timer(player_id)
+    stop_bot(player_id)
+
     # Ensure game state object exists (even in waiting phase)
     game = ensure_game_state(room)
 
@@ -143,8 +150,13 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
         if game is None or game.phase == GamePhase.WAITING:
             if player_id != room.host_player_id:
                 remove_player_from_room(room.room_id, player_id)
+        else:
+            # During active game, start 30s bot takeover timer
+            if game.phase in (GamePhase.PLAYING, GamePhase.SETUP_FORWARD, GamePhase.SETUP_BACKWARD):
+                start_disconnect_timer(room.room_id, player_id)
         # If no human players remain, destroy the room silently
         if not has_human_players(room.room_id):
+            cancel_turn_timer(room.room_id)
             delete_room(room.room_id)
             return
         # Otherwise notify remaining players
@@ -155,11 +167,22 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
 # Message dispatcher
 # ---------------------------------------------------------------------------
 
+async def _maybe_restart_timer(room, game):
+    """Restart the turn timer if the game is in playing phase."""
+    if game and game.phase == GamePhase.PLAYING and not game.winner_id:
+        await start_turn_timer(room.room_id)
+    elif game and game.phase == GamePhase.FINISHED:
+        cancel_turn_timer(room.room_id)
+
+
 async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
     try:
         if msg_type == "start_game":
             await _handle_start_game(room, game, player_id, msg)
             save_game(room.room_id, game)
+            # Start timer when game transitions to playing phase after setup
+            # (setup is handled by bots; timer starts when playing begins)
+            await _maybe_restart_timer(room, game)
 
         elif msg_type == "select_map":
             # Host selects which map to use when starting.
@@ -180,6 +203,7 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
             await broadcast(room, _dice_msg(result["values"], result["total"]))
             await broadcast_game_state(room, game)
             save_game(room.room_id, game)
+            await _maybe_restart_timer(room, game)
 
         elif msg_type == "build":
             piece = msg.get("piece")
@@ -198,6 +222,7 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
             await broadcast(room, build_event)
             await broadcast_game_state(room, game)
             save_game(room.room_id, game)
+            await _maybe_restart_timer(room, game)
 
         elif msg_type == "trade":
             offer = msg.get("offer", {})
@@ -217,12 +242,14 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
             await broadcast(room, trade_msg)
             await broadcast_game_state(room, game)
             save_game(room.room_id, game)
+            await _maybe_restart_timer(room, game)
 
         elif msg_type == "discard":
             resources = msg.get("resources", {})
             handle_discard(game, player_id, resources)
             await broadcast_game_state(room, game)
             save_game(room.room_id, game)
+            await _maybe_restart_timer(room, game)
 
         elif msg_type == "place_robber":
             q = int(msg.get("q", 0))
@@ -230,22 +257,26 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
             handle_place_robber(game, player_id, q, r)
             await broadcast_game_state(room, game)
             save_game(room.room_id, game)
+            await _maybe_restart_timer(room, game)
 
         elif msg_type == "steal":
             target_id = msg.get("target_id", "")
             result = handle_steal(game, player_id, target_id)
             await broadcast_game_state(room, game)
             save_game(room.room_id, game)
+            await _maybe_restart_timer(room, game)
 
         elif msg_type == "end_turn":
             handle_end_turn(game, player_id)
             await broadcast_game_state(room, game)
             save_game(room.room_id, game)
+            await _maybe_restart_timer(room, game)
 
         elif msg_type == "buy_dev_card":
             result = handle_buy_dev_card(game, player_id)
             await broadcast_game_state(room, game)
             save_game(room.room_id, game)
+            await _maybe_restart_timer(room, game)
 
         elif msg_type == "play_dev_card":
             card_type = msg.get("card_type", "")
@@ -264,6 +295,7 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
             await broadcast(room, dev_event)
             await broadcast_game_state(room, game)
             save_game(room.room_id, game)
+            await _maybe_restart_timer(room, game)
 
         else:
             await send_to_player(room, player_id, _error_msg(f"Unknown message type: {msg_type}"))

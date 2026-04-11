@@ -7,10 +7,13 @@ Why:
 - Redis persists room/player/game state across restarts.
 """
 
+import asyncio
 import json
+import logging
 import os
 import random
 import string
+import time
 import uuid
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
@@ -18,8 +21,10 @@ from typing import Dict, List, Optional
 from fastapi import WebSocket
 from redis import Redis
 
-from app.game.models import GameState, Player, GamePhase
+from app.game.models import GameState, Player, GamePhase, TurnStep, Resource, TileType
 from app.maps.generator import generate_random_map
+
+logger = logging.getLogger("catan.timer")
 
 
 # ---------------------------------------------------------------------------
@@ -389,3 +394,217 @@ async def send_to_player(room: RoomInfo, player_id: str, message: dict):
             await ws.send_json(message)
         except Exception:
             room.connections.pop(player_id, None)
+
+
+# ---------------------------------------------------------------------------
+# Turn timer (AFK timeout)
+# ---------------------------------------------------------------------------
+
+_turn_timers: Dict[str, asyncio.Task] = {}  # room_id -> timer task
+
+TURN_TIMEOUT = 60.0  # seconds
+
+
+async def start_turn_timer(room_id: str, timeout: float = TURN_TIMEOUT):
+    """Start/restart the turn timer for a room."""
+    cancel_turn_timer(room_id)
+
+    # Stamp the game state with timer info
+    game = load_game(room_id)
+    if game:
+        game.turn_timer_start = time.time()
+        game.turn_timer_duration = timeout
+        save_game(room_id, game)
+
+    async def _timer():
+        try:
+            await asyncio.sleep(timeout)
+            await _auto_act(room_id)
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            logger.error(f"Turn timer error for room {room_id}: {e}")
+
+    _turn_timers[room_id] = asyncio.create_task(_timer())
+
+
+def cancel_turn_timer(room_id: str):
+    """Cancel the turn timer for a room."""
+    old = _turn_timers.pop(room_id, None)
+    if old and not old.done():
+        old.cancel()
+
+
+async def _auto_act(room_id: str):
+    """Execute the default action for the current player when they time out."""
+    from app.game.engine import (
+        handle_roll_dice, handle_end_turn, handle_discard,
+        handle_place_robber, handle_steal, move_robber_random,
+        recalculate_vp, check_winner,
+    )
+
+    room = get_room(room_id)
+    if not room:
+        return
+    game = room.game
+    if not game:
+        return
+    if game.phase != GamePhase.PLAYING:
+        return
+    if game.winner_id:
+        return
+
+    player = game.current_player()
+    if not player:
+        return
+
+    player_id = player.player_id
+    step = game.turn_step
+
+    try:
+        if step == TurnStep.PRE_ROLL:
+            # Auto roll dice
+            handle_roll_dice(game, player_id)
+
+        elif step == TurnStep.ROBBER_DISCARD:
+            # Auto discard for ALL players who still need to discard
+            for pid in list(game.players_to_discard):
+                p = game.player_by_id(pid)
+                if not p:
+                    continue
+                hand_size = sum(p.resources.values())
+                required = hand_size // 2
+                if required <= 0:
+                    game.players_to_discard.remove(pid)
+                    continue
+                # Discard largest stacks first
+                sorted_res = sorted(
+                    p.resources.items(), key=lambda x: -x[1]
+                )
+                remaining = required
+                discard_map: Dict[Resource, int] = {}
+                for res, amt in sorted_res:
+                    give = min(amt, remaining)
+                    if give > 0:
+                        discard_map[res] = give
+                        remaining -= give
+                    if remaining <= 0:
+                        break
+                # Apply discard
+                for res, amt in discard_map.items():
+                    p.resources[res] -= amt
+                game.players_to_discard.remove(pid)
+
+            # After all discards, advance to robber placement
+            if not game.players_to_discard:
+                game.turn_step = TurnStep.ROBBER_PLACE
+
+        elif step == TurnStep.ROBBER_PLACE:
+            # Move robber to random land tile
+            move_robber_random(game)
+            # Check for steal targets at new position
+            from app.game.board import vertices_of_tile as _vot
+            steal_targets: set = set()
+            for vk in _vot(game.robber_q, game.robber_r):
+                vkey = f"{vk[0]},{vk[1]},{vk[2]}"
+                piece = game.vertices.get(vkey)
+                if piece and piece.player_id != player_id:
+                    steal_targets.add(piece.player_id)
+            game.robber_steal_targets = list(steal_targets)
+            if game.robber_steal_targets:
+                game.turn_step = TurnStep.ROBBER_STEAL
+            else:
+                game.turn_step = TurnStep.POST_ROLL
+
+        elif step == TurnStep.ROBBER_STEAL:
+            # Steal from random target or skip
+            targets = game.robber_steal_targets
+            if targets:
+                target_id = random.choice(targets)
+                target = game.player_by_id(target_id)
+                if target:
+                    available = [
+                        res for res, amt in target.resources.items()
+                        for _ in range(amt)
+                    ]
+                    if available:
+                        stolen = random.choice(available)
+                        target.resources[stolen] -= 1
+                        player.add_resource(stolen, 1)
+            game.robber_steal_targets = []
+            game.turn_step = TurnStep.POST_ROLL
+
+        elif step == TurnStep.POST_ROLL:
+            # Auto end turn
+            handle_end_turn(game, player_id)
+
+        elif step == TurnStep.ROAD_BUILDING:
+            # Skip road building, return to post_roll and end turn
+            game.road_building_remaining = 0
+            game.turn_step = TurnStep.POST_ROLL
+            handle_end_turn(game, player_id)
+
+        elif step == TurnStep.YEAR_OF_PLENTY:
+            # Skip year of plenty
+            game.turn_step = TurnStep.POST_ROLL
+
+        elif step == TurnStep.MONOPOLY:
+            # Skip monopoly
+            game.turn_step = TurnStep.POST_ROLL
+
+        else:
+            return  # Unknown step, do nothing
+
+    except Exception as e:
+        logger.error(f"Auto-act error room={room_id} step={step}: {e}")
+        return
+
+    # Save and broadcast
+    save_game(room_id, game)
+    await broadcast_game_state(room, game)
+
+    # Start new timer if game is still in playing phase
+    if game.phase == GamePhase.PLAYING and not game.winner_id:
+        await start_turn_timer(room_id)
+
+
+# ---------------------------------------------------------------------------
+# Disconnect bot takeover (30s grace period)
+# ---------------------------------------------------------------------------
+
+_disconnect_timers: Dict[str, asyncio.Task] = {}  # player_id -> delayed bot task
+
+
+def start_disconnect_timer(room_id: str, player_id: str, timeout: float = 30.0):
+    """After a player disconnects, start a 30s timer to replace them with a bot."""
+    cancel_disconnect_timer(player_id)
+
+    async def _takeover():
+        try:
+            await asyncio.sleep(timeout)
+            # Check if player reconnected
+            conns = _connections.get(room_id, {})
+            if player_id in conns:
+                return  # Player reconnected
+            # Check game is still active
+            game = load_game(room_id)
+            if not game or game.phase not in (GamePhase.PLAYING, GamePhase.SETUP_FORWARD, GamePhase.SETUP_BACKWARD):
+                return
+            # Start bot for this player
+            from app.bots import start_bot
+            server_base = os.getenv("SERVER_BASE_URL", "http://localhost:8000")
+            start_bot(server_base, room_id, player_id)
+            logger.info(f"Bot takeover for disconnected player {player_id} in room {room_id}")
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            logger.error(f"Disconnect timer error player={player_id}: {e}")
+
+    _disconnect_timers[player_id] = asyncio.create_task(_takeover())
+
+
+def cancel_disconnect_timer(player_id: str):
+    """Cancel the disconnect bot takeover timer (e.g. on reconnect)."""
+    old = _disconnect_timers.pop(player_id, None)
+    if old and not old.done():
+        old.cancel()
