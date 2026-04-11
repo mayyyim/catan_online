@@ -92,10 +92,10 @@ export interface AddBotResponse {
   color: string
 }
 
-export function addBot(roomId: string, name = 'Bot'): Promise<AddBotResponse> {
+export function addBot(roomId: string, name = 'Bot', difficulty = 'medium'): Promise<AddBotResponse> {
   return request<AddBotResponse>(`/rooms/${roomId}/bots`, {
     method: 'POST',
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, difficulty }),
   })
 }
 

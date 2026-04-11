@@ -182,3 +182,32 @@ Agent 名称：Backend API Developer
 - `frontend/src/pages/Room.module.css`: Added styles for `.panel`, `.ruleRow`, `.ruleSelect`, `.ruleCheckLabel`, `.ruleDesc`, `.ruleReadOnly`.
 
 **Verification**: Python `py_compile` pass, `npx tsc --noEmit` pass (0 errors).
+
+---
+
+## 2026-04-10 — Bot Difficulty Levels (Easy / Medium / Hard)
+
+**Agent**: engineering-backend-api-developer
+**Task**: Implement bot difficulty levels with differentiated behavior
+**Status**: DONE
+
+### Changes
+
+**Backend**:
+- `backend/app/game/models.py`: Added `bot_difficulty` field to `Player` dataclass, serialized in `to_dict`/`from_dict`.
+- `backend/app/store.py`: `add_bot_player()` accepts `difficulty` parameter, passes to `Player`.
+- `backend/app/routers/rooms.py`: `AddBotRequest` includes `difficulty` field (validated enum). Endpoint passes difficulty to `start_bot()`.
+- `backend/app/bots.py`: Full rewrite with difficulty system:
+  - `BotDifficulty` enum (easy/medium/hard).
+  - `evaluate_settlement_position()` + `_get_best_settlement_positions()` for hard bot smart placement.
+  - `_bot_loop()` accepts `difficulty` param, branches behavior:
+    - **Easy**: 1.5s delay, random placement, never trades, never buys dev cards, just rolls and ends turn.
+    - **Medium**: 0.8s delay, random placement, basic trading, 50% dev card buy (unchanged from before).
+    - **Hard**: 0.6s delay, smart settlement evaluation, 70% dev card buy, city upgrades, pickier trade acceptance.
+
+**Frontend**:
+- `frontend/src/api/index.ts`: `addBot()` accepts `difficulty` parameter.
+- `frontend/src/pages/Room.tsx`: Added difficulty `<select>` next to Add Bot button. Bot names reflect difficulty (Easy/Hard/Bot).
+- `frontend/src/pages/Room.module.css`: Added `.botRow` and `.botSelect` styles.
+
+**Verification**: Python `py_compile` pass (all 4 files), `npx tsc --noEmit` pass (0 errors).

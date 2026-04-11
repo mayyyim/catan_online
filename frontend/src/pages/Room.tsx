@@ -269,6 +269,7 @@ export default function Room() {
   const { room, myPlayerId, setRoom, setMyPlayerId, updatePlayer, removePlayer } =
     useRoom()
 
+  const [botDifficulty, setBotDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium')
   const [seed, setSeed] = useState('')
   const [copied, setCopied] = useState(false)
   const [wsStatus, setWsStatus] = useState<'connected' | 'disconnected' | 'error'>('disconnected')
@@ -395,14 +396,16 @@ export default function Room() {
     } as any)
   }, [room?.randomSeed, room?.selectedMapId, seed])
 
-  const handleAddBot = useCallback(async () => {
+  const handleAddBot = useCallback(async (diff?: 'easy' | 'medium' | 'hard') => {
     if (!roomId) return
+    const d = diff ?? botDifficulty
+    const label = d === 'easy' ? 'Easy' : d === 'hard' ? 'Hard' : 'Bot'
     try {
-      await addBot(roomId, `Bot ${Math.max(1, (room?.players?.length ?? 1))}`)
+      await addBot(roomId, `${label} ${Math.max(1, (room?.players?.length ?? 1))}`, d)
     } catch (e) {
       console.error(e)
     }
-  }, [roomId, room?.players?.length])
+  }, [roomId, room?.players?.length, botDifficulty])
 
   const handleRemoveBot = useCallback(async (playerId: string) => {
     if (!roomId) return
@@ -636,9 +639,21 @@ export default function Room() {
 
           {isHost && (
             <>
-              <button className={styles.inviteBtn} onClick={handleAddBot} disabled={room.players.length >= room.maxPlayers} type="button">
-                Add Bot
-              </button>
+              <div className={styles.botRow}>
+                <select
+                  className={styles.botSelect}
+                  value={botDifficulty}
+                  onChange={e => setBotDifficulty(e.target.value as 'easy' | 'medium' | 'hard')}
+                  disabled={room.players.length >= room.maxPlayers}
+                >
+                  <option value="easy">Easy</option>
+                  <option value="medium">Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+                <button className={styles.inviteBtn} onClick={() => handleAddBot()} disabled={room.players.length >= room.maxPlayers} type="button">
+                  Add Bot
+                </button>
+              </div>
               <button className={styles.startBtn} onClick={handleStartGame} disabled={room.players.length < 2} type="button">
                 Start Game
                 {room.players.length < 2 && <span className={styles.startHint}>(need at least 2 players)</span>}

@@ -5,6 +5,7 @@ import json
 import logging
 import random
 import time
+from enum import Enum
 from typing import Any, Dict, List, Optional
 
 import websockets
@@ -12,6 +13,12 @@ import websockets
 logger = logging.getLogger("catan.bot")
 
 _bot_tasks: Dict[str, asyncio.Task] = {}  # player_id -> task
+
+
+class BotDifficulty(str, Enum):
+    EASY = "easy"      # Random placement, never trades, never buys dev cards
+    MEDIUM = "medium"  # Current behavior (random placement, basic trading)
+    HARD = "hard"      # Smart placement using evaluation function
 
 
 def stop_bot(player_id: str):
@@ -39,13 +46,93 @@ def _find_playable_card(game: Optional[dict], player_id: str, card_type: str) ->
     return None
 
 
-def _bot_play_dev_cards(game: Optional[dict], player_id: str, send, recv_game_state):
-    """Bot plays non-knight dev cards during post_roll. This is a sync helper that returns coroutines to await."""
-    # This is a no-op placeholder; actual async plays happen inline in the bot loop
-    pass
+# ---------------------------------------------------------------------------
+# Hard bot: smart settlement evaluation
+# ---------------------------------------------------------------------------
+
+def evaluate_settlement_position(game_data: dict, q: int, r: int, direction: int) -> float:
+    """Score a settlement position. Higher = better."""
+    score = 0.0
+    tiles = {(t["q"], t["r"]): t for t in (game_data.get("map") or {}).get("tiles") or []}
+
+    # The vertex at (q, r, direction) touches the tile at (q, r) and neighbors
+    # depending on the direction. Check the tile itself plus adjacent tiles.
+    adjacent_coords = _vertex_adjacent_tiles(q, r, direction)
+    seen_resources: set = set()
+
+    for tq, tr in adjacent_coords:
+        tile = tiles.get((tq, tr))
+        if not tile:
+            continue
+        tile_type = tile.get("tile_type", "")
+        if tile_type in ("ocean", "desert"):
+            continue
+
+        token = tile.get("token")
+        if token:
+            # Probability score: 6-|7-token| (6 and 8 = 5 dots, 2 and 12 = 1 dot)
+            score += 6 - abs(7 - token)
+
+        # Resource diversity bonus
+        resource = tile.get("resource") or tile_type
+        if resource not in seen_resources:
+            score += 1  # diversity bonus
+            seen_resources.add(resource)
+
+        # Ore and wheat are more valuable (for cities and dev cards)
+        if resource in ("mountains", "ore"):
+            score += 2
+        elif resource in ("fields", "wheat"):
+            score += 1
+
+    if score == 0:
+        return -1
+    return score
 
 
-def start_bot(server_base: str, room_id: str, player_id: str, seed: Optional[int] = None):
+def _vertex_adjacent_tiles(q: int, r: int, direction: int) -> List[tuple]:
+    """Return the up-to-3 tile coordinates adjacent to vertex (q, r, direction)."""
+    # A hex vertex touches 3 tiles. The exact tiles depend on the direction (0-5).
+    # For simplicity, return the tile at (q,r) plus two neighbors based on direction.
+    neighbors = [
+        (q, r),
+    ]
+    if direction == 0:
+        neighbors += [(q, r - 1), (q + 1, r - 1)]
+    elif direction == 1:
+        neighbors += [(q + 1, r - 1), (q + 1, r)]
+    elif direction == 2:
+        neighbors += [(q + 1, r), (q, r + 1)]
+    elif direction == 3:
+        neighbors += [(q, r + 1), (q - 1, r + 1)]
+    elif direction == 4:
+        neighbors += [(q - 1, r + 1), (q - 1, r)]
+    elif direction == 5:
+        neighbors += [(q - 1, r), (q, r - 1)]
+    return neighbors
+
+
+def _get_best_settlement_positions(game_data: dict, count: int = 10) -> List[Dict[str, int]]:
+    """Evaluate all possible settlement positions and return the best ones."""
+    tiles = (game_data.get("map") or {}).get("tiles") or []
+    scored: List[tuple] = []
+
+    for tile in tiles:
+        ttype = tile.get("tile_type", "")
+        if ttype in ("ocean",):
+            continue
+        q, r = int(tile["q"]), int(tile["r"])
+        for d in range(6):
+            score = evaluate_settlement_position(game_data, q, r, d)
+            if score > 0:
+                scored.append((score, {"q": q, "r": r, "direction": d}))
+
+    # Sort by score descending, take top N
+    scored.sort(key=lambda x: -x[0])
+    return [pos for _, pos in scored[:count]]
+
+
+def start_bot(server_base: str, room_id: str, player_id: str, seed: Optional[int] = None, difficulty: str = "medium"):
     if player_id in _bot_tasks and not _bot_tasks[player_id].done():
         return
 
@@ -59,7 +146,7 @@ def start_bot(server_base: str, room_id: str, player_id: str, seed: Optional[int
         retries = 0
         while retries < 10:
             try:
-                await _bot_loop(ws_url, player_id)
+                await _bot_loop(ws_url, player_id, difficulty=difficulty)
                 break
             except websockets.ConnectionClosed:
                 retries += 1
@@ -73,9 +160,12 @@ def start_bot(server_base: str, room_id: str, player_id: str, seed: Optional[int
     _bot_tasks[player_id] = asyncio.create_task(_run())
 
 
-async def _bot_loop(ws_url: str, player_id: str):
+async def _bot_loop(ws_url: str, player_id: str, difficulty: str = "medium"):
     async with websockets.connect(ws_url) as ws:
         game: Optional[dict] = None
+
+        # Difficulty-based delays
+        BOT_DELAY = 1.5 if difficulty == "easy" else 0.8 if difficulty == "medium" else 0.6
 
         async def send(obj: dict):
             await ws.send(json.dumps(obj))
@@ -108,6 +198,15 @@ async def _bot_loop(ws_url: str, player_id: str):
         async def handle_pending_trade_proposals():
             """Evaluate and respond to any pending P2P trade proposals."""
             nonlocal pending_proposals
+
+            if difficulty == "easy":
+                # Easy bot never trades -- reject everything
+                for proposal in pending_proposals:
+                    proposal_id = proposal.get("id", "")
+                    await send({"type": "reject_trade", "proposal_id": proposal_id})
+                pending_proposals = []
+                return
+
             for proposal in pending_proposals:
                 proposal_id = proposal.get("id", "")
                 offer = proposal.get("offer") or {}   # what proposer gives (bot receives)
@@ -125,12 +224,22 @@ async def _bot_loop(ws_url: str, player_id: str):
                 receives_needed = any(res.get(k, 0) == 0 for k in offer if offer[k] > 0)
                 gives_surplus = all(res.get(k, 0) >= 2 for k, v in want.items() if v > 0)
 
-                if receives_needed and gives_surplus:
-                    await asyncio.sleep(0.5 + random.random())
-                    await send({"type": "accept_trade", "proposal_id": proposal_id})
+                if difficulty == "hard":
+                    # Hard bot is pickier: only accept if net benefit is clear
+                    if receives_needed and gives_surplus:
+                        await asyncio.sleep(0.3 + random.random() * 0.3)
+                        await send({"type": "accept_trade", "proposal_id": proposal_id})
+                    else:
+                        await asyncio.sleep(0.2 + random.random() * 0.3)
+                        await send({"type": "reject_trade", "proposal_id": proposal_id})
                 else:
-                    await asyncio.sleep(0.3 + random.random() * 0.5)
-                    await send({"type": "reject_trade", "proposal_id": proposal_id})
+                    # Medium bot
+                    if receives_needed and gives_surplus:
+                        await asyncio.sleep(0.5 + random.random())
+                        await send({"type": "accept_trade", "proposal_id": proposal_id})
+                    else:
+                        await asyncio.sleep(0.3 + random.random() * 0.5)
+                        await send({"type": "reject_trade", "proposal_id": proposal_id})
             pending_proposals = []
 
         async def try_build_and_wait(piece: str, position: dict, timeout: float = 0.15) -> bool:
@@ -261,7 +370,23 @@ async def _bot_loop(ws_url: str, player_id: str):
                         ok = await try_build_and_wait("road", pos, timeout=0.1)
                         if ok:
                             break
+                elif difficulty == "hard":
+                    # Hard bot: evaluate positions and try best ones first
+                    best_positions = _get_best_settlement_positions(game, count=20)
+                    placed = False
+                    for pos in best_positions:
+                        ok = await try_build_and_wait("settlement", pos, timeout=0.1)
+                        if ok:
+                            placed = True
+                            break
+                    if not placed:
+                        # Fallback to random if smart positions all fail
+                        for _ in range(80):
+                            ok = await try_build_and_wait("settlement", random_build_pos(), timeout=0.1)
+                            if ok:
+                                break
                 else:
+                    # Easy and Medium: random placement
                     for _ in range(80):
                         ok = await try_build_and_wait("settlement", random_build_pos(), timeout=0.1)
                         if ok:
@@ -269,23 +394,23 @@ async def _bot_loop(ws_url: str, player_id: str):
                 # game is already updated by try_build_and_wait if successful
                 # loop back to re-evaluate the new game state
                 if game and int(game.get("setup_step") or 0) == setup_step:
-                    # Failed to place — wait for next state update
+                    # Failed to place -- wait for next state update
                     game = None
                 continue
 
             # === Playing phase ===
-            # Add delays between bot actions so human players can see what's happening
-            BOT_DELAY = 0.8  # seconds between major actions
-
             if phase == "playing":
                 if turn_step == "pre_roll":
                     await asyncio.sleep(BOT_DELAY)
-                    # Check if bot has a playable knight to play before rolling
-                    knight_card = _find_playable_card(game, player_id, "knight")
-                    if knight_card:
-                        await send({"type": "play_dev_card", "card_type": "knight", "params": {}})
-                        await recv_game_state(timeout=2)
-                        continue
+
+                    # Hard and Medium bots check for playable knight before rolling
+                    if difficulty != "easy":
+                        knight_card = _find_playable_card(game, player_id, "knight")
+                        if knight_card:
+                            await send({"type": "play_dev_card", "card_type": "knight", "params": {}})
+                            await recv_game_state(timeout=2)
+                            continue
+
                     await send({"type": "roll_dice"})
                     await recv_game_state(timeout=2)
                     continue
@@ -331,6 +456,15 @@ async def _bot_loop(ws_url: str, player_id: str):
 
                 if turn_step == "post_roll":
                     await asyncio.sleep(BOT_DELAY)
+
+                    # ── Easy bot: just end turn, no building/trading/dev cards ──
+                    if difficulty == "easy":
+                        await send({"type": "end_turn"})
+                        await recv_game_state(timeout=2)
+                        continue
+
+                    # ── Medium and Hard: play dev cards, trade, build ──
+
                     # Play non-knight dev cards before building
                     # Year of Plenty: pick 2 resources the bot needs most
                     yop_card = _find_playable_card(game, player_id, "year_of_plenty")
@@ -375,12 +509,19 @@ async def _bot_loop(ws_url: str, player_id: str):
                         await recv_game_state(timeout=1)
                         continue  # re-evaluate turn_step (should be road_building now)
 
-                    # Maybe buy a dev card (50% chance if affordable and deck has cards)
+                    # Maybe buy a dev card
                     deck_count = int((game or {}).get("dev_card_deck_count") or 0)
                     if deck_count > 0 and has_resources({"ore": 1, "wheat": 1, "sheep": 1}):
-                        if random.random() < 0.5:
-                            await send({"type": "buy_dev_card"})
-                            await recv_game_state(timeout=1)
+                        if difficulty == "hard":
+                            # Hard bot: 70% chance to buy dev cards (strategic)
+                            if random.random() < 0.7:
+                                await send({"type": "buy_dev_card"})
+                                await recv_game_state(timeout=1)
+                        else:
+                            # Medium: 50% chance
+                            if random.random() < 0.5:
+                                await send({"type": "buy_dev_card"})
+                                await recv_game_state(timeout=1)
 
                     # Try bank trades: trade surplus for what we're missing
                     res = my_resources()
@@ -409,11 +550,40 @@ async def _bot_loop(ws_url: str, player_id: str):
                             await recv_game_state(timeout=1)
 
                     # Try building
-                    if has_resources({"wood": 1, "brick": 1, "wheat": 1, "sheep": 1}):
-                        for _ in range(20):
-                            ok = await try_build_and_wait("settlement", random_build_pos(), timeout=0.1)
-                            if ok:
-                                break
+                    if difficulty == "hard":
+                        # Hard bot: try to build at best evaluated positions
+                        if has_resources({"wood": 1, "brick": 1, "wheat": 1, "sheep": 1}):
+                            best_positions = _get_best_settlement_positions(game, count=20)
+                            for pos in best_positions:
+                                ok = await try_build_and_wait("settlement", pos, timeout=0.1)
+                                if ok:
+                                    break
+                            else:
+                                # Fallback to random
+                                for _ in range(20):
+                                    ok = await try_build_and_wait("settlement", random_build_pos(), timeout=0.1)
+                                    if ok:
+                                        break
+
+                        # Hard bot: also try to upgrade to city
+                        if has_resources({"wheat": 2, "ore": 3}):
+                            # Try upgrading existing settlements
+                            vertices = (game or {}).get("vertices") or {}
+                            for vkey, piece in vertices.items():
+                                if piece.get("player_id") == player_id and piece.get("piece_type") == "settlement":
+                                    parts = vkey.split(",")
+                                    if len(parts) == 3:
+                                        pos = {"q": int(parts[0]), "r": int(parts[1]), "direction": int(parts[2])}
+                                        ok = await try_build_and_wait("city", pos, timeout=0.1)
+                                        if ok:
+                                            break
+                    else:
+                        # Medium bot: random building
+                        if has_resources({"wood": 1, "brick": 1, "wheat": 1, "sheep": 1}):
+                            for _ in range(20):
+                                ok = await try_build_and_wait("settlement", random_build_pos(), timeout=0.1)
+                                if ok:
+                                    break
 
                     if has_resources({"wood": 1, "brick": 1}):
                         for _ in range(20):
@@ -425,5 +595,5 @@ async def _bot_loop(ws_url: str, player_id: str):
                     await recv_game_state(timeout=2)
                     continue
 
-            # Unknown state — wait for next update
+            # Unknown state -- wait for next update
             game = None

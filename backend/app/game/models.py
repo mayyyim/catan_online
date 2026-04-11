@@ -260,6 +260,7 @@ class Player:
     name: str
     color: str
     is_bot: bool = False
+    bot_difficulty: str = "medium"  # "easy", "medium", "hard"
     resources: Dict[Resource, int] = field(default_factory=lambda: {r: 0 for r in Resource})
     victory_points: int = 0
     # placement counts for rule checking
@@ -291,6 +292,7 @@ class Player:
             "name": self.name,
             "color": self.color,
             "is_bot": self.is_bot,
+            "bot_difficulty": self.bot_difficulty,
             "resources": (
                 {r.value: v for r, v in self.resources.items()}
                 if not hide_resources
@@ -334,6 +336,7 @@ class Player:
             name=str(d.get("name") or ""),
             color=str(d.get("color") or "red"),
             is_bot=bool(d.get("is_bot", False)),
+            bot_difficulty=str(d.get("bot_difficulty", "medium")),
             resources=resources,
             victory_points=int(d.get("victory_points") or 0),
             settlements_placed=int(d.get("settlements_placed") or 0),

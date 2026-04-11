@@ -281,7 +281,7 @@ def load_game(room_id: str) -> Optional[GameState]:
 # Bot / programmatic players
 # ---------------------------------------------------------------------------
 
-def add_bot_player(room_id: str, name: str = "Bot") -> Optional[Player]:
+def add_bot_player(room_id: str, name: str = "Bot", difficulty: str = "medium") -> Optional[Player]:
     """
     Add a new player entry to an existing room without using invite codes.
     Returns the created Player, or None if room not found / full / started.
@@ -307,6 +307,7 @@ def add_bot_player(room_id: str, name: str = "Bot") -> Optional[Player]:
         name=name,
         color=color,
         is_bot=True,
+        bot_difficulty=difficulty,
     )
     players.append(player)
     r = _r()

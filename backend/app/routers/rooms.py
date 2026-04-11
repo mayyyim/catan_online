@@ -52,6 +52,7 @@ class RoomStatusResponse(BaseModel):
 
 class AddBotRequest(BaseModel):
     name: str = Field(default="Bot", min_length=1, max_length=32)
+    difficulty: str = Field(default="medium", pattern="^(easy|medium|hard)$")
 
 
 class AddBotResponse(BaseModel):
@@ -140,7 +141,7 @@ async def add_bot_endpoint(room_id: str, body: AddBotRequest):
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
 
-    player = add_bot_player(room_id, name=body.name)
+    player = add_bot_player(room_id, name=body.name, difficulty=body.difficulty)
     if not player:
         raise HTTPException(status_code=400, detail="Room is full or game already started")
 
@@ -148,7 +149,7 @@ async def add_bot_endpoint(room_id: str, body: AddBotRequest):
     game = ensure_game_state(room)
 
     # Start bot loop (connects back to this server)
-    start_bot("http://localhost:8080", room_id, player.player_id)
+    start_bot("http://localhost:8080", room_id, player.player_id, difficulty=body.difficulty)
 
     # Notify connected clients
     await broadcast(room, _room_update_msg(room, game))

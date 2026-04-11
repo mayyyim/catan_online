@@ -609,6 +609,31 @@
   background: linear-gradient(135deg, rgba(22,33,62,0.6), rgba(13,27,42,0.4));
 }
 
+.botRow {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.botSelect {
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  background: #1a2a3e;
+  border: 1.5px solid #4a6fa5;
+  border-radius: 10px;
+  color: #c8d6e5;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  appearance: auto;
+}
+
+.botSelect:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .inviteBtn {
   width: 100%;
   padding: 10px;
