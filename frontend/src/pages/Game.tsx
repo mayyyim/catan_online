@@ -423,23 +423,11 @@ export default function Game() {
         .map(b => b.vertexId)
     }
 
-    // Settlement mode (non-setup): distance rule + road adjacency
+    // Settlement mode (non-setup): show distance-valid vertices, server validates road adjacency.
+    // (Road adjacency check requires canonical vertex matching which the frontend can't do reliably.)
     if (buildMode === 'settlement') {
       const occupiedIds = new Set(buildings.map(b => b.vertexId))
-      const distanceValid = new Set(validSettlementVertices(tiles as any, occupiedIds))
-
-      // Build set of vertices connected to player's road network
-      const myRoadVertices = new Set<string>()
-      for (const road of roads) {
-        if (road.playerId !== myPlayerId) continue
-        const eps = edgeEndpoints(road.edgeId)
-        if (eps) {
-          myRoadVertices.add(eps[0])
-          myRoadVertices.add(eps[1])
-        }
-      }
-
-      return [...distanceValid].filter(vid => myRoadVertices.has(vid))
+      return validSettlementVertices(tiles as any, occupiedIds)
     }
 
     return []
@@ -476,35 +464,12 @@ export default function Game() {
     }
     if (!isMyTurn || buildMode !== 'road') return []
 
-    // Non-setup road mode: edges connecting to player's existing network
+    // Show all unoccupied land edges — server validates connectivity.
+    // (Frontend vertex IDs are per-tile, but backend uses canonical IDs,
+    // so client-side network matching is unreliable. Let the server decide.)
     const allEdges = allEdgeIdsFromTiles(tiles as any)
     const occupiedEdges = new Set(roads.map(r => r.edgeId))
-
-    // Vertices with player's buildings
-    const myBuildingVertices = new Set(
-      buildings.filter(b => b.playerId === myPlayerId).map(b => b.vertexId)
-    )
-    // Vertices connected by player's roads
-    const myRoadVertices = new Set<string>()
-    for (const road of roads) {
-      if (road.playerId !== myPlayerId) continue
-      const eps = edgeEndpoints(road.edgeId)
-      if (eps) {
-        myRoadVertices.add(eps[0])
-        myRoadVertices.add(eps[1])
-      }
-    }
-
-    // All network vertices
-    const networkVertices = new Set([...myBuildingVertices, ...myRoadVertices])
-
-    return allEdges.filter(eid => {
-      if (occupiedEdges.has(eid)) return false
-      const eps = edgeEndpoints(eid)
-      if (!eps) return false
-      // At least one endpoint must be in the player's network
-      return networkVertices.has(eps[0]) || networkVertices.has(eps[1])
-    })
+    return allEdges.filter(eid => !occupiedEdges.has(eid))
   }, [buildMode, isSetupPhase, isMyTurn, requiredBuildMode, turnPhase, tiles, buildings, roads, myPlayerId, edgeEndpoints])
 
   // Action handlers
