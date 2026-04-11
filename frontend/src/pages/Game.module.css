@@ -73,6 +73,22 @@
 .wsIndicator.disconnected { background: #e63946; }
 .wsIndicator.error { background: #f4a261; }
 
+.muteBtn {
+  background: none;
+  border: 1px solid #1e3a5f;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  line-height: 1;
+  color: #f8f9fa;
+  transition: background 0.15s;
+}
+
+.muteBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .scoreboard {
   display: flex;
   gap: 8px;
@@ -120,6 +136,28 @@
   padding: 3px 8px;
   border-radius: 10px;
   border: 1px solid #1e3a5f;
+}
+
+.helpBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid #1e3a5f;
+  background: #16213e;
+  color: #ffd60a;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.helpBtn:hover {
+  background: #1e3a5f;
+  border-color: #ffd60a;
 }
 
 /* ── Body layout ─────────────────────────────────────────────────────────── */

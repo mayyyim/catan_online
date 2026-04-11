@@ -9,6 +9,8 @@ import { PlayerAvatar } from '../components/PlayerAvatar'
 import { generateBoard } from '../engine/boardUtils'
 import type { ResourceType, Port, DevCard, DevCardType } from '../types'
 import { RESOURCE_LABELS } from '../types'
+import { playDiceRoll, playBuild, playTurnStart, playTradeComplete, playVictory, playError, isMuted, setMuted } from '../utils/sounds'
+import { Tutorial, shouldShowTutorial } from '../components/Tutorial'
 import styles from './Game.module.css'
 
 type BuildMode = 'none' | 'road' | 'settlement' | 'city'
@@ -197,6 +199,7 @@ export default function Game() {
   const [yopSelection, setYopSelection] = useState<Record<string, number>>({})
   const [monopolyResource, setMonopolyResource] = useState<string>('')
   const [playingCard, setPlayingCard] = useState<DevCardType | null>(null)
+  const [muted, setMutedState] = useState(() => isMuted())
   const [rawPlayers, setRawPlayers] = useState<BackendGameState['players']>([])
 
   // P2P trade state
@@ -213,6 +216,9 @@ export default function Game() {
     offer: Record<string, number>
     want: Record<string, number>
   } | null>(null)
+
+  // Tutorial state
+  const [showTutorial, setShowTutorial] = useState(() => shouldShowTutorial())
 
   // Turn notification state
   const prevCurrentPlayerRef = useRef<string | null>(null)
@@ -381,6 +387,7 @@ export default function Game() {
         // Browser turn notification (P1-03)
         const newCurrentPlayer = raw.current_player_id ?? null
         if (newCurrentPlayer && newCurrentPlayer !== prevCurrentPlayerRef.current && newCurrentPlayer === pid) {
+          playTurnStart()
           if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
             new Notification('Catan Online', { body: "It's your turn!", icon: '/favicon.svg' })
           }
@@ -389,6 +396,11 @@ export default function Game() {
           }
         }
         prevCurrentPlayerRef.current = newCurrentPlayer
+
+        // Victory sound
+        if (raw.winner_id) {
+          playVictory()
+        }
 
         setRawPlayers(raw.players ?? [])
         setPlayersToDiscard(raw.players_to_discard ?? [])
@@ -419,6 +431,7 @@ export default function Game() {
       if ((msg as any).type === 'dice_result') {
         const d = (msg as any).data
         appendLog(`\u{1F3B2} ${d.player_name || '?'} rolled ${d.values[0]}+${d.values[1]} = ${d.total}`)
+        playDiceRoll()
       }
 
       if ((msg as any).type === 'robber_moved') {
@@ -440,6 +453,7 @@ export default function Game() {
         const bd = (msg as any).data
         const PIECE_ICONS: Record<string, string> = { settlement: '🏠', city: '🏙️', road: '🛤️' }
         appendLog(`${PIECE_ICONS[bd.piece] ?? '🔨'} ${bd.player_name} built a ${bd.piece}`)
+        playBuild()
       }
 
       if ((msg as any).type === 'trade_completed') {
@@ -451,6 +465,7 @@ export default function Game() {
         } else {
           appendLog(`🏦 ${td.player_name} traded ${offerStr} → ${wantStr}`)
         }
+        playTradeComplete()
         // Clear P2P trade state on completion
         setTradeProposal(null)
         setP2pWaiting(false)
@@ -484,6 +499,7 @@ export default function Game() {
 
       if ((msg as any).type === 'error') {
         appendLog(`Error: ${(msg as any).data?.message ?? (msg as any).message ?? 'Unknown error'}`)
+        playError()
       }
     })
 
@@ -944,6 +960,19 @@ export default function Game() {
             className={`${styles.wsIndicator} ${styles[wsStatus]}`}
             title={wsStatus}
           />
+          <button
+            className={styles.muteBtn}
+            type="button"
+            title={muted ? 'Unmute sounds' : 'Mute sounds'}
+            aria-label={muted ? 'Unmute sounds' : 'Mute sounds'}
+            onClick={() => {
+              const next = !muted
+              setMutedState(next)
+              setMuted(next)
+            }}
+          >
+            {muted ? '\uD83D\uDD07' : '\uD83D\uDD0A'}
+          </button>
         </div>
 
         <div className={styles.scoreboard}>
@@ -965,6 +994,15 @@ export default function Game() {
           {game?.phase && (
             <span className={styles.phaseTag}>{game.phase.replace(/_/g, ' ')}</span>
           )}
+          <button
+            className={styles.helpBtn}
+            type="button"
+            title="How to play"
+            aria-label="How to play"
+            onClick={() => setShowTutorial(true)}
+          >
+            ?
+          </button>
         </div>
       </header>
 
@@ -1822,6 +1860,8 @@ export default function Game() {
           </div>
         )
       })()}
+
+      <Tutorial visible={showTutorial} onClose={() => setShowTutorial(false)} />
     </div>
   )
 }
