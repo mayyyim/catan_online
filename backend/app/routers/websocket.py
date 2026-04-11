@@ -185,6 +185,17 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
             piece = msg.get("piece")
             position = msg.get("position", {})
             handle_build(game, player_id, piece, position)
+            # Broadcast build event for game log
+            player = game.player_by_id(player_id)
+            build_event = {
+                "type": "build_completed",
+                "data": {
+                    "player_id": player_id,
+                    "player_name": player.name if player else "?",
+                    "piece": piece,
+                },
+            }
+            await broadcast(room, build_event)
             await broadcast(room, _game_state_msg(game))
             save_game(room.room_id, game)
 

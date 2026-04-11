@@ -316,6 +316,12 @@ export default function Game() {
         setDeckCount(raw.dev_card_deck_count ?? 0)
       }
 
+      if ((msg as any).type === 'build_completed') {
+        const bd = (msg as any).data
+        const PIECE_ICONS: Record<string, string> = { settlement: '🏠', city: '🏙️', road: '🛤️' }
+        appendLog(`${PIECE_ICONS[bd.piece] ?? '🔨'} ${bd.player_name} built a ${bd.piece}`)
+      }
+
       if ((msg as any).type === 'trade_completed') {
         const td = (msg as any).data
         const offerStr = Object.entries(td.offer ?? {}).map(([r, n]) => `${n} ${r}`).join(', ')

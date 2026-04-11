@@ -226,8 +226,12 @@ async def _bot_loop(ws_url: str, player_id: str):
                 continue
 
             # === Playing phase ===
+            # Add delays between bot actions so human players can see what's happening
+            BOT_DELAY = 0.8  # seconds between major actions
+
             if phase == "playing":
                 if turn_step == "pre_roll":
+                    await asyncio.sleep(BOT_DELAY)
                     # Check if bot has a playable knight to play before rolling
                     knight_card = _find_playable_card(game, player_id, "knight")
                     if knight_card:
@@ -239,6 +243,7 @@ async def _bot_loop(ws_url: str, player_id: str):
                     continue
 
                 if turn_step == "robber_place":
+                    await asyncio.sleep(BOT_DELAY)
                     tiles = ((game.get("map") or {}).get("tiles") or [])
                     robber = game.get("robber") or {}
                     rq, rr = robber.get("q", 0), robber.get("r", 0)
@@ -254,6 +259,7 @@ async def _bot_loop(ws_url: str, player_id: str):
                     continue
 
                 if turn_step == "robber_steal":
+                    await asyncio.sleep(BOT_DELAY * 0.5)
                     targets = game.get("robber_steal_targets") or []
                     if targets:
                         await send({"type": "steal", "target_id": random.choice(targets)})
@@ -276,6 +282,7 @@ async def _bot_loop(ws_url: str, player_id: str):
                     continue
 
                 if turn_step == "post_roll":
+                    await asyncio.sleep(BOT_DELAY)
                     # Play non-knight dev cards before building
                     # Year of Plenty: pick 2 resources the bot needs most
                     yop_card = _find_playable_card(game, player_id, "year_of_plenty")
