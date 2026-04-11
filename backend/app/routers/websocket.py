@@ -191,6 +191,18 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
             offer = msg.get("offer", {})
             want = msg.get("want", {})
             handle_trade(game, player_id, offer, want)
+            # Notify all players about the trade
+            player = game.player_by_id(player_id)
+            trade_msg = {
+                "type": "trade_completed",
+                "data": {
+                    "player_id": player_id,
+                    "player_name": player.name if player else "?",
+                    "offer": offer,
+                    "want": want,
+                },
+            }
+            await broadcast(room, trade_msg)
             await broadcast(room, _game_state_msg(game))
             save_game(room.room_id, game)
 

@@ -280,6 +280,13 @@ export default function Game() {
         setRobberStealTargets(raw.robber_steal_targets ?? [])
       }
 
+      if ((msg as any).type === 'trade_completed') {
+        const td = (msg as any).data
+        const offerStr = Object.entries(td.offer ?? {}).map(([r, n]) => `${n} ${r}`).join(', ')
+        const wantStr = Object.entries(td.want ?? {}).map(([r, n]) => `${n} ${r}`).join(', ')
+        appendLog(`🏦 ${td.player_name} traded ${offerStr} → ${wantStr}`)
+      }
+
       if ((msg as any).type === 'error') {
         appendLog(`Error: ${(msg as any).data?.message ?? (msg as any).message ?? 'Unknown error'}`)
       }

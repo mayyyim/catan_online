@@ -234,6 +234,32 @@ async def _bot_loop(ws_url: str, player_id: str):
                     continue
 
                 if turn_step == "post_roll":
+                    # Try bank trades: trade surplus for what we're missing
+                    res = my_resources()
+                    settlement_cost = {"wood": 1, "brick": 1, "wheat": 1, "sheep": 1}
+                    # Find resources we need (have 0 of) for a settlement
+                    need = [r for r, c in settlement_cost.items() if res.get(r, 0) < c]
+                    # Find resources we can afford to trade away (have >= 5, keep 1)
+                    # or any resource >= 4 that we don't need for building
+                    surplus = sorted(
+                        [(r, a) for r, a in res.items() if a >= 4],
+                        key=lambda x: -x[1],  # most surplus first
+                    )
+                    if surplus and need:
+                        give_res, give_amt = surplus[0]
+                        want_res = need[0]
+                        # Don't trade away something we need unless we have plenty
+                        if give_res in need and give_amt < 5:
+                            # Try next surplus
+                            surplus2 = [(r, a) for r, a in surplus if r not in need]
+                            if surplus2:
+                                give_res, give_amt = surplus2[0]
+                            else:
+                                give_res = None
+                        if give_res:
+                            await send({"type": "trade", "offer": {give_res: 4}, "want": {want_res: 1}})
+                            await recv_game_state(timeout=1)
+
                     # Try building
                     if has_resources({"wood": 1, "brick": 1, "wheat": 1, "sheep": 1}):
                         for _ in range(20):
