@@ -105,6 +105,43 @@ export function removeBot(roomId: string, playerId: string): Promise<{ status: s
   })
 }
 
+// ─── Auth endpoints ─────────────────────────────────────────────────────────
+
+export interface AuthUser {
+  user_id: string
+  username: string
+  display_name: string
+  token: string
+  elo_rating: number
+  games_played: number
+  games_won: number
+  is_guest?: boolean
+}
+
+export function authRegister(username: string, password: string, displayName: string): Promise<AuthUser> {
+  return request<AuthUser>('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ username, password, display_name: displayName }),
+  })
+}
+
+export function authLogin(username: string, password: string): Promise<AuthUser> {
+  return request<AuthUser>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  })
+}
+
+export function authGuest(): Promise<AuthUser> {
+  return request<AuthUser>('/auth/guest', { method: 'POST' })
+}
+
+export function authMe(token: string): Promise<AuthUser> {
+  return request<AuthUser>('/auth/me', {
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+  })
+}
+
 // ─── Map gallery endpoints ────────────────────────────────────────────────────
 
 export interface MapSummaryTile { q: number; r: number; tile_type: string }

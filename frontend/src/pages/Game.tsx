@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo, useRef, type CSSProperties }
 import { useParams, useNavigate } from 'react-router-dom'
 import { useGame } from '../context/GameContext'
 import { useRoom } from '../context/RoomContext'
+import { useAuth } from '../context/AuthContext'
 import { gameSocket } from '../ws/gameSocket'
 import { HexGrid } from '../components/HexGrid'
 import { DiceDisplay } from '../components/DiceDisplay'
@@ -191,6 +192,7 @@ export default function Game() {
   const { game, myPlayerId, setGame, setMyPlayerId, selectedVertexId, selectedEdgeId, selectVertex, selectEdge } =
     useGame()
   const { setMyPlayerId: setRoomPlayerId } = useRoom()
+  const { user: authUser } = useAuth()
 
   const [buildMode, setBuildMode] = useState<BuildMode>('none')
   const [rolling, setRolling] = useState(false)
@@ -1092,6 +1094,11 @@ export default function Game() {
             <span aria-hidden="true">&larr;</span> Leave
           </button>
           <span className={styles.roomLabel}>Room {roomId}</span>
+          {authUser && (
+            <span className={styles.authBadge} title={`${authUser.display_name} — ${authUser.elo_rating} ELO`}>
+              {authUser.display_name} <span className={styles.eloBadge}>{authUser.elo_rating}</span>
+            </span>
+          )}
           <span
             className={`${styles.wsIndicator} ${styles[wsStatus]}`}
             title={wsStatus}

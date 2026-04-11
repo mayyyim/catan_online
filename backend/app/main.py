@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers.rooms import router as rooms_router
 from app.routers.websocket import router as ws_router
 from app.routers.auth import router as auth_router
+from app.routers.stats import router as stats_router
 
 
 app = FastAPI(
@@ -30,6 +31,7 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/auth")
 app.include_router(rooms_router)
 app.include_router(ws_router)
+app.include_router(stats_router)
 
 
 @app.on_event("startup")

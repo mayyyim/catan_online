@@ -568,6 +568,20 @@ async def _auto_act(room_id: str):
     save_game(room_id, game)
     await broadcast_game_state(room, game)
 
+    # Persist game result if finished
+    if game.phase == GamePhase.FINISHED:
+        try:
+            from app.database import SessionLocal
+            from app.game_records import save_game_result
+
+            db = SessionLocal()
+            try:
+                save_game_result(db, game.to_dict())
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Failed to save game result for room {room_id}: {e}")
+
     # Start new timer if game is still in playing phase
     if game.phase == GamePhase.PLAYING and not game.winner_id:
         await start_turn_timer(room_id)

@@ -10,6 +10,7 @@ All incoming messages must be JSON with a "type" field.
 """
 
 import json
+import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.store import (
@@ -31,6 +32,8 @@ from app.bots import stop_bot
 from app.maps.generator import generate_random_map
 from app.maps.definitions import get_static_map
 from app.game.models import GamePhase, GameRules
+
+logger = logging.getLogger("catan.ws")
 
 
 router = APIRouter(tags=["websocket"])
@@ -168,6 +171,23 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
 # ---------------------------------------------------------------------------
 # Message dispatcher
 # ---------------------------------------------------------------------------
+
+def _try_save_game_result(game):
+    """Persist finished game record to the database. Fire-and-forget."""
+    if not game or game.phase != GamePhase.FINISHED:
+        return
+    try:
+        from app.database import SessionLocal
+        from app.game_records import save_game_result
+
+        db = SessionLocal()
+        try:
+            save_game_result(db, game.to_dict())
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error("Failed to save game result for room=%s: %s", game.room_id, e)
+
 
 async def _maybe_restart_timer(room, game):
     """Restart the turn timer if the game is in playing phase."""
@@ -367,6 +387,8 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
 
         elif msg_type == "end_turn":
             handle_end_turn(game, player_id)
+            if game.phase == GamePhase.FINISHED:
+                _try_save_game_result(game)
             next_player = game.current_player()
             await broadcast(room, {"type": "turn_start", "data": {"player_name": next_player.name if next_player else "?"}})
             await broadcast_game_state(room, game)

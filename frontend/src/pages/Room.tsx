@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { getRoomState, addBot, removeBot, joinRoom, fetchMapSummaries, fetchMapDetail } from '../api'
 import type { MapSummary, MapDetailData, MapDetailPort } from '../api'
 import { useRoom } from '../context/RoomContext'
+import { useAuth } from '../context/AuthContext'
 import { gameSocket } from '../ws/gameSocket'
 import { PlayerAvatar } from '../components/PlayerAvatar'
 import { MAP_CONFIGS } from '../maps/definitions'
@@ -268,6 +269,7 @@ export default function Room() {
   const navigate = useNavigate()
   const { room, myPlayerId, setRoom, setMyPlayerId, updatePlayer, removePlayer } =
     useRoom()
+  const { user } = useAuth()
 
   const [botDifficulty, setBotDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium')
   const [seed, setSeed] = useState('')
@@ -277,7 +279,7 @@ export default function Room() {
   const [summaries, setSummaries] = useState<Map<string, MapSummary>>(new Map())
   const [detailMap, setDetailMap] = useState<MapConfig | null>(null)
   // Join-via-link state
-  const [joinName, setJoinName] = useState('')
+  const [joinName, setJoinName] = useState(user?.display_name ?? '')
   const [joining, setJoining] = useState(false)
   const [joinError, setJoinError] = useState('')
   const inviteCodeFromUrl = searchParams.get('code') ?? ''

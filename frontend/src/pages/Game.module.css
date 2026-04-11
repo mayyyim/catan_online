@@ -63,6 +63,24 @@
   color: #6c757d;
 }
 
+.authBadge {
+  font-size: 12px;
+  color: #f8f9fa;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.eloBadge {
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffd60a;
+  background: rgba(255, 214, 10, 0.12);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
 .wsIndicator {
   width: 7px;
   height: 7px;

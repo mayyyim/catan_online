@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { createRoom, joinRoom } from '../api'
 import { useRoom } from '../context/RoomContext'
+import { useAuth } from '../context/AuthContext'
 import styles from './Home.module.css'
 
 type Mode = 'idle' | 'create' | 'join'
@@ -9,9 +10,10 @@ type Mode = 'idle' | 'create' | 'join'
 export default function Home() {
   const navigate = useNavigate()
   const { setMyPlayerId } = useRoom()
+  const { user, logout } = useAuth()
 
   const [mode, setMode] = useState<Mode>('idle')
-  const [playerName, setPlayerName] = useState('')
+  const [playerName, setPlayerName] = useState(user?.display_name ?? '')
   const [inviteCode, setInviteCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -78,6 +80,16 @@ export default function Home() {
         <h1 className={styles.title}>Catan Online</h1>
         <p className={styles.subtitle}>Trade, Build, Settle</p>
 
+        {user && (
+          <div className={styles.userBar}>
+            <span className={styles.userName}>{user.display_name}</span>
+            <span className={styles.userElo}>{user.elo_rating} ELO</span>
+            <button type="button" className={styles.ghostBtn} onClick={logout}>
+              Logout
+            </button>
+          </div>
+        )}
+
         {mode === 'idle' && (
           <div className={styles.actions}>
             <button
@@ -93,8 +105,13 @@ export default function Home() {
               Join Room
             </button>
             <Link to="/maps" className={styles.mapGalleryLink}>
-              🗺 Map Gallery
+              Map Gallery
             </Link>
+            {!user && (
+              <Link to="/auth" className={styles.mapGalleryLink}>
+                Login / Register
+              </Link>
+            )}
           </div>
         )}
 
