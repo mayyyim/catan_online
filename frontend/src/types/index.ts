@@ -92,9 +92,11 @@ export interface Player {
   connected: boolean
   resources: Record<ResourceType, number>
   victoryPoints: number
-  settlements: number  // remaining to place
-  cities: number       // remaining to place
-  roads: number        // remaining to place
+  settlements: number  // placed count
+  cities: number       // placed count
+  roads: number        // placed count
+  longestRoad?: number
+  resourceCount?: number
 }
 
 // ─── Buildings ───────────────────────────────────────────────────────────────

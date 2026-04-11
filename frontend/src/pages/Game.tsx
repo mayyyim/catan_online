@@ -33,6 +33,10 @@ type BackendGameState = {
     resources?: Record<string, number>
     resource_count?: number
     victory_points?: number
+    settlements_placed?: number
+    cities_placed?: number
+    roads_placed?: number
+    longest_road?: number
   }>
   players_to_discard?: string[]
   robber_steal_targets?: string[]
@@ -209,9 +213,11 @@ export default function Game() {
             ore: Number(p.resources?.ore ?? 0),
           },
           victoryPoints: Number(p.victory_points ?? 0),
-          settlements: 0,
-          cities: 0,
-          roads: 0,
+          settlements: Number(p.settlements_placed ?? 0),
+          cities: Number(p.cities_placed ?? 0),
+          roads: Number(p.roads_placed ?? 0),
+          longestRoad: Number(p.longest_road ?? 0),
+          resourceCount: Number(p.resource_count ?? 0),
         }))
 
         const robberPos = raw.robber ?? { q: 0, r: 0 }
@@ -342,25 +348,90 @@ export default function Game() {
 
   // appendLog moved before WebSocket useEffect — see above
 
+  // Helper: get the two vertex endpoints of an edge id
+  // Edge "q,r,s:e{i}" connects "q,r,s:v{i}" and "q,r,s:v{(i+1)%6}"
+  const edgeEndpoints = useCallback((eid: string): [string, string] | null => {
+    const match = eid.match(/^(.+):e(\d)$/)
+    if (!match) return null
+    const coord = match[1]
+    const side = Number(match[2])
+    return [`${coord}:v${side}`, `${coord}:v${(side + 1) % 6}`]
+  }, [])
+
   // Build mode: which vertices/edges to highlight
   const buildableVertices = useMemo(() => {
     if (isSetupPhase && isMyTurn && requiredBuildMode === 'settlement') {
-      // Filter out vertices that violate the distance rule.
       const occupiedIds = new Set(buildings.map(b => b.vertexId))
       return validSettlementVertices(tiles as any, occupiedIds)
     }
-    if (buildMode !== 'settlement' && buildMode !== 'city') return []
-    return [] // future: server-driven valid vertex list
-  }, [buildMode, isSetupPhase, isMyTurn, requiredBuildMode, tiles, buildings])
+    if (!isMyTurn) return []
+
+    // City mode: only vertices where current player has a settlement
+    if (buildMode === 'city') {
+      return buildings
+        .filter(b => b.playerId === myPlayerId && b.type === 'settlement')
+        .map(b => b.vertexId)
+    }
+
+    // Settlement mode (non-setup): distance rule + road adjacency
+    if (buildMode === 'settlement') {
+      const occupiedIds = new Set(buildings.map(b => b.vertexId))
+      const distanceValid = new Set(validSettlementVertices(tiles as any, occupiedIds))
+
+      // Build set of vertices connected to player's road network
+      const myRoadVertices = new Set<string>()
+      for (const road of roads) {
+        if (road.playerId !== myPlayerId) continue
+        const eps = edgeEndpoints(road.edgeId)
+        if (eps) {
+          myRoadVertices.add(eps[0])
+          myRoadVertices.add(eps[1])
+        }
+      }
+
+      return [...distanceValid].filter(vid => myRoadVertices.has(vid))
+    }
+
+    return []
+  }, [buildMode, isSetupPhase, isMyTurn, requiredBuildMode, tiles, buildings, roads, myPlayerId, edgeEndpoints])
 
   const buildableEdges = useMemo(() => {
     // In setup, allow clicking any edge; server will validate placement rules.
     if (isSetupPhase && isMyTurn && requiredBuildMode === 'road') {
       return allEdgeIdsFromTiles(tiles as any)
     }
-    if (buildMode !== 'road') return []
-    return [] // future: server-driven valid edge list
-  }, [buildMode, isSetupPhase, isMyTurn, requiredBuildMode, tiles])
+    if (!isMyTurn || buildMode !== 'road') return []
+
+    // Non-setup road mode: edges connecting to player's existing network
+    const allEdges = allEdgeIdsFromTiles(tiles as any)
+    const occupiedEdges = new Set(roads.map(r => r.edgeId))
+
+    // Vertices with player's buildings
+    const myBuildingVertices = new Set(
+      buildings.filter(b => b.playerId === myPlayerId).map(b => b.vertexId)
+    )
+    // Vertices connected by player's roads
+    const myRoadVertices = new Set<string>()
+    for (const road of roads) {
+      if (road.playerId !== myPlayerId) continue
+      const eps = edgeEndpoints(road.edgeId)
+      if (eps) {
+        myRoadVertices.add(eps[0])
+        myRoadVertices.add(eps[1])
+      }
+    }
+
+    // All network vertices
+    const networkVertices = new Set([...myBuildingVertices, ...myRoadVertices])
+
+    return allEdges.filter(eid => {
+      if (occupiedEdges.has(eid)) return false
+      const eps = edgeEndpoints(eid)
+      if (!eps) return false
+      // At least one endpoint must be in the player's network
+      return networkVertices.has(eps[0]) || networkVertices.has(eps[1])
+    })
+  }, [buildMode, isSetupPhase, isMyTurn, requiredBuildMode, tiles, buildings, roads, myPlayerId, edgeEndpoints])
 
   // Action handlers
   const handleRollDice = useCallback(() => {
@@ -605,30 +676,66 @@ export default function Game() {
 
         {/* Right panel */}
         <aside className={styles.sidePanel}>
+          {/* Turn banner */}
+          <div className={isMyTurn ? styles.turnBannerYou : styles.turnBannerWait}>
+            <span className={styles.turnBannerLabel}>
+              {isMyTurn ? 'YOUR TURN' : `Waiting for ${currentPlayer?.name ?? '...'}...`}
+            </span>
+            <span className={styles.turnStep}>
+              {isSetupPhase
+                ? `Setup: place a ${requiredBuildMode}`
+                : mustDiscard
+                  ? 'Discard cards (rolled 7)'
+                  : isRobberPlace
+                    ? 'Move the robber'
+                    : isRobberSteal
+                      ? 'Choose who to steal from'
+                      : turnPhase === 'robber_discard'
+                        ? 'Waiting for others to discard...'
+                        : turnPhase === 'pre_roll'
+                          ? 'Roll the dice'
+                          : turnPhase === 'post_roll'
+                            ? 'Build or trade'
+                            : turnPhase}
+            </span>
+          </div>
+
           {/* Turn info */}
           <div className={styles.turnSection}>
             <div className={styles.turnHeader}>
-              <span className={styles.turnLabel}>
-                {isSetupPhase
-                  ? isMyTurn
-                    ? `Setup: Your turn — place a ${requiredBuildMode}`
-                    : `Setup: ${currentPlayer?.name ?? '...'} — place a ${requiredBuildMode}`
-                  : mustDiscard
-                    ? 'You must discard cards!'
-                    : isRobberPlace
-                      ? 'Move the robber!'
-                      : isRobberSteal
-                        ? 'Choose who to steal from!'
-                        : turnPhase === 'robber_discard'
-                          ? 'Waiting for others to discard...'
-                          : isMyTurn
-                            ? 'Your Turn'
-                            : `${currentPlayer?.name ?? '...'}'s Turn`}
-              </span>
               <DiceDisplay
                 dice={game?.lastDiceRoll}
                 rolling={rolling}
               />
+            </div>
+          </div>
+
+          {/* Players panel */}
+          <div className={styles.panel}>
+            <p className={styles.panelTitle}>Players</p>
+            <div className={styles.playersGrid}>
+              {orderedPlayers.map(p => {
+                const cardCount = p.resourceCount ?? Object.values(p.resources).reduce((a, b) => a + b, 0)
+                const hasLongestRoad = game?.longestRoadPlayerId === p.id
+                return (
+                  <div
+                    key={p.id}
+                    className={`${styles.playerRow} ${p.id === game?.currentPlayerId ? styles.playerRowActive : ''}`}
+                    style={{ '--player-color': p.color } as CSSProperties}
+                  >
+                    <span className={styles.playerDot} style={{ background: p.color }} />
+                    <span className={styles.playerName}>
+                      {p.name}
+                      {p.id === myPlayerId && <span className={styles.playerYouTag}> (you)</span>}
+                    </span>
+                    <span className={styles.playerCards}>Cards: {cardCount}</span>
+                    <span className={styles.playerBuildings}>
+                      {'🏠'}{p.settlements} {'🏙️'}{p.cities} {'🛤️'}{p.roads}
+                    </span>
+                    {hasLongestRoad && <span className={styles.longestRoadBadge} title="Longest Road">🛤️</span>}
+                  </div>
+                )
+              })}
             </div>
           </div>
 

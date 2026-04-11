@@ -39,11 +39,25 @@
 
 .road {
   pointer-events: none;
+  animation: roadDraw 0.3s ease-out;
+}
+
+@keyframes roadDraw {
+  0% { opacity: 0; stroke-width: 0; }
+  60% { stroke-width: 10; }
+  100% { opacity: 1; }
 }
 
 .building {
   pointer-events: none;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+  animation: buildPop 0.3s ease-out;
+}
+
+@keyframes buildPop {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 .buildableVertex {

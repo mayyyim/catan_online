@@ -178,6 +178,63 @@
   margin: 0 0 10px;
 }
 
+/* Turn banner */
+.turnBannerYou {
+  background: linear-gradient(135deg, #b8860b 0%, #ffd60a 50%, #b8860b 100%);
+  border: 1.5px solid #ffd60a;
+  border-radius: 12px;
+  padding: 10px 14px;
+  text-align: center;
+  box-shadow: 0 2px 16px rgba(255, 214, 10, 0.35);
+  animation: turnPulse 2s ease-in-out infinite;
+}
+
+.turnBannerWait {
+  background: #16213e;
+  border: 1px solid #1e3a5f;
+  border-radius: 12px;
+  padding: 10px 14px;
+  text-align: center;
+  opacity: 0.7;
+}
+
+.turnBannerLabel {
+  display: block;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.turnBannerYou .turnBannerLabel {
+  color: #0d1b2a;
+}
+
+.turnBannerWait .turnBannerLabel {
+  color: #6c757d;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.turnStep {
+  display: block;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.turnBannerYou .turnStep {
+  color: #1a1a2e;
+}
+
+.turnBannerWait .turnStep {
+  color: #4a6fa5;
+}
+
+@keyframes turnPulse {
+  0%, 100% { box-shadow: 0 2px 16px rgba(255, 214, 10, 0.35); }
+  50%      { box-shadow: 0 4px 24px rgba(255, 214, 10, 0.55); }
+}
+
 /* Turn section */
 .turnSection {
   background: #16213e;
@@ -190,14 +247,76 @@
 .turnHeader {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 8px;
 }
 
-.turnLabel {
-  font-size: 16px;
-  font-weight: 700;
+/* Players panel */
+.playersGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.playerRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #0d1b2a;
+  border: 1px solid transparent;
+  font-size: 13px;
+  transition: border-color 0.15s;
+}
+
+.playerRowActive {
+  border-color: var(--player-color);
+  background: color-mix(in srgb, var(--player-color) 8%, #0d1b2a);
+}
+
+.playerDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.playerName {
+  font-weight: 600;
   color: #f8f9fa;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playerYouTag {
+  font-weight: 400;
+  color: #6c757d;
+  font-size: 11px;
+}
+
+.playerCards {
+  color: #adb5bd;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.playerBuildings {
+  color: #6c757d;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.longestRoadBadge {
+  background: #ffd60a;
+  color: #0d1b2a;
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-weight: 700;
 }
 
 /* Build grid */
