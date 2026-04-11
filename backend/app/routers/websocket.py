@@ -107,9 +107,12 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
     # Accept connection
     await connect_player(room, player_id, websocket)
 
-    # Cancel any pending bot takeover for this player (they reconnected)
+    # Cancel any pending bot takeover for this player (they reconnected).
+    # Only stop a substitute bot if this is a human player reconnecting —
+    # don't kill the bot's own task when the bot connects.
     cancel_disconnect_timer(player_id)
-    stop_bot(player_id)
+    if not (player and player.is_bot):
+        stop_bot(player_id)
 
     # Ensure game state object exists (even in waiting phase)
     game = ensure_game_state(room)
@@ -150,10 +153,11 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
 
     except WebSocketDisconnect:
         disconnect_player(room, player_id)
-        # In waiting phase, remove non-host players so they don't ghost the slot.
-        # Keep the host so they can reconnect (e.g. page refresh, network hiccup).
+        # In waiting phase, remove non-host human players so they don't ghost the slot.
+        # Keep the host (can reconnect) and bots (managed via HTTP, not WS lifecycle).
         if game is None or game.phase == GamePhase.WAITING:
-            if player_id != room.host_player_id:
+            is_bot = player is not None and player.is_bot
+            if player_id != room.host_player_id and not is_bot:
                 remove_player_from_room(room.room_id, player_id)
         else:
             # During active game, start 30s bot takeover timer
