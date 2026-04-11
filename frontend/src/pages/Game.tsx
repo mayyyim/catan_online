@@ -218,6 +218,25 @@ export default function Game() {
   const prevCurrentPlayerRef = useRef<string | null>(null)
   const [titleFlashing, setTitleFlashing] = useState(false)
 
+  // Map container responsive sizing
+  const mapContainerRef = useRef<HTMLDivElement>(null)
+  const [mapSize, setMapSize] = useState({ width: 700, height: 680 })
+
+  useEffect(() => {
+    const el = mapContainerRef.current
+    if (!el) return
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (!entry) return
+      const { width, height } = entry.contentRect
+      if (width > 0 && height > 0) {
+        setMapSize({ width: Math.floor(width), height: Math.floor(height) })
+      }
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   // Request notification permission on first game load
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -818,6 +837,17 @@ export default function Game() {
     return ratios
   }, [ports])
 
+  // Compute which port resources the player has access to (ratio < 4)
+  const activePortResources = useMemo(() => {
+    const active = new Set<string | null>()
+    for (const [res, ratio] of Object.entries(tradeRatios)) {
+      if (ratio < 4) active.add(res)
+    }
+    // Check for generic port (any resource at 3:1 that isn't from a specific 2:1 port)
+    if (Object.values(tradeRatios).some(r => r === 3)) active.add(null)
+    return active
+  }, [tradeRatios])
+
   const tradeOfferTotal = Object.values(tradeOffer).reduce((a, b) => a + b, 0)
   const tradeWantTotal = Object.values(tradeWant).reduce((a, b) => a + b, 0)
 
@@ -940,7 +970,7 @@ export default function Game() {
 
       <div className={styles.body}>
         {/* Main map area */}
-        <main className={styles.mapArea}>
+        <main ref={mapContainerRef} className={styles.mapArea}>
           <HexGrid
             tiles={tiles}
             ports={ports}
@@ -954,8 +984,9 @@ export default function Game() {
             onVertexClick={handleVertexClick}
             onEdgeClick={handleEdgeClick}
             onTileClick={isRobberPlace ? handleTileClick : undefined}
-            width={700}
-            height={680}
+            activePortResources={activePortResources}
+            width={mapSize.width}
+            height={mapSize.height}
           />
         </main>
 
@@ -1311,7 +1342,7 @@ export default function Game() {
                       const ratio = tradeRatios[res] ?? 4
                       return (
                         <div key={res} className={styles.tradeRow}>
-                          <span className={styles.tradeRes}>{res} <span className={styles.tradeRatio}>{ratio}:1</span></span>
+                          <span className={styles.tradeRes}>{res} <span className={styles.tradeRatio}>{ratio}:1</span>{ratio < 4 && <span className={styles.portBadge} title={ratio === 2 ? `${res} port` : 'generic port'}>{ratio === 2 ? '\u2693' : '\uD83D\uDEA2'}</span>}</span>
                           <button type="button" className={styles.tradeBtn} onClick={() => handleTradeOfferChange(res, -ratio)} disabled={offering < ratio}>-</button>
                           <span className={styles.tradeCount}>{offering}</span>
                           <button type="button" className={styles.tradeBtn} onClick={() => handleTradeOfferChange(res, ratio)} disabled={have - offering < ratio}>+</button>

@@ -41,6 +41,7 @@ interface HexGridProps {
   selectedEdgeId?: string | null
   buildableVertices?: string[]
   buildableEdges?: string[]
+  activePortResources?: Set<string | null>
   onVertexClick?: (id: string) => void
   onEdgeClick?: (id: string) => void
   onTileClick?: (tile: HexTile) => void
@@ -65,6 +66,7 @@ export function HexGrid({
   selectedEdgeId,
   buildableVertices = [],
   buildableEdges = [],
+  activePortResources,
   onVertexClick,
   onEdgeClick,
   onTileClick,
@@ -420,9 +422,10 @@ export function HexGrid({
           const portY = tilePy + ddy * HEX_SIZE * 0.6
           const label = port.resource ? RESOURCE_LABELS[port.resource] : '?'
           const ratioText = `${port.ratio}:1`
+          const isActive = activePortResources?.has(port.resource)
           return (
-            <g key={`port-${idx}`} className={styles.port}>
-              <circle cx={portX} cy={portY} r={14} fill="#1a3a5c" stroke="#ffd60a" strokeWidth={1.5} />
+            <g key={`port-${idx}`} className={`${styles.port} ${isActive ? styles.portActive : ''}`}>
+              <circle cx={portX} cy={portY} r={isActive ? 16 : 14} fill={isActive ? '#1a4a6c' : '#1a3a5c'} stroke={isActive ? '#ffd60a' : '#ffd60a'} strokeWidth={isActive ? 2.5 : 1.5} />
               <text x={portX} y={portY - 2} textAnchor="middle" fontSize={11} fill="#ffd60a">{label}</text>
               <text x={portX} y={portY + 10} textAnchor="middle" fontSize={9} fill="#cce" fontWeight="bold">{ratioText}</text>
             </g>

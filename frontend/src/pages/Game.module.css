@@ -137,6 +137,23 @@
   }
 }
 
+@media (max-width: 768px) {
+  .body {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+  .mapArea {
+    min-height: 50vh;
+    max-height: 60vh;
+  }
+  .sidePanel {
+    border-left: none;
+    border-top: 1px solid #1e3a5f;
+    max-height: none;
+    overflow-y: visible;
+  }
+}
+
 /* ── Map area ────────────────────────────────────────────────────────────── */
 
 .mapArea {
@@ -430,6 +447,12 @@
 .tradeRatio {
   font-size: 10px;
   color: #6c757d;
+}
+
+.portBadge {
+  margin-left: 3px;
+  font-size: 11px;
+  filter: saturate(0.8);
 }
 
 .tradeBtn {
@@ -1613,4 +1636,27 @@
   border-radius: 3px;
   border: 1px solid rgba(0, 0, 0, 0.2);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+/* ── Mobile responsive ─────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  /* Top bar */
+  .topBar { height: 44px; padding: 0 8px; }
+  .scoreboard { overflow-x: auto; gap: 4px; }
+  .scoreCard { padding: 3px 8px; }
+  .scoreVP { font-size: 14px; }
+
+  /* Bottom action bar */
+  .actionBar { height: auto; padding: 6px 12px; flex-wrap: wrap; gap: 6px; }
+  .bottomResCards { gap: 4px; overflow-x: auto; flex-wrap: nowrap; }
+  .resCard { width: 36px; min-height: 48px; }
+  .resCardCount { font-size: 14px; }
+  .resCardName { font-size: 8px; }
+  .rollBtn { padding: 10px 16px; font-size: 14px; }
+  .endTurnBtn { padding: 8px 14px; font-size: 13px; }
+
+  /* Side panel */
+  .sidePanel { padding: 8px; gap: 6px; }
+  .panel { padding: 8px; }
 }

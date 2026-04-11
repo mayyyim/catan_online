@@ -92,6 +92,14 @@
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7));
 }
 
+.portActive circle {
+  filter: drop-shadow(0 0 6px rgba(255, 214, 10, 0.8)) drop-shadow(0 0 12px rgba(255, 214, 10, 0.4));
+}
+
+.portActive text {
+  fill: #ffe44d;
+}
+
 /* Zoom controls */
 .zoomControls {
   position: absolute;
