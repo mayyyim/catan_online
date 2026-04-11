@@ -139,3 +139,17 @@ Agent 名称：Backend API Developer + Test & Auto Commit
 备注：Redis players 列表与 in-memory connections 之间的生命周期不一致是根本原因
 
 ---
+
+---
+
+## 2026-04-11 | P2P Trading Implementation
+
+**Agent**: engineering-backend-api-developer
+**Task**: Implement Player-to-Player (P2P) trading for Catan Online
+**Status**: DONE
+
+### Changes
+- `backend/app/game/models.py` — Added `trade_proposal: Optional[Dict]` to `GameState`, with serialization in `to_dict`/`from_dict`
+- `backend/app/game/engine.py` — Added `handle_propose_trade`, `handle_accept_trade`, `handle_reject_trade`, `handle_cancel_trade`; auto-clear proposal on `handle_end_turn`
+- `backend/app/routers/websocket.py` — Added dispatch for `propose_trade`, `accept_trade`, `reject_trade`, `cancel_trade` message types with broadcasts
+- `backend/app/bots.py` — Bots now capture `trade_proposal` events and evaluate trades using heuristic (accept if receiving a needed resource and giving surplus)

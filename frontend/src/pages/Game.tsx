@@ -199,6 +199,21 @@ export default function Game() {
   const [playingCard, setPlayingCard] = useState<DevCardType | null>(null)
   const [rawPlayers, setRawPlayers] = useState<BackendGameState['players']>([])
 
+  // P2P trade state
+  const [p2pProposing, setP2pProposing] = useState(false)
+  const [p2pOffer, setP2pOffer] = useState<Record<string, number>>({})
+  const [p2pWant, setP2pWant] = useState<Record<string, number>>({})
+  const [p2pWaiting, setP2pWaiting] = useState(false) // true after sending proposal
+  const [p2pSentOffer, setP2pSentOffer] = useState<Record<string, number>>({})
+  const [p2pSentWant, setP2pSentWant] = useState<Record<string, number>>({})
+  const [tradeProposal, setTradeProposal] = useState<{
+    id: string
+    proposer_id: string
+    proposer_name: string
+    offer: Record<string, number>
+    want: Record<string, number>
+  } | null>(null)
+
   // Restore identity
   useEffect(() => {
     const storedId = sessionStorage.getItem('player_id')
@@ -311,6 +326,15 @@ export default function Game() {
         setGame(mapped)
         setRawPlayers(raw.players ?? [])
         setPlayersToDiscard(raw.players_to_discard ?? [])
+
+        // Clear P2P trade state on turn change
+        if (raw.turn_step === 'pre_roll') {
+          setTradeProposal(null)
+          setP2pWaiting(false)
+          setP2pProposing(false)
+          setP2pOffer({})
+          setP2pWant({})
+        }
         setRobberStealTargets(raw.robber_steal_targets ?? [])
 
         // Dev card state extraction
@@ -336,7 +360,34 @@ export default function Game() {
         const td = (msg as any).data
         const offerStr = Object.entries(td.offer ?? {}).map(([r, n]) => `${n} ${r}`).join(', ')
         const wantStr = Object.entries(td.want ?? {}).map(([r, n]) => `${n} ${r}`).join(', ')
-        appendLog(`🏦 ${td.player_name} traded ${offerStr} → ${wantStr}`)
+        if (td.with_player_name) {
+          appendLog(`🤝 ${td.player_name} traded ${offerStr} with ${td.with_player_name} for ${wantStr}`)
+        } else {
+          appendLog(`🏦 ${td.player_name} traded ${offerStr} → ${wantStr}`)
+        }
+        // Clear P2P trade state on completion
+        setTradeProposal(null)
+        setP2pWaiting(false)
+        setP2pProposing(false)
+        setP2pOffer({})
+        setP2pWant({})
+      }
+
+      if ((msg as any).type === 'trade_proposal') {
+        const tp = (msg as any).data
+        // Only show to non-proposers
+        if (tp.proposer_id !== pid) {
+          setTradeProposal(tp)
+        }
+        appendLog(`📢 ${tp.proposer_name} proposed a trade`)
+      }
+
+      if ((msg as any).type === 'trade_cancelled') {
+        const tc = (msg as any).data
+        setTradeProposal(null)
+        setP2pWaiting(false)
+        setP2pProposing(false)
+        appendLog(`❌ ${tc.proposer_name} cancelled their trade proposal`)
       }
 
       if ((msg as any).type === 'dev_card_played') {
@@ -567,6 +618,63 @@ export default function Game() {
     setTradeOffer({})
     setTradeWant({})
   }, [])
+
+  // P2P trade handlers
+  const handleP2pOfferChange = useCallback((res: string, delta: number) => {
+    setP2pOffer(prev => {
+      const cur = prev[res] ?? 0
+      const next = Math.max(0, cur + delta)
+      return { ...prev, [res]: next }
+    })
+  }, [])
+
+  const handleP2pWantChange = useCallback((res: string, delta: number) => {
+    setP2pWant(prev => {
+      const cur = prev[res] ?? 0
+      const next = Math.max(0, cur + delta)
+      return { ...prev, [res]: next }
+    })
+  }, [])
+
+  const handleP2pPropose = useCallback(() => {
+    const offer: Record<string, number> = {}
+    const want: Record<string, number> = {}
+    for (const [k, v] of Object.entries(p2pOffer)) {
+      if (v > 0) offer[k] = v
+    }
+    for (const [k, v] of Object.entries(p2pWant)) {
+      if (v > 0) want[k] = v
+    }
+    if (Object.keys(offer).length && Object.keys(want).length) {
+      gameSocket.send({ type: 'propose_trade', offer, want } as any)
+      setP2pSentOffer(offer)
+      setP2pSentWant(want)
+      setP2pWaiting(true)
+      setP2pProposing(false)
+    }
+  }, [p2pOffer, p2pWant])
+
+  const handleP2pCancel = useCallback(() => {
+    gameSocket.send({ type: 'cancel_trade' } as any)
+    setP2pWaiting(false)
+    setP2pProposing(false)
+    setP2pOffer({})
+    setP2pWant({})
+  }, [])
+
+  const handleP2pAccept = useCallback((proposalId: string) => {
+    gameSocket.send({ type: 'accept_trade', proposal_id: proposalId } as any)
+  }, [])
+
+  const handleP2pReject = useCallback((proposalId: string) => {
+    gameSocket.send({ type: 'reject_trade', proposal_id: proposalId } as any)
+    setTradeProposal(null)
+  }, [])
+
+  const p2pOfferTotal = Object.values(p2pOffer).reduce((a, b) => a + b, 0)
+  const p2pWantTotal = Object.values(p2pWant).reduce((a, b) => a + b, 0)
+  const p2pValid = p2pOfferTotal > 0 && p2pWantTotal > 0 &&
+    Object.entries(p2pOffer).every(([res, amt]) => (myResources[res as ResourceType] ?? 0) >= amt)
 
   // Dev card handlers
   const handleBuyDevCard = useCallback(() => {
@@ -1148,6 +1256,140 @@ export default function Game() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* P2P Trade: Propose button */}
+          {canTrade && !p2pProposing && !p2pWaiting && (
+            <button
+              type="button"
+              className={styles.p2pProposeBtn}
+              onClick={() => {
+                setP2pProposing(true)
+                setP2pOffer({})
+                setP2pWant({})
+              }}
+            >
+              {'🤝'} Propose Trade with Players
+            </button>
+          )}
+
+          {/* P2P Trade: Building a proposal */}
+          {p2pProposing && (
+            <div className={`${styles.panel} ${styles.p2pTradePanel}`}>
+              <p className={styles.panelTitle}>Propose Trade</p>
+              <div className={styles.tradeSide}>
+                <span className={styles.tradeLabel}>You Give</span>
+                {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
+                  const have = myResources[res] ?? 0
+                  const offering = p2pOffer[res] ?? 0
+                  return (
+                    <div key={res} className={styles.tradeRow}>
+                      <span className={styles.tradeRes}>{RESOURCE_LABELS[res]} {res}</span>
+                      <button type="button" className={styles.tradeBtn} onClick={() => handleP2pOfferChange(res, -1)} disabled={offering <= 0}>-</button>
+                      <span className={styles.tradeCount}>{offering}</span>
+                      <button type="button" className={styles.tradeBtn} onClick={() => handleP2pOfferChange(res, 1)} disabled={offering >= have}>+</button>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className={styles.tradeSide}>
+                <span className={styles.tradeLabel}>You Want</span>
+                {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
+                  const wanting = p2pWant[res] ?? 0
+                  return (
+                    <div key={res} className={styles.tradeRow}>
+                      <span className={styles.tradeRes}>{RESOURCE_LABELS[res]} {res}</span>
+                      <button type="button" className={styles.tradeBtn} onClick={() => handleP2pWantChange(res, -1)} disabled={wanting <= 0}>-</button>
+                      <span className={styles.tradeCount}>{wanting}</span>
+                      <button type="button" className={styles.tradeBtn} onClick={() => handleP2pWantChange(res, 1)}>+</button>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className={styles.tradeActions}>
+                <button
+                  type="button"
+                  className={styles.tradeSubmitBtn}
+                  onClick={handleP2pPropose}
+                  disabled={!p2pValid}
+                >
+                  Send Proposal
+                </button>
+                <button
+                  type="button"
+                  className={styles.tradeResetBtn}
+                  onClick={() => { setP2pProposing(false); setP2pOffer({}); setP2pWant({}) }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* P2P Trade: Waiting for response (proposer view) */}
+          {p2pWaiting && (
+            <div className={`${styles.panel} ${styles.p2pWaiting}`}>
+              <p className={styles.panelTitle}>
+                <span className={styles.p2pWaitingSpinner} />
+                Waiting for response...
+              </p>
+              <div className={styles.p2pSummary}>
+                <span className={styles.p2pSummaryLabel}>Your offer:</span>
+                <span className={styles.p2pSummaryValue}>
+                  {Object.entries(p2pSentOffer).filter(([, n]) => n > 0).map(([r, n]) => `${n} ${r}`).join(', ') || 'nothing'}
+                </span>
+              </div>
+              <div className={styles.p2pSummary}>
+                <span className={styles.p2pSummaryLabel}>You want:</span>
+                <span className={styles.p2pSummaryValue}>
+                  {Object.entries(p2pSentWant).filter(([, n]) => n > 0).map(([r, n]) => `${n} ${r}`).join(', ') || 'nothing'}
+                </span>
+              </div>
+              <button
+                type="button"
+                className={styles.p2pCancelBtn}
+                onClick={handleP2pCancel}
+              >
+                Cancel Proposal
+              </button>
+            </div>
+          )}
+
+          {/* P2P Trade: Incoming proposal (non-proposer view) */}
+          {tradeProposal && tradeProposal.proposer_id !== myPlayerId && (
+            <div className={`${styles.panel} ${styles.p2pProposalIncoming}`} role="alert">
+              <p className={styles.panelTitle}>
+                Trade Offer from {tradeProposal.proposer_name}
+              </p>
+              <div className={styles.p2pSummary}>
+                <span className={styles.p2pSummaryLabel}>They offer:</span>
+                <span className={styles.p2pSummaryValue}>
+                  {Object.entries(tradeProposal.offer).filter(([, n]) => n > 0).map(([r, n]) => `${n} ${r}`).join(', ')}
+                </span>
+              </div>
+              <div className={styles.p2pSummary}>
+                <span className={styles.p2pSummaryLabel}>They want:</span>
+                <span className={styles.p2pSummaryValue}>
+                  {Object.entries(tradeProposal.want).filter(([, n]) => n > 0).map(([r, n]) => `${n} ${r}`).join(', ')}
+                </span>
+              </div>
+              <div className={styles.p2pResponseActions}>
+                <button
+                  type="button"
+                  className={styles.p2pAcceptBtn}
+                  onClick={() => handleP2pAccept(tradeProposal.id)}
+                >
+                  Accept
+                </button>
+                <button
+                  type="button"
+                  className={styles.p2pRejectBtn}
+                  onClick={() => handleP2pReject(tradeProposal.id)}
+                >
+                  Reject
+                </button>
+              </div>
             </div>
           )}
 

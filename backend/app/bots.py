@@ -80,8 +80,10 @@ async def _bot_loop(ws_url: str, player_id: str):
         async def send(obj: dict):
             await ws.send(json.dumps(obj))
 
+        pending_proposals: List[dict] = []  # trade proposals received while waiting
+
         async def recv_game_state(timeout: float = 30.0) -> Optional[dict]:
-            """Wait for the next game_state message, skip others."""
+            """Wait for the next game_state message, skip others but capture trade proposals."""
             nonlocal game
             deadline = time.time() + timeout
             while time.time() < deadline:
@@ -93,11 +95,43 @@ async def _bot_loop(ws_url: str, player_id: str):
                         if isinstance(data, dict):
                             game = data
                             return data
+                    elif msg.get("type") == "trade_proposal":
+                        data = msg.get("data")
+                        if isinstance(data, dict) and data.get("proposer_id") != player_id:
+                            pending_proposals.append(data)
                 except asyncio.TimeoutError:
                     return None
                 except Exception:
                     continue
             return None
+
+        async def handle_pending_trade_proposals():
+            """Evaluate and respond to any pending P2P trade proposals."""
+            nonlocal pending_proposals
+            for proposal in pending_proposals:
+                proposal_id = proposal.get("id", "")
+                offer = proposal.get("offer") or {}   # what proposer gives (bot receives)
+                want = proposal.get("want") or {}      # what proposer wants (bot gives)
+
+                res = my_resources()
+                # Check if bot has the resources the proposer wants
+                can_afford = all(res.get(k, 0) >= v for k, v in want.items())
+                if not can_afford:
+                    await send({"type": "reject_trade", "proposal_id": proposal_id})
+                    continue
+
+                # Heuristic: accept if bot receives a resource it has 0 of,
+                # and only gives away resources it has 2+ of
+                receives_needed = any(res.get(k, 0) == 0 for k in offer if offer[k] > 0)
+                gives_surplus = all(res.get(k, 0) >= 2 for k, v in want.items() if v > 0)
+
+                if receives_needed and gives_surplus:
+                    await asyncio.sleep(0.5 + random.random())
+                    await send({"type": "accept_trade", "proposal_id": proposal_id})
+                else:
+                    await asyncio.sleep(0.3 + random.random() * 0.5)
+                    await send({"type": "reject_trade", "proposal_id": proposal_id})
+            pending_proposals = []
 
         async def try_build_and_wait(piece: str, position: dict, timeout: float = 0.15) -> bool:
             """Send a build command, read response, return True if game state changed."""
@@ -121,6 +155,10 @@ async def _bot_loop(ws_url: str, player_id: str):
                             new_e = len(data.get("edges") or {})
                             if new_step != old_step or new_v != old_vertices or new_e != old_edges:
                                 return True
+                    elif msg.get("type") == "trade_proposal":
+                        data = msg.get("data")
+                        if isinstance(data, dict) and data.get("proposer_id") != player_id:
+                            pending_proposals.append(data)
                 except asyncio.TimeoutError:
                     break
                 except Exception:
@@ -206,6 +244,9 @@ async def _bot_loop(ws_url: str, player_id: str):
                     await send({"type": "discard", "resources": payload})
                 game = None  # wait for next state
                 continue
+
+            # Handle any pending P2P trade proposals from other players
+            await handle_pending_trade_proposals()
 
             if current != player_id:
                 game = None  # not our turn, wait for next state

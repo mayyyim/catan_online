@@ -365,6 +365,10 @@ class GameState:
     largest_army_size: int = 0
     road_building_remaining: int = 0  # roads left to place for road building card
 
+    # Active P2P trade proposal (None if no proposal pending)
+    # Format: {"id": str, "proposer_id": str, "offer": {}, "want": {}, "rejected_by": []}
+    trade_proposal: Optional[Dict] = None
+
     # Turn timer state (for AFK timeout)
     turn_timer_start: float = 0.0        # time.time() when current action started
     turn_timer_duration: float = 60.0    # timeout duration in seconds
@@ -421,6 +425,7 @@ class GameState:
             "largest_army_holder": self.largest_army_holder,
             "largest_army_size": self.largest_army_size,
             "road_building_remaining": self.road_building_remaining,
+            "trade_proposal": self.trade_proposal,
             "turn_timer_start": self.turn_timer_start,
             "turn_timer_duration": self.turn_timer_duration,
         }
@@ -454,6 +459,7 @@ class GameState:
         game.largest_army_holder = d.get("largest_army_holder") or None
         game.largest_army_size = int(d.get("largest_army_size") or 0)
         game.road_building_remaining = int(d.get("road_building_remaining") or 0)
+        game.trade_proposal = d.get("trade_proposal") or None
         game.turn_timer_start = float(d.get("turn_timer_start") or 0.0)
         game.turn_timer_duration = float(d.get("turn_timer_duration") or 60.0)
         return game

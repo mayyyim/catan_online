@@ -23,6 +23,7 @@ from app.game.engine import (
     ActionError,
     handle_start_game, handle_roll_dice, handle_build,
     handle_end_turn, handle_trade,
+    handle_propose_trade, handle_accept_trade, handle_reject_trade, handle_cancel_trade,
     handle_discard, handle_place_robber, handle_steal,
     handle_buy_dev_card, handle_play_dev_card,
 )
@@ -265,6 +266,68 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
             await broadcast_game_state(room, game)
             save_game(room.room_id, game)
             await _maybe_restart_timer(room, game)
+
+        elif msg_type == "propose_trade":
+            offer = msg.get("offer", {})
+            want = msg.get("want", {})
+            proposal = handle_propose_trade(game, player_id, offer, want)
+            proposer = game.player_by_id(player_id)
+            trade_proposal_event = {
+                "type": "trade_proposal",
+                "data": {
+                    "id": proposal["id"],
+                    "proposer_id": player_id,
+                    "proposer_name": proposer.name if proposer else "?",
+                    "offer": proposal["offer"],
+                    "want": proposal["want"],
+                },
+            }
+            await broadcast(room, trade_proposal_event)
+            save_game(room.room_id, game)
+            await _maybe_restart_timer(room, game)
+
+        elif msg_type == "accept_trade":
+            proposal_id = msg.get("proposal_id", "")
+            result = handle_accept_trade(game, player_id, proposal_id)
+            proposer = game.player_by_id(result["proposer_id"])
+            accepter = game.player_by_id(result["accepter_id"])
+            trade_completed_event = {
+                "type": "trade_completed",
+                "data": {
+                    "player_id": result["accepter_id"],
+                    "player_name": accepter.name if accepter else "?",
+                    "with_player_name": proposer.name if proposer else "?",
+                    "offer": result["offer"],
+                    "want": result["want"],
+                },
+            }
+            await broadcast(room, trade_completed_event)
+            await broadcast_game_state(room, game)
+            save_game(room.room_id, game)
+            await _maybe_restart_timer(room, game)
+
+        elif msg_type == "reject_trade":
+            proposal_id = msg.get("proposal_id", "")
+            result = handle_reject_trade(game, player_id, proposal_id)
+            if result["auto_cancelled"]:
+                await broadcast(room, {"type": "trade_cancelled", "data": {"reason": "all_rejected"}})
+            else:
+                # Broadcast updated proposal with rejection info
+                player = game.player_by_id(player_id)
+                await broadcast(room, {
+                    "type": "trade_rejected",
+                    "data": {
+                        "player_id": player_id,
+                        "player_name": player.name if player else "?",
+                        "proposal_id": proposal_id,
+                    },
+                })
+            save_game(room.room_id, game)
+
+        elif msg_type == "cancel_trade":
+            handle_cancel_trade(game, player_id)
+            await broadcast(room, {"type": "trade_cancelled", "data": {"reason": "proposer_cancelled"}})
+            save_game(room.room_id, game)
 
         elif msg_type == "end_turn":
             handle_end_turn(game, player_id)

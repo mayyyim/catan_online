@@ -3,6 +3,7 @@ Catan game engine — handles all game actions and state transitions.
 """
 
 import random
+import uuid
 from typing import Dict, List, Optional, Tuple
 
 from app.game.models import (
@@ -495,6 +496,9 @@ def handle_end_turn(game: GameState, player_id: str):
         game.phase = GamePhase.FINISHED
         return
 
+    # Clear any active trade proposal
+    game.trade_proposal = None
+
     # Reset dev card state and advance turn
     cur = game.current_player()
     if cur:
@@ -574,6 +578,133 @@ def handle_trade(game: GameState, player_id: str, offer: Dict, want: Dict) -> Di
         player.add_resource(res, amt)
 
     return {"traded": True}
+
+
+# ---------------------------------------------------------------------------
+# P2P trade handlers
+# ---------------------------------------------------------------------------
+
+def handle_propose_trade(game: GameState, player_id: str, offer: Dict, want: Dict) -> Dict:
+    """Active player proposes a trade to other players."""
+    if game.phase != GamePhase.PLAYING:
+        raise ActionError("Not in playing phase")
+    if game.turn_step != TurnStep.POST_ROLL:
+        raise ActionError("Must roll before trading")
+    if game.current_player().player_id != player_id:
+        raise ActionError("Not your turn")
+
+    player = game.player_by_id(player_id)
+    if not player:
+        raise ActionError("Player not found")
+
+    offer_res = {Resource(k): v for k, v in offer.items() if v > 0}
+    want_res = {Resource(k): v for k, v in want.items() if v > 0}
+
+    if not offer_res or not want_res:
+        raise ActionError("Trade must have at least one resource on each side")
+
+    # Validate proposer has offered resources
+    for res, amt in offer_res.items():
+        if player.resources.get(res, 0) < amt:
+            raise ActionError(f"Not enough {res.value}")
+
+    # Auto-cancel any existing proposal
+    proposal_id = uuid.uuid4().hex[:8]
+    game.trade_proposal = {
+        "id": proposal_id,
+        "proposer_id": player_id,
+        "offer": {k.value: v for k, v in offer_res.items()},
+        "want": {k.value: v for k, v in want_res.items()},
+        "rejected_by": [],
+    }
+
+    return game.trade_proposal
+
+
+def handle_accept_trade(game: GameState, player_id: str, proposal_id: str) -> Dict:
+    """Another player accepts the active trade proposal."""
+    if game.phase != GamePhase.PLAYING:
+        raise ActionError("Not in playing phase")
+
+    if not game.trade_proposal:
+        raise ActionError("No active trade proposal")
+    if game.trade_proposal["id"] != proposal_id:
+        raise ActionError("Proposal ID mismatch")
+    if game.trade_proposal["proposer_id"] == player_id:
+        raise ActionError("Cannot accept your own trade")
+
+    proposer = game.player_by_id(game.trade_proposal["proposer_id"])
+    accepter = game.player_by_id(player_id)
+    if not proposer or not accepter:
+        raise ActionError("Player not found")
+
+    offer = {Resource(k): v for k, v in game.trade_proposal["offer"].items()}
+    want = {Resource(k): v for k, v in game.trade_proposal["want"].items()}
+
+    # Verify proposer still has the offered resources
+    for res, amt in offer.items():
+        if proposer.resources.get(res, 0) < amt:
+            game.trade_proposal = None
+            raise ActionError("Proposer no longer has the offered resources")
+
+    # Verify accepter has the wanted resources
+    for res, amt in want.items():
+        if accepter.resources.get(res, 0) < amt:
+            raise ActionError(f"You don't have enough {res.value}")
+
+    # Execute swap
+    for res, amt in offer.items():
+        proposer.resources[res] -= amt
+        accepter.add_resource(res, amt)
+    for res, amt in want.items():
+        accepter.resources[res] -= amt
+        proposer.add_resource(res, amt)
+
+    result = {
+        "proposer_id": game.trade_proposal["proposer_id"],
+        "accepter_id": player_id,
+        "offer": game.trade_proposal["offer"],
+        "want": game.trade_proposal["want"],
+    }
+    game.trade_proposal = None
+    return result
+
+
+def handle_reject_trade(game: GameState, player_id: str, proposal_id: str) -> Dict:
+    """A player rejects the active trade proposal."""
+    if not game.trade_proposal:
+        raise ActionError("No active trade proposal")
+    if game.trade_proposal["id"] != proposal_id:
+        raise ActionError("Proposal ID mismatch")
+    if game.trade_proposal["proposer_id"] == player_id:
+        raise ActionError("Cannot reject your own trade (use cancel)")
+
+    if player_id not in game.trade_proposal["rejected_by"]:
+        game.trade_proposal["rejected_by"].append(player_id)
+
+    # Check if all other players rejected
+    other_ids = [
+        p.player_id for p in game.players
+        if p.player_id != game.trade_proposal["proposer_id"]
+    ]
+    all_rejected = all(pid in game.trade_proposal["rejected_by"] for pid in other_ids)
+
+    if all_rejected:
+        game.trade_proposal = None
+        return {"auto_cancelled": True}
+
+    return {"auto_cancelled": False}
+
+
+def handle_cancel_trade(game: GameState, player_id: str) -> Dict:
+    """Proposer cancels the active trade proposal."""
+    if not game.trade_proposal:
+        raise ActionError("No active trade proposal")
+    if game.trade_proposal["proposer_id"] != player_id:
+        raise ActionError("Only the proposer can cancel")
+
+    game.trade_proposal = None
+    return {"cancelled": True}
 
 
 # ---------------------------------------------------------------------------
