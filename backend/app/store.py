@@ -369,6 +369,19 @@ async def broadcast(room: RoomInfo, message: dict):
         room.connections.pop(pid, None)
 
 
+async def broadcast_game_state(room: RoomInfo, game):
+    """Send personalized game_state to each player (hides opponents' resources and deck)."""
+    disconnected = []
+    for pid, ws in list(room.connections.items()):
+        try:
+            msg = {"type": "game_state", "data": game.to_dict(viewer_player_id=pid)}
+            await ws.send_json(msg)
+        except Exception:
+            disconnected.append(pid)
+    for pid in disconnected:
+        room.connections.pop(pid, None)
+
+
 async def send_to_player(room: RoomInfo, player_id: str, message: dict):
     ws = room.connections.get(player_id)
     if ws:

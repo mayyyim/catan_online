@@ -14,7 +14,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.store import (
     get_room, get_player_in_room, ensure_game_state,
-    connect_player, disconnect_player, broadcast, send_to_player, save_game, load_game,
+    connect_player, disconnect_player, broadcast, broadcast_game_state, send_to_player, save_game, load_game,
     delete_room, has_human_players, remove_player_from_room,
 )
 from app.game.engine import (
@@ -178,7 +178,7 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
             result = handle_roll_dice(game, player_id)
             # Broadcast dice result then full game state
             await broadcast(room, _dice_msg(result["values"], result["total"]))
-            await broadcast(room, _game_state_msg(game))
+            await broadcast_game_state(room, game)
             save_game(room.room_id, game)
 
         elif msg_type == "build":
@@ -196,7 +196,7 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
                 },
             }
             await broadcast(room, build_event)
-            await broadcast(room, _game_state_msg(game))
+            await broadcast_game_state(room, game)
             save_game(room.room_id, game)
 
         elif msg_type == "trade":
@@ -215,36 +215,36 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
                 },
             }
             await broadcast(room, trade_msg)
-            await broadcast(room, _game_state_msg(game))
+            await broadcast_game_state(room, game)
             save_game(room.room_id, game)
 
         elif msg_type == "discard":
             resources = msg.get("resources", {})
             handle_discard(game, player_id, resources)
-            await broadcast(room, _game_state_msg(game))
+            await broadcast_game_state(room, game)
             save_game(room.room_id, game)
 
         elif msg_type == "place_robber":
             q = int(msg.get("q", 0))
             r = int(msg.get("r", 0))
             handle_place_robber(game, player_id, q, r)
-            await broadcast(room, _game_state_msg(game))
+            await broadcast_game_state(room, game)
             save_game(room.room_id, game)
 
         elif msg_type == "steal":
             target_id = msg.get("target_id", "")
             result = handle_steal(game, player_id, target_id)
-            await broadcast(room, _game_state_msg(game))
+            await broadcast_game_state(room, game)
             save_game(room.room_id, game)
 
         elif msg_type == "end_turn":
             handle_end_turn(game, player_id)
-            await broadcast(room, _game_state_msg(game))
+            await broadcast_game_state(room, game)
             save_game(room.room_id, game)
 
         elif msg_type == "buy_dev_card":
             result = handle_buy_dev_card(game, player_id)
-            await broadcast(room, _game_state_msg(game))
+            await broadcast_game_state(room, game)
             save_game(room.room_id, game)
 
         elif msg_type == "play_dev_card":
@@ -262,7 +262,7 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
                 },
             }
             await broadcast(room, dev_event)
-            await broadcast(room, _game_state_msg(game))
+            await broadcast_game_state(room, game)
             save_game(room.room_id, game)
 
         else:
@@ -292,4 +292,4 @@ async def _handle_start_game(room, game, player_id: str, msg: dict):
             raise ActionError(str(e))
 
     handle_start_game(game, map_data, player_id)
-    await broadcast(room, _game_state_msg(game))
+    await broadcast_game_state(room, game)

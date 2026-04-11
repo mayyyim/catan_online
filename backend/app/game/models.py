@@ -387,7 +387,7 @@ class GameState:
         for p in self.players:
             # each player sees their own resources; others see only count
             hide = (viewer_player_id is not None and p.player_id != viewer_player_id)
-            d = p.to_dict(hide_resources=False)  # send full state to all for simplicity
+            d = p.to_dict(hide_resources=hide)
             players_data.append(d)
 
         return {
@@ -410,7 +410,8 @@ class GameState:
             "robber_steal_targets": self.robber_steal_targets,
             "vertices": {k: v.to_dict() for k, v in self.vertices.items()},
             "edges": {k: v.to_dict() for k, v in self.edges.items()},
-            "dev_card_deck": [c.to_dict() for c in self.dev_card_deck],  # persisted for Redis; frontend should use dev_card_deck_count
+            # Only include full deck for Redis persistence (viewer_player_id=None)
+            **({"dev_card_deck": [c.to_dict() for c in self.dev_card_deck]} if viewer_player_id is None else {}),
             "dev_card_deck_count": len(self.dev_card_deck),
             "current_turn_number": self.current_turn_number,
             "largest_army_holder": self.largest_army_holder,

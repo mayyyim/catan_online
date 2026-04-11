@@ -311,20 +311,19 @@ async def _bot_loop(ws_url: str, player_id: str):
                         await send({"type": "play_dev_card", "card_type": "year_of_plenty", "params": {"resources": picks}})
                         await recv_game_state(timeout=1)
 
-                    # Monopoly: pick resource other players have most of
+                    # Monopoly: pick resource we have least of (can't see opponents' hands)
                     mono_card = _find_playable_card(game, player_id, "monopoly")
                     if mono_card and game:
-                        best_res = "wheat"
-                        best_count = 0
-                        for rname in ["wood", "brick", "wheat", "sheep", "ore"]:
-                            total_others = 0
-                            for p in game.get("players") or []:
-                                if p.get("player_id") != player_id:
-                                    total_others += (p.get("resources") or {}).get(rname, 0)
-                            if total_others > best_count:
-                                best_count = total_others
-                                best_res = rname
-                        if best_count > 0:
+                        my_res = my_resources()
+                        # Pick the resource we need most (have least of)
+                        best_res = min(["wood", "brick", "wheat", "sheep", "ore"], key=lambda r: my_res.get(r, 0))
+                        # Only play if opponents have cards (check resource_count)
+                        others_have_cards = any(
+                            (p.get("resource_count") or 0) > 0
+                            for p in game.get("players") or []
+                            if p.get("player_id") != player_id
+                        )
+                        if others_have_cards:
                             await send({"type": "play_dev_card", "card_type": "monopoly", "params": {"resource": best_res}})
                             await recv_game_state(timeout=1)
 
