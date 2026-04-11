@@ -30,7 +30,7 @@ from app.game.engine import (
 from app.bots import stop_bot
 from app.maps.generator import generate_random_map
 from app.maps.definitions import get_static_map
-from app.game.models import GamePhase
+from app.game.models import GamePhase, GameRules
 
 
 router = APIRouter(tags=["websocket"])
@@ -64,6 +64,7 @@ def _room_update_msg(room, game=None):
             "state": state,
             "selected_map_id": getattr(room, "selected_map_id", "random"),
             "seed": getattr(room, "random_seed", None),
+            "rules": getattr(room, "rules", {}),
         },
     }
 
@@ -378,6 +379,17 @@ async def _dispatch(room, game, player_id: str, msg_type: str, msg: dict):
             save_game(room.room_id, game)
             await _maybe_restart_timer(room, game)
 
+        elif msg_type == "set_rules":
+            if player_id != room.host_player_id:
+                raise ActionError("Only the host can set rules")
+            if game and game.phase != GamePhase.WAITING:
+                raise ActionError("Cannot change rules after game started")
+            rules_data = msg.get("rules", {})
+            room.rules = rules_data
+            from app.store import save_room_info as _save_room
+            _save_room(room)
+            await broadcast(room, _room_update_msg(room, game))
+
         elif msg_type == "play_dev_card":
             card_type = msg.get("card_type", "")
             params = msg.get("params") or {}
@@ -424,4 +436,5 @@ async def _handle_start_game(room, game, player_id: str, msg: dict):
             raise ActionError(str(e))
 
     handle_start_game(game, map_data, player_id)
+    game.rules = GameRules.from_dict(getattr(room, 'rules', {}) or {})
     await broadcast_game_state(room, game)

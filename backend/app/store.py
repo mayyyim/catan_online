@@ -39,6 +39,7 @@ class RoomInfo:
     max_players: int = 4
     selected_map_id: str = "random"
     random_seed: Optional[str] = None
+    rules: Dict = field(default_factory=dict)
     # WebSocket connections: player_id -> WebSocket
     connections: Dict[str, WebSocket] = field(default_factory=dict)
     # Game state — None until game starts
@@ -140,6 +141,7 @@ def create_room(host_player_name: str) -> RoomInfo:
                 "max_players": room.max_players,
                 "selected_map_id": room.selected_map_id,
                 "random_seed": room.random_seed,
+                "rules": room.rules,
             }
         ),
         ex=ROOM_TTL_SECONDS,
@@ -202,6 +204,7 @@ def save_room_info(room: RoomInfo):
             "max_players": room.max_players,
             "selected_map_id": room.selected_map_id,
             "random_seed": room.random_seed,
+            "rules": room.rules,
         }),
         ex=ROOM_TTL_SECONDS,
     )
@@ -221,6 +224,7 @@ def get_room(room_id: str) -> Optional[RoomInfo]:
         max_players=int(d.get("max_players", 4)),
         selected_map_id=d.get("selected_map_id", "random"),
         random_seed=d.get("random_seed", None),
+        rules=d.get("rules") or {},
     )
     room.connections = _connections.setdefault(room_id, {})
     room.game = load_game(room_id)

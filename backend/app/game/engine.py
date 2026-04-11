@@ -12,6 +12,7 @@ from app.game.models import (
     BUILD_COST, VP_TABLE, WINNING_VP,
     MAX_ROADS, MAX_SETTLEMENTS, MAX_CITIES,
     MapData, DevCard, DevCardType, DEV_CARD_COST,
+    GameRules,
 )
 from app.game.board import (
     canonical_vertex, canonical_edge,
@@ -143,8 +144,9 @@ def recalculate_vp(game: GameState):
 
 
 def check_winner(game: GameState) -> Optional[str]:
+    target = game.rules.victory_points_target
     for player in game.players:
-        if player.victory_points >= WINNING_VP:
+        if player.victory_points >= target:
             return player.player_id
     return None
 
@@ -198,16 +200,30 @@ def handle_roll_dice(game: GameState, player_id: str) -> Dict:
     game.last_dice = values
 
     if total == 7:
-        # Collect players who must discard (>7 cards)
-        game.players_to_discard = [
-            p.player_id
-            for p in game.players
-            if sum(p.resources.values()) > 7
-        ]
-        if game.players_to_discard:
-            game.turn_step = TurnStep.ROBBER_DISCARD
+        # Friendly robber: if enabled and ALL players have < 4 VP,
+        # auto-move robber to desert and skip the robber flow entirely.
+        friendly = game.rules.friendly_robber
+        all_below_threshold = all(p.victory_points < 4 for p in game.players)
+
+        if friendly and all_below_threshold:
+            # Move robber back to desert
+            for tile in game.map_data.tiles:
+                if tile.tile_type == TileType.DESERT:
+                    game.robber_q = tile.q
+                    game.robber_r = tile.r
+                    break
+            game.turn_step = TurnStep.POST_ROLL
         else:
-            game.turn_step = TurnStep.ROBBER_PLACE
+            # Normal robber flow
+            game.players_to_discard = [
+                p.player_id
+                for p in game.players
+                if sum(p.resources.values()) > 7
+            ]
+            if game.players_to_discard:
+                game.turn_step = TurnStep.ROBBER_DISCARD
+            else:
+                game.turn_step = TurnStep.ROBBER_PLACE
     else:
         production = produce_resources(game, total)
         game.turn_step = TurnStep.POST_ROLL
@@ -475,12 +491,16 @@ def _check_setup_advance(game: GameState):
 
 
 def _maybe_grant_setup_resources(game: GameState, player: Player, is_second_round: bool):
-    """In the second setup round, each settlement grants 1 of each adjacent resource."""
+    """In the second setup round, each settlement grants 1 of each adjacent resource.
+
+    If ``game.rules.starting_resources_double`` is True, grant 2x instead.
+    """
     if not is_second_round:
         return
     # Grant resources for the last placed settlement (last in setup_settlements)
     if not player.setup_settlements:
         return
+    amount = 2 if game.rules.starting_resources_double else 1
     last_settlement = player.setup_settlements[-1]
     for tile in game.map_data.tiles:
         # check if tile is adjacent to this vertex
@@ -488,7 +508,7 @@ def _maybe_grant_setup_resources(game: GameState, player: Player, is_second_roun
         if last_settlement in verts:
             res = TILE_RESOURCE.get(tile.tile_type)
             if res:
-                player.add_resource(res, 1)
+                player.add_resource(res, amount)
 
 
 def handle_end_turn(game: GameState, player_id: str):

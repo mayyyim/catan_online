@@ -1,0 +1,12 @@
+{
+  "name": "Catan Online",
+  "short_name": "Catan",
+  "description": "Play Catan online with friends",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1b2a",
+  "theme_color": "#ffd60a",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

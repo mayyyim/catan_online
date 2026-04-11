@@ -332,6 +332,8 @@ export default function Room() {
             sessionStorage.getItem('invite_code') ||
             ''
 
+          const defaultRules = { victory_points_target: 10, friendly_robber: false, starting_resources_double: false }
+
           return {
             roomId: roomId,
             inviteCode,
@@ -341,6 +343,7 @@ export default function Room() {
             randomSeed: m.data?.seed ?? prev?.randomSeed ?? '',
             maxPlayers: prev?.maxPlayers ?? 4,
             status: m.data?.state === 'waiting' ? 'waiting' : 'started',
+            rules: { ...defaultRules, ...(m.data?.rules ?? prev?.rules ?? {}) },
           }
         })
       }
@@ -370,6 +373,17 @@ export default function Room() {
       gameSocket.send({ type: 'select_map', mapId, seed: seed || undefined })
     },
     [seed, setRoom],
+  )
+
+  const handleSetRules = useCallback(
+    (rules: { victory_points_target: number; friendly_robber: boolean; starting_resources_double: boolean }) => {
+      setRoom(prev => {
+        if (!prev) return prev
+        return { ...prev, rules }
+      })
+      gameSocket.send({ type: 'set_rules', rules } as any)
+    },
+    [setRoom],
   )
 
   const handleStartGame = useCallback(() => {
@@ -531,8 +545,66 @@ export default function Room() {
           </div>
         </section>
 
-        {/* Right: Players + actions */}
+        {/* Right: Rules + Players + actions */}
         <section className={styles.rightSection}>
+          {/* Game Rules */}
+          <div className={styles.panel}>
+            <h2 className={styles.sectionTitle}>Game Rules</h2>
+            {isHost ? (
+              <>
+                <div className={styles.ruleRow}>
+                  <label className={styles.ruleLabel}>Victory Points</label>
+                  <select
+                    className={styles.ruleSelect}
+                    value={room.rules?.victory_points_target ?? 10}
+                    onChange={e => handleSetRules({
+                      ...(room.rules ?? { victory_points_target: 10, friendly_robber: false, starting_resources_double: false }),
+                      victory_points_target: +e.target.value,
+                    })}
+                  >
+                    <option value={8}>8 VP (Short)</option>
+                    <option value={10}>10 VP (Standard)</option>
+                    <option value={12}>12 VP (Long)</option>
+                  </select>
+                </div>
+                <div className={styles.ruleRow}>
+                  <label className={styles.ruleCheckLabel}>
+                    <input
+                      type="checkbox"
+                      checked={room.rules?.friendly_robber ?? false}
+                      onChange={e => handleSetRules({
+                        ...(room.rules ?? { victory_points_target: 10, friendly_robber: false, starting_resources_double: false }),
+                        friendly_robber: e.target.checked,
+                      })}
+                    />
+                    Friendly Robber
+                  </label>
+                  <span className={styles.ruleDesc}>No robber until 4+ VP</span>
+                </div>
+                <div className={styles.ruleRow}>
+                  <label className={styles.ruleCheckLabel}>
+                    <input
+                      type="checkbox"
+                      checked={room.rules?.starting_resources_double ?? false}
+                      onChange={e => handleSetRules({
+                        ...(room.rules ?? { victory_points_target: 10, friendly_robber: false, starting_resources_double: false }),
+                        starting_resources_double: e.target.checked,
+                      })}
+                    />
+                    Double Starting Resources
+                  </label>
+                  <span className={styles.ruleDesc}>2x from 2nd settlement</span>
+                </div>
+              </>
+            ) : (
+              <div className={styles.ruleReadOnly}>
+                <span>{room.rules?.victory_points_target ?? 10} VP to win</span>
+                {room.rules?.friendly_robber && <span>Friendly Robber</span>}
+                {room.rules?.starting_resources_double && <span>Double Starting Resources</span>}
+              </div>
+            )}
+          </div>
+
           <div className={styles.playerPanel}>
             <h2 className={styles.sectionTitle}>
               Players ({room.players.length}/{room.maxPlayers})

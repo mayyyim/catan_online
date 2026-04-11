@@ -81,6 +81,7 @@ export async function getRoomState(roomId: string): Promise<RoomState> {
     randomSeed: '',
     maxPlayers: 4,
     status: raw.state === 'waiting' ? 'waiting' : 'started',
+    rules: { victory_points_target: 10, friendly_robber: false, starting_resources_double: false },
   }
 }
 

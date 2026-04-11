@@ -93,7 +93,33 @@ VP_TABLE: Dict[PieceType, int] = {
     PieceType.ROAD: 0,
 }
 
-WINNING_VP = 10
+WINNING_VP = 10  # default; overridden by GameRules.victory_points_target
+
+
+# ---------------------------------------------------------------------------
+# Custom game rules
+# ---------------------------------------------------------------------------
+
+@dataclass
+class GameRules:
+    victory_points_target: int = 10  # 8, 10, or 12
+    friendly_robber: bool = False     # don't move robber until player has 4+ VP
+    starting_resources_double: bool = False  # 2x resources from 2nd setup settlement
+
+    def to_dict(self):
+        return {
+            "victory_points_target": self.victory_points_target,
+            "friendly_robber": self.friendly_robber,
+            "starting_resources_double": self.starting_resources_double,
+        }
+
+    @staticmethod
+    def from_dict(d: dict) -> "GameRules":
+        return GameRules(
+            victory_points_target=int(d.get("victory_points_target", 10)),
+            friendly_robber=bool(d.get("friendly_robber", False)),
+            starting_resources_double=bool(d.get("starting_resources_double", False)),
+        )
 
 # Piece supply limits per player
 MAX_ROADS = 15
@@ -365,6 +391,9 @@ class GameState:
     largest_army_size: int = 0
     road_building_remaining: int = 0  # roads left to place for road building card
 
+    # Custom game rules
+    rules: "GameRules" = field(default_factory=lambda: GameRules())
+
     # Active P2P trade proposal (None if no proposal pending)
     # Format: {"id": str, "proposer_id": str, "offer": {}, "want": {}, "rejected_by": []}
     trade_proposal: Optional[Dict] = None
@@ -425,6 +454,7 @@ class GameState:
             "largest_army_holder": self.largest_army_holder,
             "largest_army_size": self.largest_army_size,
             "road_building_remaining": self.road_building_remaining,
+            "rules": self.rules.to_dict(),
             "trade_proposal": self.trade_proposal,
             "turn_timer_start": self.turn_timer_start,
             "turn_timer_duration": self.turn_timer_duration,
@@ -459,6 +489,7 @@ class GameState:
         game.largest_army_holder = d.get("largest_army_holder") or None
         game.largest_army_size = int(d.get("largest_army_size") or 0)
         game.road_building_remaining = int(d.get("road_building_remaining") or 0)
+        game.rules = GameRules.from_dict(d.get("rules") or {})
         game.trade_proposal = d.get("trade_proposal") or None
         game.turn_timer_start = float(d.get("turn_timer_start") or 0.0)
         game.turn_timer_duration = float(d.get("turn_timer_duration") or 60.0)

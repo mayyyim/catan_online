@@ -10,6 +10,7 @@ import { generateBoard } from '../engine/boardUtils'
 import type { ResourceType, Port, DevCard, DevCardType } from '../types'
 import { RESOURCE_LABELS } from '../types'
 import { playDiceRoll, playBuild, playTurnStart, playTradeComplete, playVictory, playError, isMuted, setMuted } from '../utils/sounds'
+import { getTheme, setTheme, type Theme } from '../utils/theme'
 import { Tutorial, shouldShowTutorial } from '../components/Tutorial'
 import styles from './Game.module.css'
 
@@ -211,6 +212,7 @@ export default function Game() {
   const [monopolyResource, setMonopolyResource] = useState<string>('')
   const [playingCard, setPlayingCard] = useState<DevCardType | null>(null)
   const [muted, setMutedState] = useState(() => isMuted())
+  const [theme, setThemeState] = useState<Theme>(() => getTheme())
   const [rawPlayers, setRawPlayers] = useState<BackendGameState['players']>([])
 
   // P2P trade state
@@ -1106,6 +1108,19 @@ export default function Game() {
             }}
           >
             {muted ? '\uD83D\uDD07' : '\uD83D\uDD0A'}
+          </button>
+          <button
+            className={styles.themeBtn}
+            type="button"
+            title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            onClick={() => {
+              const next: Theme = theme === 'dark' ? 'light' : 'dark'
+              setThemeState(next)
+              setTheme(next)
+            }}
+          >
+            {theme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19'}
           </button>
         </div>
 
@@ -2085,6 +2100,16 @@ export default function Game() {
           </div>
         )
       })()}
+
+      {wsStatus === 'disconnected' && game?.phase && game.phase !== 'waiting' && game.phase !== 'finished' && (
+        <div className={styles.reconnectOverlay}>
+          <div className={styles.reconnectCard}>
+            <div className={styles.reconnectSpinner} />
+            <p className={styles.reconnectText}>Connection lost</p>
+            <p className={styles.reconnectSub}>Reconnecting...</p>
+          </div>
+        </div>
+      )}
 
       <Tutorial visible={showTutorial} onClose={() => setShowTutorial(false)} />
     </div>

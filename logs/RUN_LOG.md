@@ -153,3 +153,32 @@ Agent 名称：Backend API Developer + Test & Auto Commit
 - `backend/app/game/engine.py` — Added `handle_propose_trade`, `handle_accept_trade`, `handle_reject_trade`, `handle_cancel_trade`; auto-clear proposal on `handle_end_turn`
 - `backend/app/routers/websocket.py` — Added dispatch for `propose_trade`, `accept_trade`, `reject_trade`, `cancel_trade` message types with broadcasts
 - `backend/app/bots.py` — Bots now capture `trade_proposal` events and evaluate trades using heuristic (accept if receiving a needed resource and giving surplus)
+
+---
+
+日期：2026-04-10
+任务名称：P1-10 Complete Game Log + P1-08 Setup Phase UX
+Agent 名称：Backend API Developer
+状态：完成
+
+变更摘要：
+- backend/app/routers/websocket.py: Added player_name to dice_result broadcast; added robber_moved, resource_stolen, turn_start broadcast events after place_robber, steal, end_turn handlers
+- frontend/src/pages/Game.tsx: Added WS handlers for dice_result, robber_moved, resource_stolen, turn_start to appendLog; improved setup phase turn banner with round number and ordinal labels; added snake draft order indicator with current player highlighted; updated bottom action bar setup hint
+
+验证：Python syntax check passed; TypeScript --noEmit passed
+
+## 2026-04-10 | Backend API Developer | Custom Game Rules
+
+**Task**: Implement custom game rules (VP target, friendly robber, double starting resources)
+
+**Changes**:
+- `backend/app/game/models.py`: Added `GameRules` dataclass with `victory_points_target`, `friendly_robber`, `starting_resources_double`. Added `rules` field to `GameState` with full serialization.
+- `backend/app/game/engine.py`: `check_winner` uses `game.rules.victory_points_target`. `handle_roll_dice` implements friendly robber (auto-desert when all <4VP). `_maybe_grant_setup_resources` supports 2x multiplier.
+- `backend/app/store.py`: Added `rules: Dict` to `RoomInfo`, persisted in Redis via `create_room`, `save_room_info`, `get_room`.
+- `backend/app/routers/websocket.py`: Added `set_rules` WS handler (host-only, waiting phase). Rules passed to `GameState` on `_handle_start_game`. Rules included in `_room_update_msg`.
+- `frontend/src/types/index.ts`: Added `GameRulesConfig` interface and `rules` field to `RoomState`.
+- `frontend/src/api/index.ts`: Added default rules to `getRoomState` return.
+- `frontend/src/pages/Room.tsx`: Added Game Rules panel (host: interactive selects/checkboxes, non-host: read-only badges). Sends `set_rules` WS messages.
+- `frontend/src/pages/Room.module.css`: Added styles for `.panel`, `.ruleRow`, `.ruleSelect`, `.ruleCheckLabel`, `.ruleDesc`, `.ruleReadOnly`.
+
+**Verification**: Python `py_compile` pass, `npx tsc --noEmit` pass (0 errors).

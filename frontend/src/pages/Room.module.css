@@ -1,6 +1,6 @@
 .loading {
   min-height: 100vh;
-  background: #0d1b2a;
+  background: var(--bg-primary, #0d1b2a);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -25,10 +25,10 @@
 
 .page {
   min-height: 100vh;
-  background: #0d1b2a;
+  background: var(--bg-primary, #0d1b2a);
   display: flex;
   flex-direction: column;
-  color: #f8f9fa;
+  color: var(--text-primary, #f8f9fa);
 }
 
 .header {
@@ -437,6 +437,86 @@
 .seedInput:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Game Rules panel */
+.panel {
+  background: #16213e;
+  border: 1px solid #1e3a5f;
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+}
+
+.ruleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.ruleLabel {
+  font-size: 13px;
+  color: #adb5bd;
+  font-weight: 500;
+}
+
+.ruleSelect {
+  padding: 6px 10px;
+  background: #0d1b2a;
+  border: 1.5px solid #1e3a5f;
+  border-radius: 8px;
+  color: #f8f9fa;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.ruleSelect:focus {
+  outline: none;
+  border-color: #4a6fa5;
+}
+
+.ruleCheckLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #e9ecef;
+  cursor: pointer;
+}
+
+.ruleCheckLabel input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #ffd60a;
+  cursor: pointer;
+}
+
+.ruleDesc {
+  font-size: 11px;
+  color: #6c757d;
+  flex-shrink: 0;
+}
+
+.ruleReadOnly {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ruleReadOnly span {
+  font-size: 12px;
+  padding: 4px 10px;
+  background: #0d1b2a;
+  border: 1px solid #2a4a7f;
+  border-radius: 10px;
+  color: #adb5bd;
 }
 
 /* Right section */

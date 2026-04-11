@@ -219,6 +219,12 @@ export interface MapTopologyPayload {
   ports: MapTopologyPortPayload[]
 }
 
+export interface GameRulesConfig {
+  victory_points_target: number
+  friendly_robber: boolean
+  starting_resources_double: boolean
+}
+
 export interface RoomState {
   roomId: string
   inviteCode: string
@@ -228,6 +234,7 @@ export interface RoomState {
   randomSeed: string
   maxPlayers: number
   status: 'waiting' | 'started'
+  rules: GameRulesConfig
 }
 
 // ─── WebSocket Messages ───────────────────────────────────────────────────────
