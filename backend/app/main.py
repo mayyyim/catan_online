@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers.rooms import router as rooms_router
 from app.routers.websocket import router as ws_router
+from app.routers.auth import router as auth_router
 
 
 app = FastAPI(
@@ -26,8 +27,15 @@ app.add_middleware(
 )
 
 # Mount routers
+app.include_router(auth_router, prefix="/auth")
 app.include_router(rooms_router)
 app.include_router(ws_router)
+
+
+@app.on_event("startup")
+def startup():
+    from app.database import init_db
+    init_db()
 
 
 @app.get("/health")

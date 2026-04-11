@@ -6,16 +6,30 @@ services:
     volumes:
       - redis_data:/data
 
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=catan
+      - POSTGRES_USER=catan
+      - POSTGRES_PASSWORD=catan_secret
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    expose:
+      - "5432"
+
   backend:
     build:
       context: ./backend
     restart: unless-stopped
     environment:
       - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://catan:catan_secret@postgres:5432/catan
     expose:
       - "8080"
     depends_on:
       - redis
+      - postgres
 
   web:
     build:
@@ -29,4 +43,5 @@ services:
 
 volumes:
   redis_data:
+  pg_data:
 
