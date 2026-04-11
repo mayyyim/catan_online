@@ -154,8 +154,8 @@
 .sidePanel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 10px;
   border-left: 1px solid #1e3a5f;
   overflow-y: auto;
   background: #0d1b2a;
@@ -783,7 +783,7 @@
 /* ── Bottom action bar ───────────────────────────────────────────────────── */
 
 .actionBar {
-  height: 56px;
+  height: 88px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -795,6 +795,9 @@
 }
 
 .actionLeft {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   flex: 1;
 }
 
@@ -918,4 +921,302 @@
 
 .homeBtn:hover {
   background: #ffe347;
+}
+
+/* ── Bank resource row ──────────────────────────────────────────────────── */
+
+.bankRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: #16213e;
+  border: 1px solid #1e3a5f;
+  border-radius: 10px;
+  flex-wrap: wrap;
+}
+
+.bankLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6c757d;
+  margin-right: 4px;
+}
+
+.bankItem {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 13px;
+  color: #adb5bd;
+}
+
+.bankCount {
+  font-weight: 700;
+  color: #f8f9fa;
+  font-size: 13px;
+  min-width: 16px;
+  text-align: center;
+}
+
+.bankCountLow {
+  color: #e63946;
+}
+
+.bankDivider {
+  width: 1px;
+  height: 16px;
+  background: #1e3a5f;
+  margin: 0 2px;
+}
+
+/* ── Player info cards (Colonist-style) ─────────────────────────────────── */
+
+.playerCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: #16213e;
+  border: 1.5px solid #1e3a5f;
+  border-radius: 10px;
+  transition: border-color 0.2s ease, box-shadow 0.3s ease;
+}
+
+.playerCardActive {
+  border-color: var(--player-color);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--player-color) 40%, transparent);
+  background: color-mix(in srgb, var(--player-color) 6%, #16213e);
+}
+
+.playerCardMe {
+  background: color-mix(in srgb, var(--player-color) 8%, #16213e);
+  border-width: 2px;
+}
+
+.playerCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.playerCardAvatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.playerCardName {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: #f8f9fa;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playerCardYouTag {
+  font-size: 10px;
+  color: #6c757d;
+  font-weight: 400;
+}
+
+.playerCardVP {
+  font-size: 16px;
+  font-weight: 800;
+  color: #ffd60a;
+  min-width: 32px;
+  text-align: right;
+}
+
+.playerCardBadges {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.playerBadge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #ffd60a;
+  color: #0d1b2a;
+}
+
+/* Resource card backs (small, for other players) */
+.resCardBacks {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.resCardBack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 36px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.resCardBackCount {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.resCardBackLabel {
+  font-size: 7px;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.devCardBack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 36px;
+  border-radius: 4px;
+  background: #3498db;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  margin-left: 4px;
+}
+
+.devCardBackLabel {
+  font-size: 7px;
+  opacity: 0.8;
+}
+
+/* My resource card backs (show actual counts, slightly different) */
+.resCardBackMine {
+  background: color-mix(in srgb, var(--card-color) 80%, #16213e);
+}
+
+.resCardBackMine.resCardBackDimmed {
+  opacity: 0.35;
+}
+
+/* Buildings row */
+.playerCardBuildings {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #8a9bb0;
+}
+
+.buildingStat {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.buildingIcon {
+  font-size: 12px;
+}
+
+.buildingCount {
+  font-weight: 700;
+  color: #adb5bd;
+}
+
+/* ── Bottom bar resource cards (large) ──────────────────────────────────── */
+
+.bottomResCards {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.resCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 58px;
+  border-radius: 6px;
+  border: 1.5px solid rgba(0, 0, 0, 0.15);
+  cursor: default;
+  transition: transform 0.1s ease, opacity 0.15s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+
+.resCard:not(.resCardDimmed):hover {
+  transform: translateY(-3px);
+}
+
+.resCardDimmed {
+  opacity: 0.35;
+}
+
+.resCardIcon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.resCardCount {
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  line-height: 1;
+}
+
+.resCardName {
+  font-size: 7px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.04em;
+}
+
+/* ── Dev cards panel collapsible ────────────────────────────────────────── */
+
+.devPanelToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: inherit;
+  color: #6c757d;
+  cursor: pointer;
+  margin: 0 0 6px;
 }

@@ -4,11 +4,11 @@ import { useGame } from '../context/GameContext'
 import { useRoom } from '../context/RoomContext'
 import { gameSocket } from '../ws/gameSocket'
 import { HexGrid } from '../components/HexGrid'
-import { ResourceHand } from '../components/ResourceHand'
 import { DiceDisplay } from '../components/DiceDisplay'
 import { PlayerAvatar } from '../components/PlayerAvatar'
 import { generateBoard } from '../engine/boardUtils'
 import type { ResourceType, Port, DevCard, DevCardType } from '../types'
+import { RESOURCE_LABELS } from '../types'
 import styles from './Game.module.css'
 
 type BuildMode = 'none' | 'road' | 'settlement' | 'city'
@@ -19,6 +19,14 @@ const EMPTY_RESOURCES: Record<ResourceType, number> = {
   wheat: 0,
   sheep: 0,
   ore: 0,
+}
+
+const RES_CARD_COLORS: Record<ResourceType, string> = {
+  wood: '#4a8c3f',
+  brick: '#c0392b',
+  wheat: '#f1c40f',
+  sheep: '#7dcea0',
+  ore: '#7f8c8d',
 }
 
 type BackendGameState = {
@@ -798,6 +806,31 @@ export default function Game() {
 
         {/* Right panel */}
         <aside className={styles.sidePanel}>
+          {/* Bank resources row */}
+          <div className={styles.bankRow}>
+            <span className={styles.bankLabel}>Bank</span>
+            {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
+              const knownTotal = players.reduce((sum, p) => {
+                const r = p.resources?.[res] ?? 0
+                return sum + r
+              }, 0)
+              const bankRemaining = 19 - knownTotal
+              return (
+                <span key={res} className={styles.bankItem}>
+                  {RESOURCE_LABELS[res]}
+                  <span className={`${styles.bankCount} ${bankRemaining <= 3 ? styles.bankCountLow : ''}`}>
+                    {bankRemaining}
+                  </span>
+                </span>
+              )
+            })}
+            <span className={styles.bankDivider} />
+            <span className={styles.bankItem}>
+              {'🎴'}
+              <span className={styles.bankCount}>{deckCount}</span>
+            </span>
+          </div>
+
           {/* Turn banner */}
           <div className={isMyTurn ? styles.turnBannerYou : styles.turnBannerWait}>
             <span className={styles.turnBannerLabel}>
@@ -828,7 +861,7 @@ export default function Game() {
             </span>
           </div>
 
-          {/* Turn info */}
+          {/* Turn info / dice */}
           <div className={styles.turnSection}>
             <div className={styles.turnHeader}>
               <DiceDisplay
@@ -838,37 +871,58 @@ export default function Game() {
             </div>
           </div>
 
-          {/* Players panel */}
-          <div className={styles.panel}>
-            <p className={styles.panelTitle}>Players</p>
-            <div className={styles.playersGrid}>
-              {orderedPlayers.map(p => {
-                const cardCount = p.resourceCount ?? Object.values(p.resources).reduce((a, b) => a + b, 0)
-                const hasLongestRoad = game?.longestRoadPlayerId === p.id
-                const hasLargestArmy = game?.largestArmyPlayerId === p.id
-                const knightsCount = (p as any).knightsPlayed ?? 0
-                return (
-                  <div
-                    key={p.id}
-                    className={`${styles.playerRow} ${p.id === game?.currentPlayerId ? styles.playerRowActive : ''}`}
-                    style={{ '--player-color': p.color } as CSSProperties}
-                  >
-                    <span className={styles.playerDot} style={{ background: p.color }} />
-                    <span className={styles.playerName}>
-                      {p.name}
-                      {p.id === myPlayerId && <span className={styles.playerYouTag}> (you)</span>}
-                    </span>
-                    <span className={styles.playerCards}>Cards: {cardCount}</span>
-                    <span className={styles.playerBuildings}>
-                      {'🏠'}{p.settlements} {'🏙️'}{p.cities} {'🛤️'}{p.roads}
-                      {knightsCount > 0 && <>{' ⚔️'}{knightsCount}</>}
-                    </span>
-                    {hasLongestRoad && <span className={styles.longestRoadBadge} title="Longest Road">🛤️</span>}
-                    {hasLargestArmy && <span className={styles.longestRoadBadge} title="Largest Army">⚔️</span>}
+          {/* Other players' info cards */}
+          <div className={styles.playersGrid}>
+            {orderedPlayers.filter(p => p.id !== myPlayerId).map(p => {
+              const cardCount = p.resourceCount ?? Object.values(p.resources).reduce((a, b) => a + b, 0)
+              const hasLongestRoad = game?.longestRoadPlayerId === p.id
+              const hasLargestArmy = game?.largestArmyPlayerId === p.id
+              const knightsCount = (p as any).knightsPlayed ?? 0
+              const isActive = p.id === game?.currentPlayerId
+              return (
+                <div
+                  key={p.id}
+                  className={`${styles.playerCard} ${isActive ? styles.playerCardActive : ''}`}
+                  style={{ '--player-color': p.color } as CSSProperties}
+                >
+                  <div className={styles.playerCardHeader}>
+                    <div className={styles.playerCardAvatar} style={{ backgroundColor: p.color }}>
+                      {p.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
+                    </div>
+                    <span className={styles.playerCardName}>{p.name}</span>
+                    <div className={styles.playerCardBadges}>
+                      {hasLongestRoad && <span className={styles.playerBadge} title="Longest Road">LR</span>}
+                      {hasLargestArmy && <span className={styles.playerBadge} title="Largest Army">LA</span>}
+                    </div>
+                    <span className={styles.playerCardVP}>{p.victoryPoints}</span>
                   </div>
-                )
-              })}
-            </div>
+                  <div className={styles.resCardBacks}>
+                    {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as const).map(res => (
+                      <div
+                        key={res}
+                        className={styles.resCardBack}
+                        style={{ background: RES_CARD_COLORS[res] }}
+                        title={res}
+                      >
+                        <span className={styles.resCardBackCount}>?</span>
+                      </div>
+                    ))}
+                    <span style={{ fontSize: 11, color: '#8a9bb0', marginLeft: 2 }}>{cardCount}</span>
+                    <div className={styles.devCardBack} title="Dev cards">
+                      <span className={styles.resCardBackCount}>?</span>
+                    </div>
+                  </div>
+                  <div className={styles.playerCardBuildings}>
+                    <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'🏠'}</span><span className={styles.buildingCount}>{p.settlements}</span></span>
+                    <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'🏙️'}</span><span className={styles.buildingCount}>{p.cities}</span></span>
+                    <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'🛤️'}</span><span className={styles.buildingCount}>{p.roads}</span></span>
+                    {knightsCount > 0 && (
+                      <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'⚔️'}</span><span className={styles.buildingCount}>{knightsCount}</span></span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
           </div>
 
           {/* Robber: discard panel */}
@@ -933,14 +987,15 @@ export default function Game() {
             </div>
           )}
 
-          {/* Resources */}
+          {/* Development Cards (collapsible) */}
           <div className={styles.panel}>
-            <ResourceHand resources={myResources} />
-          </div>
-
-          {/* Development Cards */}
-          <div className={styles.panel}>
-            <p className={styles.panelTitle}>Development Cards ({devCards.length})</p>
+            <button
+              type="button"
+              className={styles.devPanelToggle}
+              onClick={() => setTradeOpen(prev => prev)} // dev cards always visible, toggle handled by CSS
+            >
+              <span>Development Cards ({devCards.length})</span>
+            </button>
             <div className={styles.devCardList}>
               {devCards.map((card, i) => {
                 const isVP = card.card_type === 'victory_point'
@@ -1059,49 +1114,7 @@ export default function Game() {
             </div>
           )}
 
-          {/* Build actions */}
-          {isMyTurn && (
-            <div className={styles.panel}>
-              <p className={styles.panelTitle}>Build</p>
-              <div className={styles.buildGrid}>
-                <button
-                  className={`${styles.buildBtn} ${buildMode === 'road' ? styles.active : ''}`}
-                  onClick={() => toggleBuildMode('road')}
-                  disabled={isSetupPhase}
-                  type="button"
-                  title="Road (1 wood + 1 brick)"
-                >
-                  <span className={styles.buildIcon}>🛤️</span>
-                  <span>Road</span>
-                  <span className={styles.cost}>🌲🧱</span>
-                </button>
-                <button
-                  className={`${styles.buildBtn} ${buildMode === 'settlement' ? styles.active : ''}`}
-                  onClick={() => toggleBuildMode('settlement')}
-                  disabled={isSetupPhase}
-                  type="button"
-                  title="Settlement (1 wood + 1 brick + 1 wheat + 1 sheep)"
-                >
-                  <span className={styles.buildIcon}>🏠</span>
-                  <span>Settlement</span>
-                  <span className={styles.cost}>🌲🧱🌾🐑</span>
-                </button>
-                <button
-                  className={`${styles.buildBtn} ${buildMode === 'city' ? styles.active : ''}`}
-                  onClick={() => toggleBuildMode('city')}
-                  disabled={isSetupPhase}
-                  type="button"
-                  title="City (2 wheat + 3 ore)"
-                >
-                  <span className={styles.buildIcon}>🏙️</span>
-                  <span>City</span>
-                  <span className={styles.cost}>🌾🌾⛏️⛏️⛏️</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Trade with bank */}
+          {/* Trade with bank (collapsible) */}
           {canTrade && (
             <div className={styles.panel}>
               <button
@@ -1109,7 +1122,7 @@ export default function Game() {
                 className={styles.tradePanelToggle}
                 onClick={() => setTradeOpen(prev => !prev)}
               >
-                <span>🏦 Bank Trade</span>
+                <span>{'🏦'} Bank Trade</span>
                 <span className={styles.toggleArrow}>{tradeOpen ? '▲' : '▼'}</span>
               </button>
               {tradeOpen && (
@@ -1158,17 +1171,95 @@ export default function Game() {
             </div>
           )}
 
-          {/* Special cards */}
-          {game?.longestRoadPlayerId && (
-            <div className={styles.specialCard}>
-              🛤️ Longest Road —{' '}
-              {players.find(p => p.id === game.longestRoadPlayerId)?.name}
+          {/* Build actions */}
+          {isMyTurn && (
+            <div className={styles.panel}>
+              <p className={styles.panelTitle}>Build</p>
+              <div className={styles.buildGrid}>
+                <button
+                  className={`${styles.buildBtn} ${buildMode === 'road' ? styles.active : ''}`}
+                  onClick={() => toggleBuildMode('road')}
+                  disabled={isSetupPhase}
+                  type="button"
+                  title="Road (1 wood + 1 brick)"
+                >
+                  <span className={styles.buildIcon}>{'🛤️'}</span>
+                  <span>Road</span>
+                  <span className={styles.cost}>{'🌲🧱'}</span>
+                </button>
+                <button
+                  className={`${styles.buildBtn} ${buildMode === 'settlement' ? styles.active : ''}`}
+                  onClick={() => toggleBuildMode('settlement')}
+                  disabled={isSetupPhase}
+                  type="button"
+                  title="Settlement (1 wood + 1 brick + 1 wheat + 1 sheep)"
+                >
+                  <span className={styles.buildIcon}>{'🏠'}</span>
+                  <span>Settlement</span>
+                  <span className={styles.cost}>{'🌲🧱🌾🐑'}</span>
+                </button>
+                <button
+                  className={`${styles.buildBtn} ${buildMode === 'city' ? styles.active : ''}`}
+                  onClick={() => toggleBuildMode('city')}
+                  disabled={isSetupPhase}
+                  type="button"
+                  title="City (2 wheat + 3 ore)"
+                >
+                  <span className={styles.buildIcon}>{'🏙️'}</span>
+                  <span>City</span>
+                  <span className={styles.cost}>{'🌾🌾⛏️⛏️⛏️'}</span>
+                </button>
+              </div>
             </div>
           )}
-          {game?.largestArmyPlayerId && (
-            <div className={styles.specialCard}>
-              ⚔️ Largest Army —{' '}
-              {players.find(p => p.id === game.largestArmyPlayerId)?.name}
+
+          {/* My player card (at bottom, larger) */}
+          {me && (
+            <div
+              className={`${styles.playerCard} ${styles.playerCardMe} ${isMyTurn ? styles.playerCardActive : ''}`}
+              style={{ '--player-color': me.color } as CSSProperties}
+            >
+              <div className={styles.playerCardHeader}>
+                <div className={styles.playerCardAvatar} style={{ backgroundColor: me.color }}>
+                  {me.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
+                </div>
+                <span className={styles.playerCardName}>
+                  {me.name} <span className={styles.playerCardYouTag}>(you)</span>
+                </span>
+                <div className={styles.playerCardBadges}>
+                  {game?.longestRoadPlayerId === me.id && <span className={styles.playerBadge} title="Longest Road">LR</span>}
+                  {game?.largestArmyPlayerId === me.id && <span className={styles.playerBadge} title="Largest Army">LA</span>}
+                </div>
+                <span className={styles.playerCardVP}>{me.victoryPoints}</span>
+              </div>
+              <div className={styles.resCardBacks}>
+                {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as const).map(res => {
+                  const count = myResources[res] ?? 0
+                  return (
+                    <div
+                      key={res}
+                      className={`${styles.resCardBack} ${styles.resCardBackMine} ${count === 0 ? styles.resCardBackDimmed : ''}`}
+                      style={{ '--card-color': RES_CARD_COLORS[res], background: RES_CARD_COLORS[res] } as CSSProperties}
+                      title={`${res}: ${count}`}
+                    >
+                      <span className={styles.resCardBackCount}>{count}</span>
+                      <span className={styles.resCardBackLabel}>{res.slice(0, 2)}</span>
+                    </div>
+                  )
+                })}
+                <div className={styles.devCardBack} title={`Dev cards: ${devCards.length}`}>
+                  <span className={styles.resCardBackCount}>{devCards.length}</span>
+                  <span className={styles.devCardBackLabel}>dev</span>
+                </div>
+              </div>
+              <div className={styles.playerCardBuildings}>
+                <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'🏠'}</span><span className={styles.buildingCount}>{me.settlements}</span></span>
+                <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'🏙️'}</span><span className={styles.buildingCount}>{me.cities}</span></span>
+                <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'🛤️'}</span><span className={styles.buildingCount}>{me.roads}</span></span>
+                {(me as any).knightsPlayed > 0 && (
+                  <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'⚔️'}</span><span className={styles.buildingCount}>{(me as any).knightsPlayed}</span></span>
+                )}
+              </div>
             </div>
           )}
 
@@ -1189,18 +1280,36 @@ export default function Game() {
         </aside>
       </div>
 
-      {/* Bottom action bar */}
+      {/* Bottom action bar with large resource cards */}
       <footer className={styles.actionBar}>
         <div className={styles.actionLeft}>
           {isSetupPhase ? (
             <span className={styles.buildHint}>
-              Setup phase: click the map to place your {requiredBuildMode}. Order is 1→N then N→1.
+              Setup: place your {requiredBuildMode}
             </span>
           ) : buildMode !== 'none' ? (
             <span className={styles.buildHint}>
-              Click on the map to place your {buildMode}. Press again to cancel.
+              Click map to place {buildMode}
             </span>
-          ) : null}
+          ) : (
+            <div className={styles.bottomResCards}>
+              {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as const).map(res => {
+                const count = myResources[res] ?? 0
+                return (
+                  <div
+                    key={res}
+                    className={`${styles.resCard} ${count === 0 ? styles.resCardDimmed : ''}`}
+                    style={{ background: RES_CARD_COLORS[res] }}
+                    title={`${res}: ${count}`}
+                  >
+                    <span className={styles.resCardIcon}>{RESOURCE_LABELS[res]}</span>
+                    <span className={styles.resCardCount}>{count}</span>
+                    <span className={styles.resCardName}>{res}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
         <div className={styles.actionRight}>
           <button

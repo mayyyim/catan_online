@@ -5,6 +5,17 @@
 
 ---
 
+日期：2026-04-11
+任务名称：发展卡系统完整实现 + 智能放置高亮 + 玩家信息面板 + 动效
+Agent 名称：Backend API Developer + Frontend Developer（并行）
+输入：实现完整发展卡系统（25张5种效果+最大骑士团）、修复放置高亮、加玩家面板和回合指示器
+输出：发展卡全系统（购买/使用/5种效果/Bot AI）+ 智能高亮 + 玩家面板 + 动效 — commit: 48a0b9f
+置信度：85%（编译通过，未跑集成测试，两个 agent 并行实现有接口不一致风险）
+卡住了吗：没有
+备注：大需求拆 7 子任务并行执行，+754 行。详细记录见 logs/dev_cards_backend.md 和 logs/dev_cards_frontend.md
+
+---
+
 日期：2026-04-10
 任务名称：军团全流程 QA 测试 + 修复 3 个 Bug
 Agent 名称：Evidence Collector x3（并行）+ Backend API Developer
