@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo, type CSSProperties } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef, type CSSProperties } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useGame } from '../context/GameContext'
 import { useRoom } from '../context/RoomContext'
@@ -214,6 +214,40 @@ export default function Game() {
     want: Record<string, number>
   } | null>(null)
 
+  // Turn notification state
+  const prevCurrentPlayerRef = useRef<string | null>(null)
+  const [titleFlashing, setTitleFlashing] = useState(false)
+
+  // Request notification permission on first game load
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+  }, [])
+
+  // Flash browser tab title when it's your turn and tab is hidden
+  useEffect(() => {
+    if (!titleFlashing) return
+    const originalTitle = 'Catan Online'
+    let tick = false
+    const interval = setInterval(() => {
+      document.title = tick ? originalTitle : '\uD83C\uDFB2 Your Turn!'
+      tick = !tick
+    }, 1000)
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        setTitleFlashing(false)
+        document.title = originalTitle
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibility)
+      document.title = originalTitle
+    }
+  }, [titleFlashing])
+
   // Restore identity
   useEffect(() => {
     const storedId = sessionStorage.getItem('player_id')
@@ -324,6 +358,19 @@ export default function Game() {
         } as any
 
         setGame(mapped)
+
+        // Browser turn notification (P1-03)
+        const newCurrentPlayer = raw.current_player_id ?? null
+        if (newCurrentPlayer && newCurrentPlayer !== prevCurrentPlayerRef.current && newCurrentPlayer === pid) {
+          if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+            new Notification('Catan Online', { body: "It's your turn!", icon: '/favicon.svg' })
+          }
+          if (document.hidden) {
+            setTitleFlashing(true)
+          }
+        }
+        prevCurrentPlayerRef.current = newCurrentPlayer
+
         setRawPlayers(raw.players ?? [])
         setPlayersToDiscard(raw.players_to_discard ?? [])
 
@@ -1435,6 +1482,47 @@ export default function Game() {
             </div>
           )}
 
+          {/* Build Cost Reference Card (P1-07) */}
+          <div className={`${styles.panel} ${styles.costRef}`}>
+            <p className={styles.panelTitle}>Build Costs</p>
+            <div className={styles.costGrid}>
+              <div className={styles.costRow}>
+                <span className={styles.costPiece}>{'\uD83D\uDEE4\uFE0F'} Road</span>
+                <span className={styles.costDots}>
+                  <span className={styles.resDot} style={{ background: '#4a8c3f' }} title="Wood" />
+                  <span className={styles.resDot} style={{ background: '#c0392b' }} title="Brick" />
+                </span>
+              </div>
+              <div className={styles.costRow}>
+                <span className={styles.costPiece}>{'\uD83C\uDFE0'} Settlement</span>
+                <span className={styles.costDots}>
+                  <span className={styles.resDot} style={{ background: '#4a8c3f' }} title="Wood" />
+                  <span className={styles.resDot} style={{ background: '#c0392b' }} title="Brick" />
+                  <span className={styles.resDot} style={{ background: '#f1c40f' }} title="Wheat" />
+                  <span className={styles.resDot} style={{ background: '#7dcea0' }} title="Sheep" />
+                </span>
+              </div>
+              <div className={styles.costRow}>
+                <span className={styles.costPiece}>{'\uD83C\uDFD9\uFE0F'} City</span>
+                <span className={styles.costDots}>
+                  <span className={styles.resDot} style={{ background: '#f1c40f' }} title="Wheat" />
+                  <span className={styles.resDot} style={{ background: '#f1c40f' }} title="Wheat" />
+                  <span className={styles.resDot} style={{ background: '#7f8c8d' }} title="Ore" />
+                  <span className={styles.resDot} style={{ background: '#7f8c8d' }} title="Ore" />
+                  <span className={styles.resDot} style={{ background: '#7f8c8d' }} title="Ore" />
+                </span>
+              </div>
+              <div className={styles.costRow}>
+                <span className={styles.costPiece}>{'\uD83C\uDFB4'} Dev Card</span>
+                <span className={styles.costDots}>
+                  <span className={styles.resDot} style={{ background: '#f1c40f' }} title="Wheat" />
+                  <span className={styles.resDot} style={{ background: '#7dcea0' }} title="Sheep" />
+                  <span className={styles.resDot} style={{ background: '#7f8c8d' }} title="Ore" />
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* My player card (at bottom, larger) */}
           {me && (
             <div
@@ -1503,7 +1591,7 @@ export default function Game() {
       </div>
 
       {/* Bottom action bar with large resource cards */}
-      <footer className={styles.actionBar}>
+      <footer className={`${styles.actionBar} ${myHandTotal > 7 ? styles.actionBarDanger : ''}`}>
         <div className={styles.actionLeft}>
           {isSetupPhase ? (
             <span className={styles.buildHint}>
@@ -1514,22 +1602,29 @@ export default function Game() {
               Click map to place {buildMode}
             </span>
           ) : (
-            <div className={styles.bottomResCards}>
-              {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as const).map(res => {
-                const count = myResources[res] ?? 0
-                return (
-                  <div
-                    key={res}
-                    className={`${styles.resCard} ${count === 0 ? styles.resCardDimmed : ''}`}
-                    style={{ background: RES_CARD_COLORS[res] }}
-                    title={`${res}: ${count}`}
-                  >
-                    <span className={styles.resCardIcon}>{RESOURCE_LABELS[res]}</span>
-                    <span className={styles.resCardCount}>{count}</span>
-                    <span className={styles.resCardName}>{res}</span>
-                  </div>
-                )
-              })}
+            <div className={styles.bottomResCardsWrap}>
+              <div className={styles.bottomResCards}>
+                {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as const).map(res => {
+                  const count = myResources[res] ?? 0
+                  return (
+                    <div
+                      key={res}
+                      className={`${styles.resCard} ${count === 0 ? styles.resCardDimmed : ''}`}
+                      style={{ background: RES_CARD_COLORS[res] }}
+                      title={`${res}: ${count}`}
+                    >
+                      <span className={styles.resCardIcon}>{RESOURCE_LABELS[res]}</span>
+                      <span className={styles.resCardCount}>{count}</span>
+                      <span className={styles.resCardName}>{res}</span>
+                    </div>
+                  )
+                })}
+              </div>
+              {myHandTotal > 7 && (
+                <div className={styles.handWarning}>
+                  {'\u26A0\uFE0F'} You have {myHandTotal} cards — risk losing half on a 7!
+                </div>
+              )}
             </div>
           )}
         </div>

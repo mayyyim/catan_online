@@ -1547,3 +1547,70 @@
 .p2pRejectBtn:hover {
   background: rgba(230, 57, 70, 0.12);
 }
+
+/* ── Hand Size Warning (P1-06) ─────────────────────────────────────────── */
+
+.bottomResCardsWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.handWarning {
+  color: #e63946;
+  font-size: 12px;
+  font-weight: 600;
+  animation: pulse 1.5s ease-in-out infinite;
+  text-align: center;
+  padding: 4px 0;
+}
+
+.actionBarDanger {
+  box-shadow: inset 0 2px 0 rgba(230, 57, 70, 0.5);
+}
+
+/* ── Build Cost Reference Card (P1-07) ─────────────────────────────────── */
+
+.costRef {
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.costRef:hover {
+  opacity: 1;
+}
+
+.costGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.costRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #8a9bb0;
+}
+
+.costPiece {
+  font-weight: 600;
+  min-width: 100px;
+}
+
+.costDots {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.resDot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
