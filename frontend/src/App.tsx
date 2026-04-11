@@ -9,6 +9,8 @@ const Auth = lazy(() => import('./pages/Auth'))
 const Room = lazy(() => import('./pages/Room'))
 const Game = lazy(() => import('./pages/Game'))
 const Maps = lazy(() => import('./pages/Maps'))
+const Leaderboard = lazy(() => import('./pages/Leaderboard'))
+const Profile = lazy(() => import('./pages/Profile'))
 
 function PageFallback() {
   return (
@@ -39,6 +41,9 @@ export default function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/maps" element={<Maps />} />
+                <Route path="/leaderboard" element={<Leaderboard />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/profile/:userId" element={<Profile />} />
                 <Route path="/room/:roomId" element={<Room />} />
                 <Route path="/game/:roomId" element={<Game />} />
                 <Route path="*" element={<Navigate to="/" replace />} />

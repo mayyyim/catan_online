@@ -107,6 +107,14 @@ export default function Home() {
             <Link to="/maps" className={styles.mapGalleryLink}>
               Map Gallery
             </Link>
+            <Link to="/leaderboard" className={styles.mapGalleryLink}>
+              Leaderboard
+            </Link>
+            {user && (
+              <Link to="/profile" className={styles.mapGalleryLink}>
+                My Stats
+              </Link>
+            )}
             {!user && (
               <Link to="/auth" className={styles.mapGalleryLink}>
                 Login / Register

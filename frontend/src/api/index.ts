@@ -142,6 +142,59 @@ export function authMe(token: string): Promise<AuthUser> {
   })
 }
 
+// ─── Stats / Leaderboard endpoints ───────────────────────────────────────────
+
+export interface LeaderboardEntry {
+  rank: number
+  user_id: string
+  display_name: string
+  elo_rating: number
+  games_played: number
+  games_won: number
+  win_rate: number
+}
+
+export interface PlayerProfile {
+  user_id: string
+  display_name: string
+  elo_rating: number
+  games_played: number
+  games_won: number
+  total_vp: number
+  win_rate: number
+  avg_vp: number
+  recent_games: Array<{
+    id: string
+    map_id: string
+    player_count: number
+    turns: number
+    finished_at: string | null
+    won: boolean
+    players: Array<{
+      user_id: string | null
+      name: string
+      player_id: string
+      color: string
+      victory_points: number
+      is_bot: boolean
+    }>
+  }>
+}
+
+export function fetchLeaderboard(limit = 20): Promise<{ leaderboard: LeaderboardEntry[] }> {
+  return request<{ leaderboard: LeaderboardEntry[] }>(`/stats/leaderboard?limit=${limit}`)
+}
+
+export function fetchProfile(userId: string): Promise<PlayerProfile> {
+  return request<PlayerProfile>(`/stats/profile/${userId}`)
+}
+
+export function fetchMyStats(token: string): Promise<PlayerProfile> {
+  return request<PlayerProfile>('/stats/my-stats', {
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+  })
+}
+
 // ─── Map gallery endpoints ────────────────────────────────────────────────────
 
 export interface MapSummaryTile { q: number; r: number; tile_type: string }
