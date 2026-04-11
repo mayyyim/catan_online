@@ -15,6 +15,12 @@
 
 .oceanTile polygon {
   cursor: default;
+  animation: oceanShimmer 4s ease-in-out infinite;
+}
+
+@keyframes oceanShimmer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.92; }
 }
 
 .landTile polygon {
@@ -23,7 +29,7 @@
 }
 
 .landTile:hover polygon {
-  filter: brightness(1.15);
+  filter: brightness(1.12) saturate(1.1);
 }
 
 .terrainEmoji,
@@ -33,6 +39,11 @@
 }
 
 .tokenText {
+  pointer-events: none;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.probabilityDots {
   pointer-events: none;
   font-family: 'Segoe UI', system-ui, sans-serif;
 }

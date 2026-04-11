@@ -1,6 +1,6 @@
 import { useMemo, useCallback, useState, useRef, useEffect } from 'react'
 import type { HexTile, Building, Road, Player, Port } from '../../types'
-import { TERRAIN_COLORS, TERRAIN_LABELS, RESOURCE_LABELS } from '../../types'
+import { TERRAIN_LABELS, RESOURCE_LABELS } from '../../types'
 import {
   cubeToPixel,
   hexCorners,
@@ -24,6 +24,12 @@ const SIDE_PIXEL_DIRS: [number, number][] = [
   [-1.5,         SQ3 / 2],
   [ 0,           SQ3],
 ]
+
+/** Map dice number to probability dot count */
+function probabilityDots(token: number): number {
+  const dist = Math.abs(token - 7)
+  return 6 - dist // 6,8→5  5,9→4  4,10→3  3,11→2  2,12→1
+}
 
 interface HexGridProps {
   tiles: HexTile[]
@@ -202,12 +208,54 @@ export function HexGrid({
         className={styles.grid}
         viewBox={viewBox}
       >
+        {/* SVG Definitions: gradients, filters */}
+        <defs>
+          {/* Terrain radial gradients */}
+          <radialGradient id="grad-forest" cx="50%" cy="40%">
+            <stop offset="0%" stopColor="#2d8a4e" />
+            <stop offset="100%" stopColor="#1a5c32" />
+          </radialGradient>
+          <radialGradient id="grad-hills" cx="50%" cy="40%">
+            <stop offset="0%" stopColor="#d4804a" />
+            <stop offset="100%" stopColor="#c46a3a" />
+          </radialGradient>
+          <radialGradient id="grad-fields" cx="50%" cy="40%">
+            <stop offset="0%" stopColor="#e8b830" />
+            <stop offset="100%" stopColor="#d4a017" />
+          </radialGradient>
+          <radialGradient id="grad-pasture" cx="50%" cy="40%">
+            <stop offset="0%" stopColor="#5cbf78" />
+            <stop offset="100%" stopColor="#4aa564" />
+          </radialGradient>
+          <radialGradient id="grad-mountains" cx="50%" cy="40%">
+            <stop offset="0%" stopColor="#727e8a" />
+            <stop offset="100%" stopColor="#5a6570" />
+          </radialGradient>
+          <radialGradient id="grad-desert" cx="50%" cy="40%">
+            <stop offset="0%" stopColor="#e0b870" />
+            <stop offset="100%" stopColor="#d4a55a" />
+          </radialGradient>
+          <radialGradient id="grad-ocean" cx="50%" cy="45%">
+            <stop offset="0%" stopColor="#1e5a8a" />
+            <stop offset="100%" stopColor="#0f3460" />
+          </radialGradient>
+
+          {/* Subtle noise texture filter for land tiles */}
+          <filter id="terrain-texture">
+            <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" result="noise" />
+            <feColorMatrix type="saturate" values="0" in="noise" result="gray-noise" />
+            <feBlend in="SourceGraphic" in2="gray-noise" mode="soft-light" result="textured" />
+            <feComposite in="textured" in2="SourceGraphic" operator="in" />
+          </filter>
+        </defs>
+
         {/* Tile polygons */}
         {tilePixels.map(({ tile, cx, cy }) => {
           const corners = hexCorners(cx, cy, HEX_SIZE)
           const points = cornersToSvgPoints(corners)
-          const color = TERRAIN_COLORS[tile.terrain]
           const isOcean = tile.terrain === 'ocean'
+          const gradId = `url(#grad-${tile.terrain})`
+          const isHighProb = tile.token === 6 || tile.token === 8
 
           return (
             <g
@@ -215,31 +263,88 @@ export function HexGrid({
               onClick={() => !isOcean && onTileClick?.(tile)}
               className={isOcean ? styles.oceanTile : styles.landTile}
             >
+              {/* Main terrain fill with gradient */}
               <polygon
                 points={points}
-                fill={color}
-                stroke="#0d1b2a"
-                strokeWidth={2}
+                fill={gradId}
+                filter={isOcean ? undefined : 'url(#terrain-texture)'}
+                stroke={isOcean ? 'rgba(10,20,40,0.5)' : '#0a1520'}
+                strokeWidth={isOcean ? 1 : 1.5}
               />
-              {tile.robber && (
-                <text x={cx} y={cy + 6} textAnchor="middle" fontSize={28} className={styles.robberIcon}>
-                  🦹
-                </text>
+              {/* Subtle inner highlight for depth */}
+              {!isOcean && (
+                <polygon
+                  points={points}
+                  fill="none"
+                  stroke="rgba(255,255,255,0.08)"
+                  strokeWidth={1}
+                />
               )}
+
+              {/* Robber overlay */}
+              {tile.robber && (
+                <>
+                  <circle cx={cx} cy={cy} r={20} fill="rgba(0,0,0,0.6)" />
+                  <text
+                    x={cx}
+                    y={cy + 1}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontSize={32}
+                    className={styles.robberIcon}
+                  >
+                    🦹
+                  </text>
+                </>
+              )}
+
+              {/* Terrain emoji - larger and repositioned */}
               {!isOcean && !tile.robber && (
-                <text x={cx} y={cy - 8} textAnchor="middle" fontSize={22} className={styles.terrainEmoji}>
+                <text
+                  x={cx}
+                  y={cy - 10}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontSize={26}
+                  className={styles.terrainEmoji}
+                >
                   {TERRAIN_LABELS[tile.terrain]}
                 </text>
               )}
+
+              {/* Number token - redesigned with parchment look and probability dots */}
               {tile.token !== undefined && (
                 <>
-                  <circle cx={cx} cy={cy + 16} r={16} fill="#f8f9fa" stroke="#dee2e6" strokeWidth={1} />
+                  <circle
+                    cx={cx}
+                    cy={cy + 14}
+                    r={17}
+                    fill={isHighProb ? '#f5d0c0' : '#f5e6c8'}
+                    stroke={isHighProb ? '#c0392b' : '#8b7355'}
+                    strokeWidth={1.5}
+                  />
                   <text
-                    x={cx} y={cy + 22} textAnchor="middle" fontSize={14} fontWeight="bold"
-                    fill={tile.token === 6 || tile.token === 8 ? '#e63946' : '#212529'}
+                    x={cx}
+                    y={cy + 14}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontSize={16}
+                    fontWeight={800}
+                    fill={isHighProb ? '#c0392b' : '#212529'}
                     className={styles.tokenText}
                   >
                     {tile.token}
+                  </text>
+                  <text
+                    x={cx}
+                    y={cy + 26}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontSize={7}
+                    fill={isHighProb ? '#c0392b' : '#8b7355'}
+                    className={styles.probabilityDots}
+                  >
+                    {'\u2022'.repeat(probabilityDots(tile.token))}
                   </text>
                 </>
               )}

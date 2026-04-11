@@ -15,13 +15,13 @@ export type ResourceType = 'wood' | 'brick' | 'wheat' | 'sheep' | 'ore'
 export type TileType = Exclude<TerrainType, 'ocean'>
 
 export const TERRAIN_COLORS: Record<TerrainType, string> = {
-  forest: '#2d6a4f',
-  hills: '#b85c38',
-  fields: '#ffd60a',
-  pasture: '#74c69d',
-  mountains: '#6c757d',
-  desert: '#e9c46a',
-  ocean: '#023e8a',
+  forest: '#1a5c32',
+  hills: '#c46a3a',
+  fields: '#d4a017',
+  pasture: '#4aa564',
+  mountains: '#5a6570',
+  desert: '#d4a55a',
+  ocean: '#1a4b7a',
 }
 
 export const TERRAIN_LABELS: Record<TerrainType, string> = {
