@@ -247,6 +247,152 @@
   opacity: 0.7;
 }
 
+/* ── Trade panel ────────────────────────────────────────────────────────── */
+
+.tradePanelToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #f8f9fa;
+  cursor: pointer;
+}
+
+.toggleArrow {
+  font-size: 10px;
+  color: #6c757d;
+}
+
+.tradeBody {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tradeSide {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tradeLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #6c757d;
+  margin-bottom: 2px;
+}
+
+.tradeCredits {
+  color: #ffd60a;
+  text-transform: none;
+}
+
+.tradeRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.tradeRes {
+  width: 70px;
+  text-transform: capitalize;
+  color: #adb5bd;
+}
+
+.tradeRatio {
+  font-size: 10px;
+  color: #6c757d;
+}
+
+.tradeBtn {
+  width: 26px;
+  height: 26px;
+  border: 1px solid #1e3a5f;
+  border-radius: 6px;
+  background: #0d1b2a;
+  color: #f8f9fa;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.tradeBtn:hover:not(:disabled) {
+  background: #1e3a5f;
+  border-color: #4a6fa5;
+}
+
+.tradeBtn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.tradeCount {
+  width: 20px;
+  text-align: center;
+  font-weight: 700;
+  color: #ffd60a;
+  font-size: 14px;
+}
+
+.tradeActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.tradeSubmitBtn {
+  flex: 1;
+  padding: 8px;
+  background: #2a9d8f;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.tradeSubmitBtn:hover:not(:disabled) {
+  background: #38b2a3;
+}
+
+.tradeSubmitBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.tradeResetBtn {
+  padding: 8px 14px;
+  background: transparent;
+  color: #6c757d;
+  border: 1px solid #1e3a5f;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.tradeResetBtn:hover {
+  background: #1e3a5f;
+  color: #adb5bd;
+}
+
 /* Special cards */
 .specialCard {
   font-size: 12px;

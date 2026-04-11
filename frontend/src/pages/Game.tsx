@@ -166,6 +166,9 @@ export default function Game() {
   const [playersToDiscard, setPlayersToDiscard] = useState<string[]>([])
   const [robberStealTargets, setRobberStealTargets] = useState<string[]>([])
   const [discardSelection, setDiscardSelection] = useState<Record<string, number>>({})
+  const [tradeOpen, setTradeOpen] = useState(false)
+  const [tradeOffer, setTradeOffer] = useState<Record<string, number>>({})
+  const [tradeWant, setTradeWant] = useState<Record<string, number>>({})
 
   // Restore identity
   useEffect(() => {
@@ -405,6 +408,84 @@ export default function Game() {
   const handleSteal = useCallback((targetId: string) => {
     gameSocket.send({ type: 'steal', target_id: targetId } as any)
   }, [])
+
+  // Trade handlers
+  const canTrade = isMyTurn && turnPhase === 'post_roll' && !isSetupPhase
+
+  const handleTradeOfferChange = useCallback((res: string, delta: number) => {
+    setTradeOffer(prev => {
+      const cur = prev[res] ?? 0
+      const next = Math.max(0, cur + delta)
+      return { ...prev, [res]: next }
+    })
+  }, [])
+
+  const handleTradeWantChange = useCallback((res: string, delta: number) => {
+    setTradeWant(prev => {
+      const cur = prev[res] ?? 0
+      const next = Math.max(0, cur + delta)
+      return { ...prev, [res]: next }
+    })
+  }, [])
+
+  const handleTradeSubmit = useCallback(() => {
+    const offer: Record<string, number> = {}
+    const want: Record<string, number> = {}
+    for (const [k, v] of Object.entries(tradeOffer)) {
+      if (v > 0) offer[k] = v
+    }
+    for (const [k, v] of Object.entries(tradeWant)) {
+      if (v > 0) want[k] = v
+    }
+    if (Object.keys(offer).length && Object.keys(want).length) {
+      gameSocket.send({ type: 'trade', offer, want } as any)
+      setTradeOffer({})
+      setTradeWant({})
+    }
+  }, [tradeOffer, tradeWant])
+
+  const handleTradeReset = useCallback(() => {
+    setTradeOffer({})
+    setTradeWant({})
+  }, [])
+
+  // Compute trade ratios from ports
+  const tradeRatios = useMemo(() => {
+    const ratios: Record<string, number> = { wood: 4, brick: 4, wheat: 4, sheep: 4, ore: 4 }
+    let genericRatio = 4
+    // ports data is available; backend already validates but we compute for display
+    for (const port of ports) {
+      if (!port.resource) {
+        genericRatio = Math.min(genericRatio, port.ratio)
+      } else {
+        ratios[port.resource] = Math.min(ratios[port.resource] ?? 4, port.ratio)
+      }
+    }
+    // Apply generic to all that are still > generic
+    for (const r of Object.keys(ratios)) {
+      ratios[r] = Math.min(ratios[r], genericRatio)
+    }
+    return ratios
+  }, [ports])
+
+  const tradeOfferTotal = Object.values(tradeOffer).reduce((a, b) => a + b, 0)
+  const tradeWantTotal = Object.values(tradeWant).reduce((a, b) => a + b, 0)
+
+  // Calculate how many "want" credits the offer gives
+  const tradeCredits = useMemo(() => {
+    let credits = 0
+    for (const [res, amt] of Object.entries(tradeOffer)) {
+      const ratio = tradeRatios[res] ?? 4
+      credits += Math.floor(amt / ratio)
+    }
+    return credits
+  }, [tradeOffer, tradeRatios])
+
+  const tradeValid = tradeCredits > 0 && tradeWantTotal === tradeCredits &&
+    Object.entries(tradeOffer).every(([res, amt]) => {
+      const ratio = tradeRatios[res] ?? 4
+      return amt % ratio === 0 && (myResources[res as ResourceType] ?? 0) >= amt
+    })
 
   const handleVertexClick = useCallback(
     (vid: string) => {
@@ -650,6 +731,63 @@ export default function Game() {
                   <span className={styles.cost}>🌾🌾⛏️⛏️⛏️</span>
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Trade with bank */}
+          {canTrade && (
+            <div className={styles.panel}>
+              <button
+                type="button"
+                className={styles.tradePanelToggle}
+                onClick={() => setTradeOpen(prev => !prev)}
+              >
+                <span>🏦 Bank Trade</span>
+                <span className={styles.toggleArrow}>{tradeOpen ? '▲' : '▼'}</span>
+              </button>
+              {tradeOpen && (
+                <div className={styles.tradeBody}>
+                  {/* Offer (give) */}
+                  <div className={styles.tradeSide}>
+                    <span className={styles.tradeLabel}>You give</span>
+                    {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
+                      const have = myResources[res] ?? 0
+                      const offering = tradeOffer[res] ?? 0
+                      const ratio = tradeRatios[res] ?? 4
+                      return (
+                        <div key={res} className={styles.tradeRow}>
+                          <span className={styles.tradeRes}>{res} <span className={styles.tradeRatio}>{ratio}:1</span></span>
+                          <button type="button" className={styles.tradeBtn} onClick={() => handleTradeOfferChange(res, -ratio)} disabled={offering < ratio}>-</button>
+                          <span className={styles.tradeCount}>{offering}</span>
+                          <button type="button" className={styles.tradeBtn} onClick={() => handleTradeOfferChange(res, ratio)} disabled={have - offering < ratio}>+</button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {/* Want (receive) */}
+                  <div className={styles.tradeSide}>
+                    <span className={styles.tradeLabel}>You get <span className={styles.tradeCredits}>({tradeCredits} available)</span></span>
+                    {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
+                      const wanting = tradeWant[res] ?? 0
+                      return (
+                        <div key={res} className={styles.tradeRow}>
+                          <span className={styles.tradeRes}>{res}</span>
+                          <button type="button" className={styles.tradeBtn} onClick={() => handleTradeWantChange(res, -1)} disabled={wanting <= 0}>-</button>
+                          <span className={styles.tradeCount}>{wanting}</span>
+                          <button type="button" className={styles.tradeBtn} onClick={() => handleTradeWantChange(res, 1)} disabled={tradeWantTotal >= tradeCredits}>+</button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {/* Actions */}
+                  <div className={styles.tradeActions}>
+                    <button type="button" className={styles.tradeSubmitBtn} onClick={handleTradeSubmit} disabled={!tradeValid}>
+                      Trade {tradeOfferTotal} → {tradeWantTotal}
+                    </button>
+                    <button type="button" className={styles.tradeResetBtn} onClick={handleTradeReset}>Clear</button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
