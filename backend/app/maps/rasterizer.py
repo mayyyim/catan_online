@@ -172,15 +172,85 @@ def _largest_connected_component(hexes: List[HexCoord]) -> List[HexCoord]:
     return best
 
 
-def _ensure_island_min(island: List[HexCoord], polygon: dict, scale: float) -> List[HexCoord]:
-    """Guarantee at least 2 connected hexes for a polygon island."""
+def _axial_distance(a: HexCoord, b: HexCoord) -> int:
+    dq = a[0] - b[0]
+    dr = a[1] - b[1]
+    return (abs(dq) + abs(dr) + abs(dq + dr)) // 2
+
+
+def _ensure_island_min(
+    island: List[HexCoord],
+    polygon: dict,
+    scale: float,
+    anchor: Optional[List[HexCoord]] = None,
+) -> List[HexCoord]:
+    """Guarantee at least 2 connected hexes for a polygon island.
+
+    If `anchor` (the mainland's largest CC so far) is provided, place the
+    2-hex stub adjacent to the anchor's edge so small offshore islands
+    (Taiwan, Hainan, Sicily, Tasmania, Kyushu, ...) drop onto the mainland
+    coastline rather than at their true geographic centroid.
+    """
     if len(island) >= 2:
         return island
-    # Fall back to centroid-based placement.
+
+    if anchor:
+        # Find the anchor hex closest to any existing island hex if we have one,
+        # otherwise closest to polygon centroid.
+        ext = polygon["exterior"]
+        cx = sum(p[0] for p in ext) / len(ext)
+        cy = sum(p[1] for p in ext) / len(ext)
+        # Target (q,r) in anchor-space nearest to polygon centroid.
+        sqrt3 = math.sqrt(3)
+        target_q = cx / (1.5 * scale)
+        target_r = cy / (sqrt3 * scale) - target_q / 2
+        target = (target_q, target_r)
+
+        anchor_set = set(anchor)
+        # Find the boundary hexes of the anchor (hexes with at least one empty neighbor).
+        boundary: List[HexCoord] = []
+        for h in anchor:
+            for dq, dr in HEX_DIRECTIONS:
+                if (h[0] + dq, h[1] + dr) not in anchor_set:
+                    boundary.append(h)
+                    break
+        if not boundary:
+            boundary = list(anchor)
+
+        # Pick the boundary hex closest to the target (in fractional axial space).
+        def frac_dist(h: HexCoord) -> float:
+            return (h[0] - target[0]) ** 2 + (h[1] - target[1]) ** 2
+
+        edge_hex = min(boundary, key=frac_dist)
+
+        # Find an empty neighbor slot on the side facing the target.
+        neighbors = [
+            (edge_hex[0] + dq, edge_hex[1] + dr)
+            for dq, dr in HEX_DIRECTIONS
+            if (edge_hex[0] + dq, edge_hex[1] + dr) not in anchor_set
+        ]
+        if not neighbors:
+            # Shouldn't happen since edge_hex was a boundary.
+            return list(island) if island else [edge_hex]
+        first = min(neighbors, key=frac_dist)
+        # Second hex: adjacent to `first` but not in anchor, preferring one that
+        # is also adjacent to edge_hex (creates a solid stub).
+        second_candidates = [
+            (first[0] + dq, first[1] + dr)
+            for dq, dr in HEX_DIRECTIONS
+            if (first[0] + dq, first[1] + dr) not in anchor_set
+            and (first[0] + dq, first[1] + dr) != edge_hex
+        ]
+        if second_candidates:
+            second = min(second_candidates, key=frac_dist)
+        else:
+            second = (first[0] + HEX_DIRECTIONS[0][0], first[1] + HEX_DIRECTIONS[0][1])
+        return [first, second]
+
+    # Fall back to centroid-based placement (no anchor available yet).
     ext = polygon["exterior"]
     cx = sum(p[0] for p in ext) / len(ext)
     cy = sum(p[1] for p in ext) / len(ext)
-    # Find closest hex to centroid.
     q_guess = round(cx / (1.5 * scale))
     best = None
     best_d = 1e18
@@ -196,6 +266,140 @@ def _ensure_island_min(island: List[HexCoord], polygon: dict, scale: float) -> L
     q, r = best
     neighbor = (q + HEX_DIRECTIONS[0][0], r + HEX_DIRECTIONS[0][1])
     return [(q, r), neighbor]
+
+
+def _find_connected_components(hexes: List[HexCoord]) -> List[List[HexCoord]]:
+    hex_set: Set[HexCoord] = set(hexes)
+    visited: Set[HexCoord] = set()
+    components: List[List[HexCoord]] = []
+    for start in hexes:
+        if start in visited:
+            continue
+        comp: List[HexCoord] = []
+        dq = deque([start])
+        visited.add(start)
+        while dq:
+            q, r = dq.popleft()
+            comp.append((q, r))
+            for ddq, ddr in HEX_DIRECTIONS:
+                nb = (q + ddq, r + ddr)
+                if nb in hex_set and nb not in visited:
+                    visited.add(nb)
+                    dq.append(nb)
+        components.append(comp)
+    return components
+
+
+def _fill_interior_voids(hexes: List[HexCoord], min_neighbors: int = 3) -> List[HexCoord]:
+    """Fill empty hexes that have >= min_neighbors filled axial neighbors.
+
+    This closes single-hex and small multi-hex holes left by the polygon
+    rasterizer when the polygon boundary clips through a hex center even
+    though the hex is visually surrounded by land. Iterates until stable.
+    """
+    if not hexes:
+        return hexes
+    hs: Set[HexCoord] = set(hexes)
+    result: List[HexCoord] = list(hexes)
+    for _ in range(20):  # bounded; convergence typically in 2-3 passes
+        qmin = min(q for q, _ in hs) - 1
+        qmax = max(q for q, _ in hs) + 1
+        rmin = min(r for _, r in hs) - 1
+        rmax = max(r for _, r in hs) + 1
+        additions: List[HexCoord] = []
+        for q in range(qmin, qmax + 1):
+            for r in range(rmin, rmax + 1):
+                if (q, r) in hs:
+                    continue
+                cnt = sum(1 for dq, dr in HEX_DIRECTIONS if (q + dq, r + dr) in hs)
+                if cnt >= min_neighbors:
+                    additions.append((q, r))
+        if not additions:
+            break
+        for h in additions:
+            hs.add(h)
+            result.append(h)
+    return result
+
+
+def _compact_components(hexes: List[HexCoord]) -> List[HexCoord]:
+    """Translate every non-anchor CC one hex at a time toward the nearest
+    anchor hex until it becomes adjacent (axial distance == 1) to the anchor
+    blob, then merge. Overlapping hexes are dropped. Result is a single CC.
+    """
+    if not hexes:
+        return hexes
+    components = _find_connected_components(hexes)
+    if len(components) <= 1:
+        return hexes
+
+    components.sort(key=len, reverse=True)
+    anchor: Set[HexCoord] = set(components[0])
+
+    for comp in components[1:]:
+        current = list(comp)
+        # Safety cap to avoid infinite loops.
+        for _ in range(500):
+            current_set = set(current)
+            # Check if already adjacent (or overlapping) to anchor.
+            adjacent = False
+            for h in current:
+                if h in anchor:
+                    adjacent = True
+                    break
+                for dq, dr in HEX_DIRECTIONS:
+                    if (h[0] + dq, h[1] + dr) in anchor:
+                        adjacent = True
+                        break
+                if adjacent:
+                    break
+            if adjacent:
+                break
+
+            # Compute the closest pair (anchor_hex, comp_hex) and step the comp
+            # one hex in the axial direction that most reduces that distance.
+            best_pair = None
+            best_d = 10**9
+            for h in current:
+                for a in anchor:
+                    d = _axial_distance(h, a)
+                    if d < best_d:
+                        best_d = d
+                        best_pair = (h, a)
+            if best_pair is None:
+                break
+            src, dst = best_pair
+            # Pick the hex direction minimizing new distance.
+            best_dir = None
+            best_new = best_d
+            for dq, dr in HEX_DIRECTIONS:
+                nd = _axial_distance((src[0] + dq, src[1] + dr), dst)
+                if nd < best_new:
+                    best_new = nd
+                    best_dir = (dq, dr)
+            if best_dir is None:
+                break
+            current = [(h[0] + best_dir[0], h[1] + best_dir[1]) for h in current]
+
+        # Merge, dropping any overlaps with the anchor.
+        for h in current:
+            if h not in anchor:
+                anchor.add(h)
+
+    # Preserve original order where possible.
+    result: List[HexCoord] = []
+    seen: Set[HexCoord] = set()
+    for h in hexes:
+        # Original coordinates may not be in anchor anymore due to shifts.
+        # Fall back to listing anchor contents.
+        pass
+    result = list(anchor)
+    # Verify single CC; if not (very unlikely), return largest.
+    final_ccs = _find_connected_components(result)
+    if len(final_ccs) > 1:
+        final_ccs.sort(key=len, reverse=True)
+        return final_ccs[0]
+    return result
 
 
 def _remove_cross_island_adjacency(islands: List[List[HexCoord]]) -> List[List[HexCoord]]:
@@ -318,7 +522,7 @@ def rasterize(polygon_data: dict, target_tiles: int) -> List[HexCoord]:
     # (UK has dozens of tiny islets, Europe has 60 countries) from blowing
     # the tile budget via _ensure_island_min fallback.
     size = polygon_data.get("size", "standard")
-    max_parts = 10 if size == "xl" else 6
+    max_parts = 10 if size == "xl" else 3
     polygons = _filter_polygons(polygons, max_parts)
     bbox = _polygon_bbox(polygons)
     # bbox diagonal gives initial scale estimate.
@@ -332,13 +536,23 @@ def rasterize(polygon_data: dict, target_tiles: int) -> List[HexCoord]:
     for _ in range(28):
         mid = (lo + hi) / 2
         islands = _hexes_for_scale(polygons, mid, bbox)
-        # Take largest CC per island.
-        processed: List[List[HexCoord]] = []
-        for isl, poly in zip(islands, polygons):
+        # Take largest CC per island. Sort so largest island is processed
+        # first — it becomes the anchor that later tiny-island stubs attach to.
+        indexed = sorted(
+            range(len(islands)),
+            key=lambda i: -(len(islands[i]) if islands[i] else 0),
+        )
+        processed_by_idx: List[List[HexCoord]] = [[] for _ in islands]
+        anchor_hexes: List[HexCoord] = []
+        for i in indexed:
+            isl = islands[i]
+            poly = polygons[i]
             cc = _largest_connected_component(isl) if isl else []
-            cc = _ensure_island_min(cc, poly, mid)
-            processed.append(cc)
-        processed = _remove_cross_island_adjacency(processed)
+            cc = _ensure_island_min(cc, poly, mid, anchor=anchor_hexes or None)
+            processed_by_idx[i] = cc
+            if len(cc) > len(anchor_hexes):
+                anchor_hexes = list(cc)
+        processed = processed_by_idx
         total = sum(len(i) for i in processed)
         if total == 0:
             hi = mid
@@ -366,6 +580,35 @@ def rasterize(polygon_data: dict, target_tiles: int) -> List[HexCoord]:
             seen.add(h)
             deduped.append(h)
     best = deduped
+
+    # Step B: pull every disjoint CC toward the mainland so the final map is
+    # a single connected component (no more huge voids between islands).
+    best = _compact_components(best)
+
+    # Step B2: fill interior voids. Any empty hex whose axial neighbors are
+    # mostly filled (>=3) is almost certainly a rasterization artifact — the
+    # polygon's border clipped through its center even though it's visually
+    # surrounded by land. Iterate until no more voids (bounded).
+    best = _fill_interior_voids(best)
+
+    # Enforce tile-count budget. Standard 16–24, XL 36–45. If we overshoot
+    # after compaction, trim from the smallest leaf hexes of the smallest
+    # peripheral components first (we already single-CC'd, so just drop the
+    # hexes farthest from the centroid).
+    size = polygon_data.get("size", "standard")
+    upper = 45 if size == "xl" else 24
+    if len(best) > upper:
+        cq = sum(q for q, _ in best) / len(best)
+        cr = sum(r for _, r in best) / len(best)
+        best_sorted = sorted(
+            best,
+            key=lambda h: ((h[0] - cq) ** 2 + (h[1] - cr) ** 2),
+        )
+        best = best_sorted[:upper]
+        # Re-run compaction in case trimming split the component.
+        best = _compact_components(best)
+        best = _fill_interior_voids(best)
+
     # Recenter around (0, 0).
     if best:
         mean_q = round(sum(q for q, _ in best) / len(best))
@@ -500,16 +743,27 @@ def place_tokens(
     }
     target_set = set(targets)
 
+    # Node budget per attempt — without this, dense maps (XL europe) can
+    # explode into exponential search when the no-adjacent-6/8 constraint
+    # gets tight. On budget exhaustion we restart with a fresh shuffle.
+    NODE_BUDGET = 20000
+
     for attempt in range(100):
         shuffled = bag[:]
         rng.shuffle(shuffled)
         order = targets[:]
-        rng.shuffle(order)
+        # Place the most-constrained hexes (highest neighbor count) first to
+        # prune the search tree aggressively.
+        order.sort(key=lambda h: -sum(1 for nb in neighbors[h] if nb in target_set))
         assignment: Dict[HexCoord, int] = {}
+        nodes = [0]
 
         def backtrack(i: int) -> bool:
             if i == len(order):
                 return True
+            nodes[0] += 1
+            if nodes[0] > NODE_BUDGET:
+                return False
             h = order[i]
             # Try each remaining token slot.
             used = set()
@@ -531,6 +785,8 @@ def place_tokens(
                     return True
                 del assignment[h]
                 used_slots.discard(j)
+                if nodes[0] > NODE_BUDGET:
+                    return False
             return False
 
         used_slots: Set[int] = set()
@@ -603,6 +859,13 @@ def build_map(slug: str, seed: Optional[int] = None) -> MapData:
     size = data.get("size", "standard")
     target = 37 if size == "xl" else 19
     hexes = rasterize(data, target)
+    # A10 hard gate: final map MUST be a single connected component.
+    cc = _largest_connected_component(hexes)
+    if len(cc) != len(hexes):
+        raise InfeasibleMap(
+            f"{slug}: map is not a single connected component "
+            f"({len(cc)}/{len(hexes)} tiles in largest CC)"
+        )
     terrain = assign_terrain(hexes, data.get("biome_hints"), seed)
     desert_hexes = {h for h, t in terrain.items() if t == TileType.DESERT}
     tokens = place_tokens(hexes, desert_hexes, seed)
