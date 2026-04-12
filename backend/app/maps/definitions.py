@@ -62,29 +62,48 @@ STANDARD_COORDS = [
 # ---------------------------------------------------------------------------
 
 def china_map() -> MapData:
+    # Wide continental China: Tibet/Himalayas W, Gobi N, Yangtze center,
+    # Guangdong tropical S, Manchuria NE, Taiwan separate SE.
     tiles = [
-        # Northern row (r=-1): wide top edge
-        _tile(0, -1, "mountains", 9),  _tile(1, -1, "forest", 6),
-        _tile(2, -1, "mountains", 4),  _tile(3, -1, "fields", 11),
-        _tile(4, -1, "mountains", 3),  _tile(5, -1, "forest", 8),
-        # Middle row (r=0): core of China
-        _tile(0,  0, "fields", 10),   _tile(1,  0, "mountains", 5),
-        _tile(2,  0, "desert"),        _tile(3,  0, "mountains", 9),
-        _tile(4,  0, "fields", 6),    _tile(5,  0, "mountains", 5),
-        # Southern row (r=1)
-        _tile(1,  1, "hills", 4),     _tile(2,  1, "pasture", 11),
-        _tile(3,  1, "forest", 12),   _tile(4,  1, "hills", 3),
-        # Far south (r=2): SE coast
-        _tile(2,  2, "pasture", 8),   _tile(3,  2, "hills", 10),
-        # NE protrusion (Manchuria): extra tile
-        _tile(5, -2, "forest", 2),
+        # --- N steppe / Manchuria (r=-2) ---
+        _tile( 1, -2, "pasture",   9),   # Inner Mongolia grasslands
+        _tile( 2, -2, "forest",    6),   # NE Manchuria (Harbin)
+
+        # --- N China (r=-1): Xinjiang → Beijing → Liaodong ---
+        _tile(-1, -1, "mountains", 4),   # Tianshan (Xinjiang)
+        _tile( 0, -1, "desert"),          # Gobi Desert
+        _tile( 1, -1, "fields",   11),   # N China plain (Beijing)
+        _tile( 2, -1, "hills",     8),   # Shandong / Liaodong
+
+        # --- Central China (r=0): Tibet → Sichuan → Yangtze → Shanghai ---
+        _tile(-2,  0, "mountains", 3),   # W Tibet plateau
+        _tile(-1,  0, "mountains",10),   # Himalayas
+        _tile( 0,  0, "fields",    5),   # Sichuan basin
+        _tile( 1,  0, "fields",    2),   # Middle Yangtze (Wuhan)
+        _tile( 2,  0, "hills",     9),   # Yangtze delta / Shanghai
+
+        # --- S China (r=1): Yunnan → Guangdong → Fujian ---
+        _tile(-1,  1, "forest",    6),   # Yunnan jungles
+        _tile( 0,  1, "hills",     4),   # Guangxi
+        _tile( 1,  1, "fields",   11),   # Guangdong (Pearl River Delta)
+        _tile( 2,  1, "hills",     5),   # Fujian
+
+        # --- Tropical S coast (r=2) ---
+        _tile( 0,  2, "forest",   12),   # Hainan Island (tropical)
+        _tile( 1,  2, "pasture",   3),   # S Guangxi
+
+        # --- Taiwan (SEPARATE island E of Fujian) ---
+        _tile( 4,  1, "mountains", 8),   # Taiwan (Central Mountain Range)
     ]
     ports = [
-        _port(0,  -1, ratio=3),        # W coast
-        _port(5,  -2, "ore"),          # NE tip
-        _port(5,   0, ratio=3),        # E coast
-        _port(3,   2, ratio=3),        # SE coast
-        _port(1,   1, "wheat"),        # S coast
+        _port( 2, -2, ratio=3),          # NE — Dalian / Bohai
+        _port( 2, -1, "ore"),            # E — Qingdao coast
+        _port( 2,  0, ratio=3),          # E — Shanghai
+        _port( 2,  1, ratio=3),          # SE — Xiamen / Fujian
+        _port( 1,  2, "wheat"),          # S — Guangxi S coast
+        _port( 0,  2, ratio=3),          # S — Hainan strait
+        _port(-2,  0, ratio=3),          # W — Tibet highland border
+        _port( 4,  1, ratio=3),          # Taiwan — Kaohsiung
     ]
     return MapData(map_id="china", tiles=tiles, ports=ports)
 
@@ -157,31 +176,46 @@ def japan_map() -> MapData:
 # ---------------------------------------------------------------------------
 
 def usa_map() -> MapData:
+    # Wide contiguous 48: Pacific → Rockies → Plains → Appalachians → Atlantic.
+    # Florida peninsula SE. Great Lakes NE. Alaska NOT represented.
     tiles = [
-        # Northern row (r=-1): wide Canada border strip
-        _tile(-3, -1, "forest", 6),  _tile(-2, -1, "forest", 9),
-        _tile(-1, -1, "fields", 4),  _tile(0,  -1, "forest", 8),
-        _tile(1,  -1, "fields", 3),  _tile(2,  -1, "forest", 10),
-        _tile(3,  -1, "fields", 5),
-        # Middle row (r=0): main continental body
-        _tile(-3,  0, "fields", 2),  _tile(-2,  0, "pasture", 9),
-        _tile(-1,  0, "fields", 6),  _tile(0,   0, "desert"),
-        _tile(1,   0, "fields", 5),  _tile(2,   0, "pasture", 4),
-        _tile(3,   0, "mountains", 11),
-        # Southern row (r=1): Gulf + Appalachian
-        _tile(-2,  1, "hills", 12),  _tile(-1,  1, "fields", 3),
-        _tile(0,   1, "pasture", 8), _tile(1,   1, "hills", 10),
-        # SE protrusion (r=2): Florida + SE coast
-        _tile(1,   2, "pasture", 11), _tile(2,  1, "fields", 6),
+        # --- N border row (Canada border, r=-1): Pacific NW → Great Lakes ---
+        _tile(-3, -1, "forest",    9),   # Pacific NW (Washington/Oregon)
+        _tile(-2, -1, "mountains", 6),   # N Rockies (Idaho/Montana)
+        _tile(-1, -1, "fields",    4),   # N Plains (Dakotas)
+        _tile( 0, -1, "fields",   11),   # Midwest N (Minnesota/Wisconsin)
+        _tile( 1, -1, "forest",    3),   # Great Lakes (Michigan)
+        _tile( 2, -1, "hills",     8),   # NE (NY/New England)
+
+        # --- Middle row (r=0): widest — Rockies → Plains → Appalachians ---
+        _tile(-3,  0, "mountains", 5),   # California (Sierra Nevada)
+        _tile(-2,  0, "desert"),          # Great Basin (Nevada)
+        _tile(-1,  0, "pasture",  10),   # High Plains (Wyoming/Colorado)
+        _tile( 0,  0, "fields",    2),   # Central Plains (Kansas)
+        _tile( 1,  0, "fields",    9),   # Ohio Valley (Illinois/Indiana)
+        _tile( 2,  0, "hills",     6),   # Appalachians (West Virginia)
+        _tile( 3,  0, "pasture",   5),   # E Coast (Virginia/DC)
+
+        # --- S row (r=1): CA coast → SW desert → Gulf → Carolinas ---
+        _tile(-3,  1, "fields",   12),   # S California (Central Valley)
+        _tile(-2,  1, "desert"),          # Arizona / New Mexico
+        _tile(-1,  1, "pasture",   4),   # Texas panhandle
+        _tile( 0,  1, "forest",    3),   # E Texas / Louisiana (swamp)
+        _tile( 1,  1, "hills",     8),   # Alabama / Georgia
+        _tile( 2,  1, "forest",   10),   # Carolinas
+
+        # --- SE protrusion (r=2): Florida peninsula ---
+        _tile( 1,  2, "fields",   11),   # N Florida
     ]
     ports = [
-        _port(-3,  -1, "wood"),      # NW — Pacific coast
-        _port( 3,  -1, ratio=3),     # NE — Great Lakes
-        _port( 3,   0, ratio=3),     # E  — Atlantic coast
-        _port( 1,   2, "sheep"),     # SE — Florida
-        _port(-1,   1, ratio=3),     # S  — Gulf coast
-        _port(-2,   1, ratio=3),     # SW — Texas coast
-        _port(-3,   0, "wheat"),     # W  — Pacific
+        _port(-3, -1, "wood"),           # NW — Seattle / Pacific NW
+        _port( 2, -1, ratio=3),          # NE — Boston / New England
+        _port( 3,  0, ratio=3),          # E — Chesapeake / Atlantic
+        _port( 1,  2, "sheep"),          # SE — Florida
+        _port( 1,  1, ratio=3),          # S — Gulf of Mexico
+        _port( 0,  1, ratio=3),          # S — New Orleans / Mississippi delta
+        _port(-3,  1, "wheat"),          # SW — Los Angeles / Long Beach
+        _port(-3,  0, ratio=3),          # W — San Francisco Bay
     ]
     return MapData(map_id="usa", tiles=tiles, ports=ports)
 
@@ -193,33 +227,54 @@ def usa_map() -> MapData:
 # ---------------------------------------------------------------------------
 
 def europe_map() -> MapData:
+    # Europe continent + British Isles (separate islands via sea gaps at q=-3, -1).
+    # Shape: Iberia SW, Italy boot S (q=1 column extending to r=2),
+    # Scandinavia N, British Isles NW (separate), Eastern Europe E, Balkans/Greece SE.
     tiles = [
-        # Northern row (r=-2): Scandinavia + Baltic
-        _tile(-1, -2, "forest", 9),  _tile(0, -2, "forest", 6),
-        _tile(1,  -2, "mountains", 4),
-        # Upper-mid row (r=-1): W+Central Europe
-        _tile(-2, -1, "fields", 11), _tile(-1, -1, "pasture", 3),
-        _tile(0,  -1, "fields", 8),  _tile(1,  -1, "hills", 10),
-        _tile(2,  -1, "mountains", 5),
-        # Middle row (r=0): core Europe
-        _tile(-2,  0, "pasture", 2), _tile(-1,  0, "fields", 9),
-        _tile(0,   0, "desert"),      _tile(1,   0, "fields", 6),
-        _tile(2,   0, "pasture", 5), _tile(3,  -1, "mountains", 4),
-        # Southern row (r=1): Med coast + Balkans
-        _tile(-1,  1, "hills", 11),  _tile(0,   1, "fields", 12),
-        _tile(1,   1, "pasture", 3), _tile(2,   1, "hills", 8),
-        # Extra tile for 19 total: Turkey/Anatolia
-        _tile(3,   0, "mountains", 10),
+        # --- British Isles (SEPARATE islands; sea gap at q=-3 and q=-1) ---
+        _tile(-4,  1, "forest",    9),   # Ireland N (Ulster)
+        _tile(-4,  2, "pasture",  11),   # Ireland S (Munster, sheep)
+        _tile(-2, -1, "mountains", 2),   # Scotland Highlands
+        _tile(-2,  0, "hills",    10),   # N England (coal, Pennines)
+        _tile(-2,  1, "fields",    4),   # S England (London basin)
+
+        # --- Scandinavia (N, q=1..2 top rows) ---
+        _tile( 1, -3, "mountains", 9),   # Norway fjords
+        _tile( 1, -2, "forest",    4),   # S Sweden / Denmark strait
+        _tile( 2, -3, "forest",    8),   # Sweden taiga
+
+        # --- Continental Europe q=0 column: Denmark → France → Iberia SW ---
+        _tile( 0, -2, "pasture",   3),   # Denmark / Low Countries
+        _tile( 0, -1, "fields",    6),   # N France / Belgium
+        _tile( 0,  0, "fields",    5),   # Central France
+        _tile( 0,  1, "pasture",  12),   # S France (Provence)
+        _tile( 0,  2, "hills",    11),   # Iberia SW (Portugal/Andalusia)
+
+        # --- q=1 column: Germany → Alps → Italy boot (extending far S) ---
+        _tile( 1, -1, "forest",   10),   # Germany (Black Forest)
+        _tile( 1,  0, "desert"),          # Alps (barren high rock)
+        _tile( 1,  1, "fields",    5),   # N Italy (Po valley)
+        _tile( 1,  2, "hills",     3),   # Italy boot (S Italy)
+
+        # --- q=2 column: Baltic / Poland / Balkans ---
+        _tile( 2, -2, "pasture",  11),   # Baltic / Poland N
+        _tile( 2, -1, "fields",    6),   # Poland
+        _tile( 2,  1, "hills",     8),   # Balkans / Greece
+
+        # --- q=3..4: Eastern Europe / Ukraine / Caucasus ---
+        _tile( 3, -1, "fields",    9),   # Ukraine (breadbasket)
+        _tile( 3,  0, "hills",    12),   # Romania / Black Sea
+        _tile( 4, -1, "mountains", 2),   # Caucasus / S Russia
     ]
     ports = [
-        _port(-1,  -2, ratio=3),     # N — Scandinavia
-        _port(1,   -2, ratio=3),     # NE — Baltic
-        _port(3,   -1, "ore"),       # E — Black Sea
-        _port(3,    0, ratio=3),     # SE — Turkey coast
-        _port(1,    1, ratio=3),     # S — Med
-        _port(-1,   1, "wheat"),     # SW — Iberia
-        _port(-2,   0, ratio=3),     # W — Atlantic
-        _port(-2,  -1, "sheep"),     # NW — British Isles
+        _port(-4,  1, ratio=3),          # NW — Atlantic (Ireland W)
+        _port(-4,  2, "sheep"),          # Ireland — wool export
+        _port(-2, -1, ratio=3),          # N Sea (Scotland)
+        _port( 1, -3, ratio=3),          # N — Arctic Norway
+        _port( 0,  2, "wheat"),          # SW — Iberia (grain)
+        _port( 1,  2, ratio=3),          # S — Italy Med
+        _port( 2,  1, ratio=3),          # SE — Aegean / Greece
+        _port( 3,  0, "ore"),            # E — Black Sea
     ]
     return MapData(map_id="europe", tiles=tiles, ports=ports)
 
@@ -399,26 +454,39 @@ def brazil_map() -> MapData:
 # ---------------------------------------------------------------------------
 
 def antarctica_map() -> MapData:
+    # Round/circular continent — a perfect radius-2 hex (19 tiles).
+    # Mostly ice (desert) with a few sparse pockets of resources: a coastal
+    # penguin colony, lichen on a nunatak, an oasis dry valley, etc.
+    # Deliberately hard to play — it's a theme map.
     tiles = [
-        # Outer coast ring (roughly circular perimeter)
-        _tile(-2,  0, "desert"),       _tile(-1, -1, "mountains", 6),
-        _tile(0,  -2, "desert"),        _tile(1,  -2, "desert"),
-        _tile(2,  -2, "desert"),        _tile(3,  -1, "desert"),
-        _tile(3,   0, "desert"),        _tile(2,   1, "hills", 9),
-        _tile(1,   2, "desert"),        _tile(0,   2, "fields", 11),
-        _tile(-1,  2, "desert"),        _tile(-2,  1, "desert"),
-        # Inner ring — still mostly desert
-        _tile(-1,  0, "desert"),        _tile(0,  -1, "mountains", 4),
-        _tile(1,  -1, "desert"),        _tile(2,   0, "desert"),
-        _tile(1,   1, "desert"),        _tile(0,   1, "forest", 2),
-        # Center
-        _tile(0,   0, "desert"),
+        # --- Ring 2 (outer coast, 12 tiles, mostly ice shelf) ---
+        _tile( 2, -2, "desert"),                          # Weddell Sea ice
+        _tile( 2, -1, "desert"),                          # Ronne Ice Shelf
+        _tile( 2,  0, "desert"),                          # E coast ice
+        _tile( 1,  1, "desert"),                          # SE ice shelf
+        _tile( 0,  2, "pasture",   9),                    # Adelie coast (penguin colony)
+        _tile(-1,  2, "desert"),                          # Ross Ice Shelf edge
+        _tile(-2,  2, "desert"),                          # Ross Sea ice
+        _tile(-2,  1, "forest",    4),                    # Coastal lichen / mosses
+        _tile(-2,  0, "desert"),                          # Bellingshausen ice
+        _tile(-1, -1, "desert"),                          # Antarctic Peninsula base
+        _tile( 0, -2, "desert"),                          # NE Wilkes Land
+        _tile( 1, -2, "fields",   11),                    # McMurdo Dry Valleys (rare oasis!)
+        # --- Ring 1 (inner ring, 6 tiles) ---
+        _tile( 1, -1, "mountains", 8),                    # Transantarctic Mtns
+        _tile( 1,  0, "desert"),                          # Polar plateau E
+        _tile( 0,  1, "desert"),                          # S polar ice
+        _tile(-1,  1, "hills",     6),                    # Vinson Massif foothills
+        _tile(-1,  0, "desert"),                          # Polar plateau W
+        _tile( 0, -1, "desert"),                          # Polar plateau N
+        # --- Center: South Pole ---
+        _tile( 0,  0, "desert"),                          # South Pole (Amundsen-Scott)
     ]
     ports = [
-        # Very few ports — hard to trade
-        _port(-2,  0, ratio=3),
-        _port(3,   0, ratio=3),
-        _port(0,   2, ratio=3),
+        # Only 3 ports — trading is brutally hard
+        _port( 1, -2, ratio=3),                           # McMurdo Sound
+        _port(-2,  1, ratio=3),                           # Antarctic Peninsula tip
+        _port( 0,  2, ratio=3),                           # Adelie coast (penguin port)
     ]
     return MapData(map_id="antarctica", tiles=tiles, ports=ports)
 
@@ -443,32 +511,51 @@ def _from_std(map_id: str, tt: List[Tuple[str, object]], ports: List[Port]) -> M
 # ---------------------------------------------------------------------------
 
 def india_map() -> MapData:
+    # Triangular subcontinent: wide at N (Himalayas/Punjab/Bengal),
+    # narrowing through Deccan plateau to Cape Comorin at S tip.
+    # Sri Lanka as a separate island off the SE.
     tiles = [
-        # Northern wide base (r=-2): Himalayas/Punjab
-        _tile(-1, -2, "mountains", 9), _tile(0, -2, "fields", 6),
-        _tile(1,  -2, "fields", 4),    _tile(2, -2, "mountains", 11),
-        _tile(3,  -2, "pasture", 3),
-        # Upper mid (r=-1): Gangetic plain
-        _tile(-1, -1, "fields", 8),    _tile(0,  -1, "fields", 10),
-        _tile(1,  -1, "pasture", 5),   _tile(2,  -1, "fields", 2),
-        # Middle (r=0): Deccan plateau
-        _tile(0,   0, "hills", 9),     _tile(1,   0, "desert"),
-        _tile(2,   0, "pasture", 6),   _tile(3,  -1, "fields", 5),
-        # Lower (r=1): narrowing
-        _tile(0,   1, "hills", 4),     _tile(1,   1, "pasture", 11),
-        _tile(2,   1, "fields", 12),
-        # Bottom (r=2): tip of peninsula
-        _tile(1,   2, "hills", 3),     _tile(2,   2, "pasture", 8),
-        # Tip (r=3): Kerala/Tamil Nadu
-        _tile(1,   3, "forest", 10),
+        # --- N wide base: Himalayas + Indus/Gangetic plain (r=-2) ---
+        _tile(-1, -2, "mountains", 9),   # Punjab Himalayas
+        _tile( 0, -2, "mountains", 6),   # Central Himalayas (Everest)
+        _tile( 1, -2, "mountains", 4),   # E Himalayas / Nepal border
+        _tile( 2, -2, "forest",   11),   # Assam / NE India
+
+        # --- Gangetic plain (r=-1) ---
+        _tile(-1, -1, "fields",    3),   # Punjab (wheat breadbasket)
+        _tile( 0, -1, "fields",    8),   # Delhi / Gangetic plain
+        _tile( 1, -1, "fields",   10),   # UP / Bihar (rice)
+        _tile( 2, -1, "pasture",   5),   # Bengal delta (jute)
+
+        # --- Central India / Deccan start (r=0) narrowing ---
+        _tile( 0,  0, "desert"),          # Thar Desert (Rajasthan)
+        _tile( 1,  0, "hills",     9),   # Central Deccan
+        _tile( 2,  0, "fields",    2),   # Odisha coast
+
+        # --- Deccan plateau (r=1) ---
+        _tile( 0,  1, "pasture",   6),   # Karnataka / Maharashtra
+        _tile( 1,  1, "hills",    11),   # Deccan S
+        _tile( 2,  1, "pasture",  12),   # Andhra Pradesh
+
+        # --- S narrowing (r=2) ---
+        _tile( 0,  2, "forest",    4),   # Kerala (Malabar coast, spices)
+        _tile( 1,  2, "fields",    5),   # Tamil Nadu
+
+        # --- S tip (r=3) ---
+        _tile( 0,  3, "hills",     3),   # Cape Comorin
+
+        # --- Sri Lanka (SEPARATE island SE of tip) ---
+        _tile( 2,  3, "forest",    8),   # Sri Lanka
     ]
     ports = [
-        _port(-1,  -2, ratio=3),     # NW — Arabian Sea
-        _port(3,   -2, ratio=3),     # NE — Bay of Bengal N
-        _port(3,   -1, "wheat"),     # E  — East coast
-        _port(2,    2, ratio=3),     # SE — Coromandel coast
-        _port(1,    3, "sheep"),     # S  — Cape Comorin
-        _port(0,    1, ratio=3),     # W  — Malabar coast
+        _port(-1, -2, ratio=3),          # NW — Karachi / Indus mouth
+        _port( 2, -2, ratio=3),          # NE — Brahmaputra (Assam)
+        _port( 2, -1, "wheat"),          # E — Kolkata (Bengal grain)
+        _port( 2,  1, ratio=3),          # E — Andhra coast (Chennai)
+        _port( 1,  2, ratio=3),          # SE — Tamil Nadu
+        _port( 0,  3, "sheep"),          # S — Cape Comorin
+        _port( 0,  2, ratio=3),          # SW — Kerala (Malabar spice)
+        _port( 2,  3, ratio=3),          # Sri Lanka — Colombo
     ]
     return MapData(map_id="india", tiles=tiles, ports=ports)
 
@@ -480,29 +567,44 @@ def india_map() -> MapData:
 # ---------------------------------------------------------------------------
 
 def canada_map() -> MapData:
+    # Canada: very wide E-W continental strip (3:1+).
+    # Pacific NW → Rockies → Prairies → Hudson Bay → Great Lakes → Maritimes.
+    # Newfoundland as a separate island E.
     tiles = [
-        # Northern row (r=-1): boreal / tundra
-        _tile(-4, -1, "forest", 9),   _tile(-3, -1, "mountains", 6),
-        _tile(-2, -1, "forest", 4),   _tile(-1, -1, "forest", 11),
-        _tile(0,  -1, "forest", 3),   _tile(1,  -1, "fields", 8),
-        _tile(2,  -1, "forest", 10),
-        # Middle row (r=0): main inhabited belt
-        _tile(-4,  0, "desert"),      _tile(-3,  0, "fields", 5),
-        _tile(-2,  0, "forest", 2),   _tile(-1,  0, "fields", 9),
-        _tile(0,   0, "pasture", 6),  _tile(1,   0, "mountains", 5),
-        _tile(2,   0, "fields", 4),   _tile(3,  -1, "hills", 11),
-        # Southern fringe (r=1): prairies + Great Lakes
-        _tile(-3,  1, "pasture", 12), _tile(-2,  1, "fields", 3),
-        _tile(-1,  1, "hills", 8),    _tile(0,   1, "forest", 10),
+        # --- Arctic tundra row (r=-2) ---
+        _tile( 0, -2, "desert"),          # Nunavut tundra
+        _tile( 1, -2, "mountains", 9),   # Baffin Island mountains
+
+        # --- N boreal row (r=-1) ---
+        _tile(-4, -1, "forest",    6),   # Yukon boreal forest
+        _tile(-3, -1, "mountains", 4),   # NW Canada Rockies
+        _tile(-2, -1, "forest",   11),   # NWT boreal
+        _tile(-1, -1, "forest",    3),   # N Alberta forest
+        _tile( 2, -1, "forest",    8),   # N Ontario boreal
+        _tile( 3, -1, "forest",   10),   # N Quebec
+
+        # --- Main populated belt (r=0): Vancouver → Prairies → Great Lakes → Maritimes ---
+        _tile(-4,  0, "pasture",   5),   # BC coast (Vancouver)
+        _tile(-3,  0, "mountains", 2),   # BC Rockies
+        _tile(-2,  0, "fields",    9),   # Alberta (oil + wheat)
+        _tile(-1,  0, "fields",   12),   # Saskatchewan prairies
+        _tile( 0,  0, "fields",    6),   # Manitoba wheat
+        _tile( 1,  0, "forest",    4),   # NW Ontario (Canadian Shield)
+        _tile( 2,  0, "hills",    11),   # S Ontario (Toronto/Great Lakes)
+        _tile( 3,  0, "forest",    5),   # Quebec
+        _tile( 4,  0, "hills",     3),   # New Brunswick / Nova Scotia
+
+        # --- Newfoundland (SEPARATE island far E) ---
+        _tile( 6,  0, "pasture",   8),   # Newfoundland
     ]
     ports = [
-        _port(-4,  -1, "wood"),      # W  — Pacific coast
-        _port(-4,   0, ratio=3),     # NW — Arctic
-        _port(0,   -1, ratio=3),     # N  — Hudson Bay
-        _port(3,   -1, ratio=3),     # NE — Atlantic
-        _port(2,    0, ratio=3),     # E  — Maritimes
-        _port(0,    1, ratio=3),     # SE — Great Lakes
-        _port(-3,   1, "wheat"),     # S  — Prairies
+        _port(-4, -1, ratio=3),          # NW — Yukon / Alaska border
+        _port(-4,  0, "wood"),           # W — Vancouver (Pacific timber)
+        _port( 0, -2, ratio=3),          # N — Arctic coast
+        _port(-1,  0, "wheat"),          # S — Prairies grain export
+        _port( 2,  0, ratio=3),          # SE — Toronto / Great Lakes
+        _port( 4,  0, ratio=3),          # E — Halifax / Maritimes
+        _port( 6,  0, ratio=3),          # Newfoundland — St John's
     ]
     return MapData(map_id="canada", tiles=tiles, ports=ports)
 
@@ -514,29 +616,47 @@ def canada_map() -> MapData:
 # ---------------------------------------------------------------------------
 
 def russia_map() -> MapData:
+    # Russia: widest country on earth — extreme E-W continental strip (4:1+).
+    # European west → Urals → W Siberia → E Siberia → Kamchatka.
+    # Black Sea/Caspian dip at SW. Taiga forests dominate.
     tiles = [
-        # Northern tundra row (r=-1)
-        _tile(-4, -1, "forest", 9),   _tile(-3, -1, "forest", 6),
-        _tile(-2, -1, "mountains", 4), _tile(-1, -1, "forest", 11),
-        _tile(0,  -1, "forest", 3),   _tile(1,  -1, "mountains", 8),
-        _tile(2,  -1, "forest", 10),  _tile(3,  -1, "forest", 5),
-        _tile(4,  -1, "mountains", 2),
-        # Main body (r=0): Trans-Siberian corridor
-        _tile(-4,  0, "fields", 9),   _tile(-3,  0, "mountains", 6),
-        _tile(-2,  0, "desert"),      _tile(-1,  0, "pasture", 5),
-        _tile(0,   0, "fields", 4),   _tile(1,   0, "mountains", 11),
-        _tile(2,   0, "hills", 12),   _tile(3,   0, "fields", 3),
-        _tile(4,   0, "mountains", 8),
-        # Southern steppe (r=1): only a few tiles
-        _tile(-1,  1, "pasture", 10),
+        # --- Arctic row (r=-2): northernmost strip ---
+        _tile(-3, -2, "desert"),          # Kola / Arctic tundra
+        _tile( 0, -2, "forest",    9),   # Yamal / N Siberia
+        _tile( 3, -2, "mountains", 6),   # NE Arctic (Chukotka)
+
+        # --- N boreal (r=-1): taiga ---
+        _tile(-4, -1, "forest",    4),   # Karelia
+        _tile(-3, -1, "forest",   11),   # Arkhangelsk
+        _tile(-2, -1, "mountains", 3),   # N Urals
+        _tile(-1, -1, "forest",    8),   # W Siberia
+        _tile( 0, -1, "forest",   10),   # C Siberia (Krasnoyarsk)
+        _tile( 1, -1, "forest",    5),   # Yakutia forests
+        _tile( 2, -1, "mountains", 2),   # Verkhoyansk Range
+        _tile( 3, -1, "mountains",12),   # Kamchatka volcanoes
+        _tile( 4, -1, "forest",    9),   # Sakhalin / Far East
+
+        # --- Main populated strip (r=0) ---
+        _tile(-4,  0, "fields",    6),   # Moscow / European Russia
+        _tile(-3,  0, "fields",    4),   # Volga valley
+        _tile(-2,  0, "mountains", 9),   # S Urals ore
+        _tile(-1,  0, "pasture",  11),   # W Siberia steppe
+        _tile( 0,  0, "fields",    5),   # Novosibirsk
+        _tile( 1,  0, "hills",     3),   # Irkutsk / Lake Baikal
+        _tile( 2,  0, "forest",    8),   # Amur / Trans-Sib E
+        _tile( 3,  0, "pasture",  10),   # Primorye (Vladivostok area)
+
+        # --- SW dip (Black Sea / Caspian, r=1) ---
+        _tile(-4,  1, "pasture",   5),   # Kuban / N Caucasus
     ]
     ports = [
-        _port(-4,  -1, ratio=3),     # NW — Baltic
-        _port(-4,   0, ratio=3),     # W  — St. Petersburg
-        _port(0,   -1, ratio=3),     # N  — Arctic Ocean
-        _port(4,   -1, "ore"),       # NE — Pacific Vladivostok
-        _port(4,    0, ratio=3),     # E  — Far East
-        _port(-1,   1, "wood"),      # S  — Black Sea / Caspian
+        _port(-4, -1, ratio=3),          # NW — Murmansk (Arctic)
+        _port(-4,  0, ratio=3),          # W — St. Petersburg (Baltic)
+        _port(-4,  1, "wheat"),          # SW — Black Sea (grain export)
+        _port( 0, -2, ratio=3),          # N — Arctic Ocean
+        _port( 3, -2, ratio=3),          # NE — Chukotka Arctic
+        _port( 4, -1, "ore"),            # E — Vladivostok / Sakhalin
+        _port( 3,  0, ratio=3),          # SE — Japan Sea coast
     ]
     return MapData(map_id="russia", tiles=tiles, ports=ports)
 
@@ -548,31 +668,45 @@ def russia_map() -> MapData:
 # ---------------------------------------------------------------------------
 
 def egypt_map() -> MapData:
+    # Egypt: Mediterranean coast N (Nile Delta wide), Sinai peninsula NE,
+    # long Nile Valley running N-S through arid desert interior.
+    # Red Sea forms E coast; Libyan desert to W.
     tiles = [
-        # Top (r=-2): Mediterranean coast + Sinai
-        _tile(0, -2, "fields", 9),   _tile(1, -2, "hills", 6),
-        _tile(2, -2, "hills", 4),    _tile(3, -2, "desert"),
-        # Upper mid (r=-1): Nile Delta + Eastern Desert
-        _tile(0, -1, "fields", 11),  _tile(1, -1, "fields", 3),
-        _tile(2, -1, "hills", 8),    _tile(3, -1, "mountains", 10),
-        # Middle (r=0): Nile Valley
-        _tile(0,  0, "hills", 5),    _tile(1,  0, "fields", 2),
-        _tile(2,  0, "desert"),      _tile(3,  0, "fields", 9),
-        # Lower (r=1): Upper Egypt / Sudan border
-        _tile(0,  1, "fields", 6),   _tile(1,  1, "hills", 5),
-        _tile(2,  1, "desert"),      _tile(3,  1, "pasture", 4),
-        # Bottom (r=2): S Egypt
-        _tile(1,  2, "fields", 11),  _tile(2,  2, "hills", 12),
-        # Extra
-        _tile(0, -3, "forest", 3),
+        # --- Mediterranean coast (r=-3): Nile Delta wide top ---
+        _tile(-1, -3, "fields",    9),   # Alexandria coast (Delta W)
+        _tile( 0, -3, "fields",    6),   # Nile Delta center
+        _tile( 1, -3, "pasture",  11),   # Delta E (cattle)
+
+        # --- Sinai Peninsula + N Eastern Desert (r=-2) ---
+        _tile(-1, -2, "desert"),          # W Delta / Libyan Desert
+        _tile( 0, -2, "fields",    4),   # Cairo / Memphis
+        _tile( 1, -2, "hills",     8),   # Eastern Desert N
+        _tile( 2, -2, "mountains", 3),   # Sinai mountains (Mt Sinai)
+
+        # --- Middle Egypt (r=-1): Nile valley + flanking deserts ---
+        _tile(-1, -1, "desert"),          # Western Desert (Bahariya)
+        _tile( 0, -1, "fields",    5),   # Middle Egypt (Faiyum)
+        _tile( 1, -1, "hills",    10),   # Red Sea mountains
+
+        # --- S Middle Egypt (r=0) ---
+        _tile(-1,  0, "desert"),          # Great Sand Sea
+        _tile( 0,  0, "fields",    2),   # Luxor / Valley of Kings
+        _tile( 1,  0, "hills",    12),   # Red Sea coast
+
+        # --- Upper Egypt / S Nile (r=1) ---
+        _tile( 0,  1, "fields",    9),   # Aswan / Lake Nasser
+        _tile( 1,  1, "desert"),          # Nubian Desert
+
+        # --- S tip / Sudan border (r=2) ---
+        _tile( 0,  2, "pasture",   6),   # N Sudan border
     ]
     ports = [
-        _port(0,   -3, ratio=3),     # N  — Alexandria coast
-        _port(3,   -2, ratio=3),     # NE — Sinai
-        _port(3,    1, "wheat"),     # E  — Red Sea
-        _port(2,    2, ratio=3),     # S  — Aswan
-        _port(0,    1, ratio=3),     # W  — Libyan border
-        _port(0,   -2, "brick"),     # NW — Nile Delta
+        _port(-1, -3, ratio=3),          # NW — Alexandria (Med coast)
+        _port( 1, -3, ratio=3),          # NE — Port Said / Suez Canal
+        _port( 2, -2, "ore"),            # E — Sinai mines
+        _port( 1,  0, "wheat"),          # E — Red Sea / Hurghada
+        _port( 0,  2, ratio=3),          # S — Abu Simbel
+        _port( 0, -2, "brick"),          # Center — Cairo (Nile trade)
     ]
     return MapData(map_id="egypt", tiles=tiles, ports=ports)
 
@@ -584,32 +718,48 @@ def egypt_map() -> MapData:
 # ---------------------------------------------------------------------------
 
 def mexico_map() -> MapData:
+    # Mexico: wide N (Sonora/Chihuahua deserts), narrowing through central
+    # plateau (Mexico City), down to Tehuantepec waist, then Yucatan
+    # peninsula juts NE. Baja California is a long thin peninsula W.
     tiles = [
-        # NW row (r=-1): Sonora + Baja California
-        _tile(-2, -1, "desert"),      _tile(-1, -1, "hills", 9),
-        _tile(0,  -1, "pasture", 6),  _tile(1,  -1, "mountains", 4),
-        # Upper mid (r=0): main plateau
-        _tile(-1,  0, "hills", 11),   _tile(0,   0, "fields", 3),
-        _tile(1,   0, "pasture", 8),  _tile(2,  -1, "hills", 10),
-        # Middle (r=1): Sierra Madre
-        _tile(-1,  1, "fields", 5),   _tile(0,   1, "hills", 2),
-        _tile(1,   1, "mountains", 9), _tile(2,   0, "pasture", 6),
-        # Lower (r=2): Oaxaca + Gulf coast
-        _tile(0,   2, "fields", 5),   _tile(1,   2, "hills", 4),
-        _tile(2,   1, "forest", 11),
-        # Tip (r=3): Yucatan Peninsula
-        _tile(0,   3, "forest", 12),  _tile(1,   3, "hills", 3),
-        # Extra tile
-        _tile(-2,  0, "pasture", 8),
-        _tile(2,  -2, "fields", 10),
+        # --- N border (r=-2): Sonora → Chihuahua → NE ---
+        _tile(-1, -2, "desert"),          # Sonora Desert
+        _tile( 0, -2, "desert"),          # Chihuahua Desert
+        _tile( 1, -2, "pasture",   9),   # Coahuila / Nuevo León
+
+        # --- Baja California (long peninsula, separate column W) ---
+        _tile(-3, -1, "desert"),          # Baja N (Mexicali)
+        _tile(-3,  0, "hills",     6),   # Baja S (Cabo)
+
+        # --- Mid-N (r=-1): Sierra Madre Occidental → Gulf ---
+        _tile(-1, -1, "mountains", 4),   # Sierra Madre Occidental
+        _tile( 0, -1, "pasture",  11),   # Durango plateau
+        _tile( 1, -1, "mountains", 3),   # Sierra Madre Oriental
+        _tile( 2, -1, "fields",    8),   # Tamaulipas (Gulf coast)
+
+        # --- Central plateau (r=0): Mexico City area ---
+        _tile( 0,  0, "hills",    10),   # Jalisco / Michoacán
+        _tile( 1,  0, "fields",    5),   # Valley of Mexico
+        _tile( 2,  0, "mountains", 2),   # Popocatepetl volcanoes
+
+        # --- S narrowing (r=1): Oaxaca → Tehuantepec waist ---
+        _tile( 1,  1, "forest",    9),   # Oaxaca
+        _tile( 2,  1, "hills",    12),   # Tehuantepec waist
+
+        # --- Yucatan Peninsula (NE bulge, r=0..1 extending q=3..4) ---
+        _tile( 3,  0, "forest",    6),   # Campeche / base of Yucatan
+        _tile( 4,  0, "forest",   11),   # Cancún / Yucatan N
+        _tile( 3,  1, "hills",     4),   # Quintana Roo / Chiapas highlands
     ]
     ports = [
-        _port(-2,  -1, ratio=3),     # NW — Baja Pacific
-        _port(2,   -2, ratio=3),     # NE — Gulf of Mexico
-        _port(2,    0, ratio=3),     # E  — Veracruz
-        _port(1,    3, "brick"),     # SE — Yucatan
-        _port(0,    3, ratio=3),     # S  — Tehuantepec
-        _port(-2,   0, "sheep"),     # W  — Pacific coast
+        _port(-3, -1, ratio=3),          # NW — Tijuana / Baja N
+        _port(-3,  0, "sheep"),          # W — Baja S (Cabo)
+        _port( 1, -2, ratio=3),          # NE — Monterrey
+        _port( 2, -1, ratio=3),          # E — Tampico (Gulf)
+        _port( 4,  0, "brick"),          # E — Yucatan (Merida/Cancún)
+        _port( 3,  1, ratio=3),          # SE — Chiapas / Belize border
+        _port( 1,  1, ratio=3),          # S — Acapulco Pacific
+        _port( 0,  0, ratio=3),          # W — Puerto Vallarta
     ]
     return MapData(map_id="mexico", tiles=tiles, ports=ports)
 
@@ -834,38 +984,46 @@ def france_map() -> MapData:
 # ---------------------------------------------------------------------------
 
 def germany_map() -> MapData:
+    # Germany: wider in N (North Sea / Baltic coast), tapers to Bavarian Alps S.
+    # Rhine valley W, Berlin/Saxony C-E, Bavaria S, Alps tip.
     tiles = [
-        # Northern coast: North Sea → Holstein → Mecklenburg → Pomerania  (r=-2)
-        _tile(0, -2, "pasture",   9),   # Schleswig-Holstein (North Sea coast, cattle)
-        _tile(1, -2, "fields",    6),   # Hamburg / Lower Saxony (grain)
-        _tile(2, -2, "fields",   11),   # Brandenburg / Berlin area
-        _tile(3, -2, "forest",    4),   # Mecklenburg (lake district forests)
-        _tile(4, -2, "fields",    3),   # Pomerania (E grain plains)
-        # Main body N: Rhine → Westphalia → Saxony  (r=-1)
-        _tile(0, -1, "hills",     8),   # Rhine Highlands (Eifel / Hunsrück)
-        _tile(1, -1, "mountains", 5),   # Ruhr hills / Sauerland (ore mining!)
-        _tile(2, -1, "forest",   10),   # Harz Mountains + Thuringia forest
-        _tile(3, -1, "fields",    2),   # Saxony plains (Leipzig area)
-        _tile(4, -1, "mountains", 9),   # Ore Mountains (Erzgebirge — tin/silver)
-        # Main body S: Rhine Valley → Swabian Alb → Franconia  (r=0)
-        _tile(0,  0, "forest",    6),   # Black Forest (Schwarzwald — dense conifers)
-        _tile(1,  0, "desert"),          # Upper Rhine Plain (flat floodplain, old marsh)
-        _tile(2,  0, "hills",     5),   # Swabian Alb / Franconian hills
-        _tile(3,  0, "fields",    4),   # Franconia (Nuremberg, fertile basin)
-        _tile(4,  0, "forest",   11),   # E Bavaria forests (Bohemian Forest)
-        # Southern Bavaria strip  (r=1)
-        _tile(1,  1, "fields",   12),   # Munich / Bavarian plain (grain)
-        _tile(2,  1, "pasture",   3),   # Allgäu (dairy — famous cheese region!)
-        _tile(3,  1, "mountains", 8),   # Bavarian Alps (Zugspitze)
-        # Extreme S tip  (r=2)
-        _tile(2,  2, "mountains", 10),  # Berchtesgaden / Austrian Alps border
+        # --- Danish peninsula tip (r=-3): Schleswig ---
+        _tile( 1, -3, "pasture",   9),   # Schleswig (Danish border)
+
+        # --- N coast row (r=-2): North Sea → Baltic ---
+        _tile( 0, -2, "pasture",   6),   # Niedersachsen (North Sea coast)
+        _tile( 1, -2, "fields",    4),   # Hamburg / Lower Saxony
+        _tile( 2, -2, "fields",   11),   # Mecklenburg (Baltic)
+        _tile( 3, -2, "forest",    3),   # Pomerania
+
+        # --- Main body (r=-1): Rhine → Berlin → Poland border ---
+        _tile(-1, -1, "hills",     8),   # NRW / Rhine Highlands
+        _tile( 0, -1, "forest",    5),   # Lower Saxony forest
+        _tile( 1, -1, "fields",   10),   # Saxony-Anhalt
+        _tile( 2, -1, "fields",    2),   # Brandenburg / Berlin
+        _tile( 3, -1, "mountains", 9),   # Erzgebirge (ore mts)
+
+        # --- C-S body (r=0): Rhine Valley → Thuringia → Bohemia border ---
+        _tile(-1,  0, "forest",    6),   # Black Forest
+        _tile( 0,  0, "hills",     5),   # Swabian Alb
+        _tile( 1,  0, "fields",   12),   # Franconia (Nuremberg)
+        _tile( 2,  0, "mountains", 4),   # Bavarian Forest
+
+        # --- S Bavaria (r=1) ---
+        _tile( 0,  1, "desert"),          # Upper Rhine floodplain
+        _tile( 1,  1, "pasture",  11),   # Munich / Allgäu dairy
+        _tile( 2,  1, "mountains", 3),   # Bavarian Alps
+
+        # --- Alps tip (r=2) ---
+        _tile( 1,  2, "mountains", 8),   # Zugspitze / Austrian border
     ]
     ports = [
-        _port(0, -2, ratio=3),          # North Sea coast (Hamburg area)
-        _port(4, -2, ratio=3),          # Baltic coast (Stettin/Rostock)
-        _port(4, -1, "ore"),            # E — Erzgebirge ore export
-        _port(0,  0, "wood"),           # W — Black Forest timber (Rhine barge)
-        _port(0, -1, ratio=3),          # W — Rhine river trade
+        _port( 1, -3, ratio=3),          # N — Kiel / Danish border
+        _port( 0, -2, ratio=3),          # NW — Hamburg (North Sea)
+        _port( 3, -2, ratio=3),          # NE — Rostock (Baltic)
+        _port( 3, -1, "ore"),            # E — Erzgebirge ore export
+        _port(-1, -1, ratio=3),          # W — Cologne (Rhine)
+        _port(-1,  0, "wood"),           # W — Black Forest timber
     ]
     return MapData(map_id="germany", tiles=tiles, ports=ports)
 
@@ -903,40 +1061,47 @@ def _from_large(map_id: str, tt: List[Tuple[str, object]], ports: List[Port]) ->
 # ---------------------------------------------------------------------------
 
 def argentina_map() -> MapData:
+    # Very elongated N→S country. Wider in the north (Chaco/Pampas),
+    # narrowing southward through Patagonia. NW edge = Andes spine.
+    # Tierra del Fuego sits as a SEPARATE island off the southern tip.
     tiles = [
-        # N Argentina: Gran Chaco → Misiones → Nordeste  (r=-2)
-        _tile(0, -2, "forest",    9),   # Gran Chaco (dry tropical forest)
-        _tile(1, -2, "fields",    6),   # Misiones / Mesopotamia (subtropical)
-        _tile(2, -2, "hills",    11),   # Corrientes / Entre Ríos (hilly NE)
-        # NW Andes → N interior  (r=-1)
-        _tile(-1,-1, "desert"),          # Puna plateau (Atacama edge, arid 3500m+)
-        _tile( 0,-1, "mountains", 4),   # NW Andes (Jujuy / Salta peaks)
-        _tile( 1,-1, "fields",   10),   # Tucumán / Santiago del Estero (sugar, cotton)
-        _tile( 2,-1, "pasture",   3),   # Chaco S / Formosa dry plains
-        # Pampas — grain and cattle heartland  (r=0)
-        _tile(-1, 0, "mountains", 8),   # Andean foothills (Mendoza, wine country)
-        _tile( 0, 0, "fields",    5),   # Pampas W (grain, soy)
-        _tile( 1, 0, "fields",    2),   # Pampas E (Buenos Aires province)
-        _tile( 2, 0, "pasture",   9),   # Pampas S (cattle ranches)
-        # S Pampas / N Patagonia  (r=1)
-        _tile(-1, 1, "pasture",   6),   # La Pampa (cattle, dry grassland)
-        _tile( 0, 1, "fields",    5),   # S Pampas (winter wheat)
-        _tile( 1, 1, "hills",     4),   # Sierras of Buenos Aires (Tandilia/Ventania)
-        # Patagonia  (r=2, r=3)
-        _tile(-1, 2, "pasture",  11),   # N Patagonia (Merino sheep — world famous!)
-        _tile( 0, 2, "pasture",  12),   # Patagonia plateau (vast wind-swept steppe)
-        _tile(-1, 3, "mountains", 3),   # Patagonian Andes (lakes, Nahuel Huapi)
-        _tile( 0, 3, "forest",    8),   # Andean forests (lenga beech, ancient)
-        # Tierra del Fuego  (r=4)
-        _tile(-1, 4, "hills",    10),   # Tierra del Fuego (Ushuaia, end of the world)
+        # --- N Argentina: Gran Chaco → Misiones (r=-3) ---
+        _tile( 0, -3, "forest",    9),   # Gran Chaco (dry tropical forest)
+        _tile( 1, -3, "fields",    6),   # Misiones / Mesopotamia (subtropical)
+        _tile( 2, -3, "hills",    11),   # Corrientes / Entre Ríos (hilly NE)
+        # --- NW Andes / N interior (r=-2) ---
+        _tile(-1, -2, "desert"),          # Puna plateau (Atacama edge, arid 3500m+)
+        _tile( 0, -2, "mountains", 4),   # NW Andes (Jujuy / Salta peaks)
+        _tile( 1, -2, "fields",   10),   # Tucumán / Santiago del Estero (sugar)
+        _tile( 2, -2, "pasture",   3),   # N Chaco / Formosa dry plains
+        # --- Mendoza Andes / Pampas heartland (r=-1) ---
+        _tile(-1, -1, "mountains", 8),   # Mendoza Andes (wine country)
+        _tile( 0, -1, "fields",    5),   # Pampas W (grain, soy)
+        _tile( 1, -1, "fields",    2),   # Pampas E (Buenos Aires province)
+        _tile( 2, -1, "pasture",   9),   # Pampas S (cattle ranches)
+        # --- S Pampas / La Pampa (r=0) ---
+        _tile(-1,  0, "pasture",   6),   # La Pampa (cattle, dry grassland)
+        _tile( 0,  0, "fields",   12),   # S Pampas (winter wheat)
+        _tile( 1,  0, "hills",     4),   # Sierras of Buenos Aires (Tandilia)
+        # --- N Patagonia (r=1) — country narrows ---
+        _tile(-1,  1, "pasture",  11),   # N Patagonia (Merino sheep)
+        _tile( 0,  1, "pasture",  10),   # Patagonia plateau (windswept steppe)
+        # --- S Patagonia (r=2) ---
+        _tile(-1,  2, "mountains", 3),   # Patagonian Andes (Nahuel Huapi lakes)
+        _tile( 0,  2, "forest",    8),   # Andean forests (ancient lenga beech)
+        # --- Santa Cruz / S tip (r=3) ---
+        _tile( 0,  3, "hills",     5),   # S Patagonia (Santa Cruz, glaciers)
+        # --- Tierra del Fuego — SEPARATE island off the south tip ---
+        _tile(-2,  5, "hills",     9),   # Tierra del Fuego (Ushuaia, end of world)
     ]
     ports = [
-        _port(2, -2, ratio=3),           # NE — Río de la Plata / Paraná delta
-        _port(2,  0, ratio=3),           # E  — Buenos Aires coast (Atlantic)
-        _port(1,  1, ratio=3),           # SE — Mar del Plata
-        _port(0,  2, "sheep"),           # S  — Patagonian coast (wool export!)
-        _port(-1, 3, ratio=3),           # SW — Patagonian fjords (Comahue)
-        _port(-1, 4, ratio=3),           # S  — Tierra del Fuego / Ushuaia
+        _port( 2, -3, ratio=3),           # NE — Río de la Plata / Paraná delta
+        _port( 2, -1, ratio=3),           # E  — Buenos Aires coast (Atlantic)
+        _port( 1,  0, ratio=3),           # SE — Mar del Plata
+        _port( 0,  1, "sheep"),           # S  — Patagonian coast (wool export!)
+        _port(-1,  2, ratio=3),           # SW — Patagonian fjords (Comahue)
+        _port( 0,  3, ratio=3),           # S  — Santa Cruz coast
+        _port(-2,  5, ratio=3),           # IS — Tierra del Fuego / Ushuaia
     ]
     return MapData(map_id="argentina", tiles=tiles, ports=ports)
 
@@ -1057,41 +1222,46 @@ def italy_map() -> MapData:
 # ---------------------------------------------------------------------------
 
 def scandinavia_map() -> MapData:
+    # Elongated N-S peninsula. Norway (q=0, fjord west), Sweden (q=1, taiga center),
+    # Finland (q=2, lake district east), Denmark S (attached via Jutland at q=0 south tail).
+    # Very narrow E-W: only 3 columns.
     tiles = [
-        # Far N Norway — Arctic  (r=-4)
-        _tile(0, -4, "mountains", 9),   # Finnmark plateau (bare arctic tundra)
-        _tile(1, -4, "forest",    6),   # N Finland / Lapland (boreal taiga)
-        # N Scandinavia  (r=-3)
-        _tile(-1,-3, "mountains",11),   # Lofoten / Vesterålen (dramatic fjord mts)
-        _tile( 0,-3, "desert"),          # Hardangervidda (sub-arctic high plateau, barren)
-        _tile( 1,-3, "forest",    4),   # Swedish Lapland (conifer taiga)
-        # Middle  (r=-2)
-        _tile(-1,-2, "forest",    3),   # W Norway fjords / Bergen (dense forest)
-        _tile( 0,-2, "mountains", 8),   # Jotunheimen / Norwegian Mts (highest peaks)
-        _tile( 1,-2, "forest",   10),   # Central Sweden (vast taiga)
-        _tile( 2,-2, "forest",    5),   # E Finland (lake district, endless forest)
-        # S Scandinavia  (r=-1)
-        _tile(-1,-1, "pasture",   2),   # S Norway coast (coastal grazing, fjords)
-        _tile( 0,-1, "fields",    9),   # Oslo fjord / E Norway (farmland)
-        _tile( 1,-1, "forest",    6),   # S Sweden / Götaland (forests)
-        _tile( 2,-1, "fields",    5),   # SE Sweden / W Finland coast (grain)
-        # Denmark / S Sweden  (r=0)
-        _tile( 0, 0, "fields",    4),   # Central Sweden (Mälaren, fertile plains)
-        _tile( 1, 0, "hills",    11),   # Kattegat / Blekinge coast hills
-        _tile( 2, 0, "fields",   12),   # Skåne (southernmost, most fertile in Sweden!)
-        # Denmark  (r=1, r=2)
-        _tile( 0, 1, "fields",    3),   # Jutland (Danish mainland, dairy/grain)
-        _tile( 1, 1, "pasture",   8),   # Danish islands (Funen, Sjælland — cattle)
-        _tile( 0, 2, "pasture",  10),   # S Jutland tip (livestock coast)
+        # --- Norway (q=0) — long W fjord coast from Nordkapp down to Denmark ---
+        _tile( 0, -5, "mountains", 9),   # Finnmark / Nordkapp (arctic tundra)
+        _tile( 0, -4, "mountains", 4),   # Lofoten / Vesterålen (fjord mts)
+        _tile( 0, -3, "forest",   10),   # N Norway (Narvik region)
+        _tile( 0, -2, "forest",    3),   # Trondheim fjord forests
+        _tile( 0, -1, "pasture",  11),   # Bergen / W fjord coast
+        _tile( 0,  0, "fields",    5),   # S Norway (Oslo fjord farmland)
+        # --- Denmark (dangling S tail, "attached via Jutland") ---
+        _tile( 0,  1, "fields",    8),   # Jutland (Danish mainland)
+        _tile( 0,  2, "pasture",  12),   # Danish islands (Funen/Sjælland, dairy)
+
+        # --- Sweden (q=1) — taiga spine ---
+        _tile( 1, -5, "desert"),          # Finnmark plateau (sub-arctic barren)
+        _tile( 1, -4, "forest",    6),   # Swedish Lapland
+        _tile( 1, -3, "forest",    9),   # N Sweden taiga
+        _tile( 1, -2, "forest",    5),   # C Sweden
+        _tile( 1, -1, "fields",    4),   # Mälaren (Stockholm region)
+        _tile( 1,  0, "forest",    2),   # Götaland forests
+        _tile( 1,  1, "fields",   10),   # Skåne (most fertile plain)
+
+        # --- Finland (q=2) — lake district, shorter than Sweden ---
+        _tile( 2, -4, "forest",    3),   # N Finland / Lapland
+        _tile( 2, -3, "forest",    8),   # Finnish lakes (Kainuu)
+        _tile( 2, -2, "hills",    11),   # Tampere / central lakes
+        _tile( 2, -1, "pasture",   6),   # SW Finland / Turku coast
+        _tile( 2,  0, "fields",    9),   # Gulf of Finland (Helsinki)
     ]
     ports = [
-        _port( 0, -4, ratio=3),          # N  — Arctic Ocean (Nordkapp)
-        _port(-1, -2, "wood"),           # W  — Bergen fjords (timber export)
-        _port(-1, -1, ratio=3),          # W  — Stavanger (North Sea oil/fishing)
-        _port( 2, -2, ratio=3),          # E  — Finnish coast (Baltic)
-        _port( 2,  0, ratio=3),          # SE — Skåne / Øresund strait
-        _port( 1,  1, ratio=3),          # S  — Danish straits (major trade route!)
-        _port( 0, -2, "ore"),            # C  — Iron ore (Kiruna mines via Narvik)
+        _port( 0, -5, ratio=3),          # N  — Arctic (Nordkapp)
+        _port( 0, -4, "ore"),            # NW — Narvik / Kiruna iron ore
+        _port( 0, -1, ratio=3),          # W  — Bergen / Stavanger (N Sea)
+        _port( 0,  0, "wood"),           # SW — S Norway timber export
+        _port( 0,  2, "sheep"),          # S  — Danish islands (dairy/livestock)
+        _port( 1,  1, ratio=3),          # SE — Skåne / Øresund strait
+        _port( 2,  0, ratio=3),          # E  — Gulf of Finland
+        _port( 2, -1, ratio=3),          # E  — Turku / W Finland coast
     ]
     return MapData(map_id="scandinavia", tiles=tiles, ports=ports)
 
@@ -1103,40 +1273,51 @@ def scandinavia_map() -> MapData:
 # ---------------------------------------------------------------------------
 
 def spain_map() -> MapData:
+    # Iberian Peninsula: rectangular block, Galicia NW, Pyrenees NE,
+    # Meseta center, Andalusia S, Gibraltar SW tip. Portugal on W
+    # coast is implicit (same landmass).
     tiles = [
-        # N strip: Galicia → Cantabria → Basque → Pyrenees  (r=-2)
-        _tile(-2,-2, "hills",     9),   # Galicia (granite coast, rain, fishing)
-        _tile(-1,-2, "mountains", 6),   # Cantabrian Mts (Picos de Europa)
-        _tile( 0,-2, "hills",    11),   # Basque Country (Green Spain coast)
-        _tile( 1,-2, "mountains", 4),   # Pyrenees (high barrier with France)
-        # N interior: Asturias forests → Castile-León → Aragon → Catalonia  (r=-1)
-        _tile(-2,-1, "forest",    3),   # Asturias / Galicia S (Atlantic oak forest)
-        _tile(-1,-1, "fields",    8),   # Castile-León (Meseta N, vast wheat!)
-        _tile( 0,-1, "fields",   10),   # Ebro Valley (fertile, wine/crops)
-        _tile( 1,-1, "hills",     5),   # Catalonia hills (Costa Brava)
-        _tile( 2,-1, "hills",     2),   # Tarragona coast (S Catalonia)
-        # Central Meseta: Extremadura → Castile La Mancha → Valencia  (r=0)
-        _tile(-2, 0, "pasture",   9),   # Extremadura (cork oak dehesa, pigs/cattle)
-        _tile(-1, 0, "fields",    6),   # Castile La Mancha (Don Quijote's windmills, grain)
-        _tile( 0, 0, "hills",     5),   # Aragón interior (plateau, teruel)
-        _tile( 1, 0, "hills",     4),   # Valencia hills (orange groves inland)
-        _tile( 2, 0, "pasture",  11),   # Murcia N (dry hills)
-        # S strip: Andalusia → Granada → Almería  (r=1)
-        _tile(-1, 1, "pasture",  12),   # Andalusia W / Seville (sunflower, cattle)
-        _tile( 0, 1, "fields",    3),   # Guadalquivir valley (olive, wheat — ancient granary)
-        _tile( 1, 1, "desert"),          # Almería / SE coast (driest place in Europe!)
-        _tile( 2, 1, "hills",     8),   # Costa del Sol hills (Málaga/Granada)
-        # Gibraltar tip  (r=2)
-        _tile( 0, 2, "hills",    10),   # Cádiz / Strait of Gibraltar
+        # --- N coast (r=-2): Galicia → Cantabria → Pyrenees ---
+        _tile(-2, -2, "hills",     9),   # Galicia (Atlantic coast)
+        _tile(-1, -2, "mountains", 6),   # Cantabrian / Picos de Europa
+        _tile( 0, -2, "pasture",  11),   # Basque Country
+        _tile( 1, -2, "mountains", 4),   # Pyrenees
+
+        # --- N Meseta / Ebro (r=-1) ---
+        _tile(-2, -1, "forest",    3),   # Portugal N forests
+        _tile(-1, -1, "fields",    8),   # Castile-León (wheat Meseta)
+        _tile( 0, -1, "fields",   10),   # Ebro Valley (vineyards)
+        _tile( 1, -1, "hills",     5),   # Catalonia
+
+        # --- Central Meseta (r=0) ---
+        _tile(-2,  0, "pasture",   9),   # Portugal C / Alentejo
+        _tile(-1,  0, "fields",    6),   # Castile La Mancha
+        _tile( 0,  0, "hills",     2),   # Aragón / Valencia interior
+        _tile( 1,  0, "hills",    11),   # Valencia coast
+
+        # --- S Andalusia (r=1) ---
+        _tile(-2,  1, "fields",   12),   # Algarve
+        _tile(-1,  1, "pasture",   3),   # Seville / Andalusia
+        _tile( 0,  1, "desert"),          # Almería (driest place in Europe)
+        _tile( 1,  1, "hills",     8),   # Costa del Sol / Granada
+
+        # --- Balearic Islands (SEPARATE small islands off E coast) ---
+        _tile( 3,  0, "hills",     4),   # Mallorca / Menorca
+
+        # --- Canary Islands (SEPARATE volcanic islands far SW) ---
+        _tile(-4,  3, "mountains", 5),   # Tenerife / Gran Canaria
     ]
     ports = [
-        _port(-2, -2, ratio=3),          # NW — Galicia (Atlantic fishing!)
-        _port( 0, -2, ratio=3),          # N  — Cantabrian Sea
-        _port( 2, -1, ratio=3),          # NE — Barcelona / Catalonia Med
-        _port( 2,  0, ratio=3),          # E  — Valencia (oranges)
-        _port( 0,  2, ratio=3),          # S  — Cádiz (historic trade port)
-        _port(-1,  1, "wheat"),          # SW — Seville / Atlantic (grain export)
-        _port(-2,  0, "sheep"),          # W  — Extremadura / Lisbon border (wool)
+        _port(-2, -2, ratio=3),          # NW — Galicia (A Coruña)
+        _port( 0, -2, ratio=3),          # N — Cantabrian Sea (Bilbao)
+        _port( 1, -2, ratio=3),          # NE — Pyrenees Med (Barcelona)
+        _port( 1,  0, ratio=3),          # E — Valencia (oranges)
+        _port( 1,  1, ratio=3),          # S — Costa del Sol (Málaga)
+        _port(-1,  1, "wheat"),          # SW — Seville (grain)
+        _port(-2,  1, ratio=3),          # SW — Algarve (Lisbon)
+        _port(-2,  0, "sheep"),          # W — Portugal (wool)
+        _port( 3,  0, ratio=3),          # Balearic — Palma de Mallorca
+        _port(-4,  3, ratio=3),          # Canary — Las Palmas
     ]
     return MapData(map_id="spain", tiles=tiles, ports=ports)
 
@@ -1148,38 +1329,47 @@ def spain_map() -> MapData:
 # ---------------------------------------------------------------------------
 
 def turkey_map() -> MapData:
+    # Wide E-W rectangle (Asia Minor). Uses diagonal rows so screen y stays banded:
+    # each column shifts r down by ~0.5 moving east. 3 stacked hexes per column.
+    # Thrace/Istanbul dangles NW at (-1,-1); Ararat at far E (6,-4).
     tiles = [
-        # N strip — Black Sea coast  (r=-1)
-        _tile(-2,-1, "hills",     9),   # Thrace / Istanbul (rolling hills, Bosphorus)
-        _tile(-1,-1, "fields",    6),   # Marmara region (fertile, near Istanbul)
-        _tile( 0,-1, "mountains",11),   # Pontus Mountains (Black Sea coast range)
-        _tile( 1,-1, "forest",    4),   # N Anatolian forest (Black Sea coast)
-        _tile( 2,-1, "mountains", 3),   # E Pontus Mts (Kaçkar peaks)
-        _tile( 3,-1, "mountains", 8),   # NE Turkey / Rize coast mts
-        _tile( 4,-1, "mountains",10),   # E Turkey / Caucasus approach (Ararat!)
-        # Main body — Anatolian plateau  (r=0)
-        _tile(-2, 0, "fields",    5),   # W Anatolia (Aegean coast, fertile, wine/olives)
-        _tile(-1, 0, "hills",     2),   # C-W Anatolia (plateau W, Ankara outskirts)
-        _tile( 0, 0, "desert"),          # Central Anatolia (Konya / salt lake, arid steppe)
-        _tile( 1, 0, "fields",    9),   # C Anatolia (Ankara region, grain)
-        _tile( 2, 0, "pasture",   6),   # E Anatolia plateau (vast pastoral lands)
-        _tile( 3, 0, "pasture",   5),   # SE Anatolia (Tigris-Euphrates source, sheep)
-        _tile( 4, 0, "mountains", 4),   # E Turkey / Armenia border (Mt Ararat 5137m)
-        # S strip — Mediterranean / Taurus coast  (r=1)
-        _tile(-1, 1, "hills",    11),   # SW Turkey (Aegean / Turkish Riviera hills)
-        _tile( 0, 1, "pasture",  12),   # S Anatolia (Taurus foothills, sheep)
-        _tile( 1, 1, "mountains", 3),   # Taurus Mountains (S barrier)
-        _tile( 2, 1, "fields",    8),   # Çukurova / Cilicia (cotton/grain — very fertile!)
-        _tile( 3, 1, "hills",    10),   # SE Turkey (Kurdish Highlands, Diyarbakir)
+        # --- Thrace / Istanbul (NW Bosphorus bridge) ---
+        _tile(-1, -1, "hills",     5),   # Thrace / Istanbul (Bosphorus)
+
+        # --- Black Sea coast (top screen row) ---
+        _tile( 0, -1, "fields",    6),   # Marmara / NW Anatolia (grain)
+        _tile( 1, -2, "forest",    3),   # Bithynia (Black Sea W forests)
+        _tile( 2, -2, "mountains",11),   # Pontus Mts (W)
+        _tile( 3, -3, "mountains", 4),   # Pontus Mts (central)
+        _tile( 4, -3, "forest",   10),   # NE Pontus (Trabzon)
+        _tile( 5, -4, "forest",    5),   # Rize / NE coast
+        _tile( 6, -4, "mountains", 9),   # Mt Ararat (E Turkey / Armenia border)
+
+        # --- Anatolian plateau (middle screen row) ---
+        _tile( 0,  0, "fields",   12),   # W Anatolia (Aegean hinterland)
+        _tile( 1, -1, "hills",     2),   # Phrygia / Ankara outskirts
+        _tile( 2, -1, "desert"),          # Central Anatolia (Konya salt steppe)
+        _tile( 3, -2, "hills",     8),   # Cappadocia
+        _tile( 4, -2, "pasture",  10),   # E Anatolia plateau (vast pastoral)
+        _tile( 5, -3, "pasture",   8),   # Erzurum highlands
+
+        # --- Mediterranean / Taurus coast (bottom screen row) ---
+        _tile( 0,  1, "hills",    11),   # SW Turkey / Bodrum (Aegean-Med corner)
+        _tile( 1,  0, "pasture",   3),   # Lycia / Antalya
+        _tile( 2,  0, "mountains", 4),   # Taurus Mts (S barrier)
+        _tile( 3, -1, "fields",    9),   # Pamphylia (Med plain)
+        _tile( 4, -1, "fields",    6),   # Çukurova / Cilicia (cotton/grain)
+        _tile( 5, -2, "hills",     9),   # SE Turkey / Kurdish highlands
     ]
     ports = [
-        _port(-2, -1, ratio=3),          # NW — Istanbul / Bosphorus (major strait!)
-        _port( 4, -1, ratio=3),          # NE — E Black Sea coast
-        _port(-2,  0, ratio=3),          # W  — Aegean coast (Izmir)
-        _port(-1,  1, ratio=3),          # SW — Antalya / Bodrum (Med)
-        _port( 2,  1, "wheat"),          # SE — Mersin / Çukurova (grain port)
-        _port( 0, -1, "wood"),           # N  — Zonguldak (Black Sea, coal/timber)
-        _port( 3,  1, ratio=3),          # SE — Iskenderun coast
+        _port(-1, -1, ratio=3),          # NW — Istanbul / Bosphorus (strait!)
+        _port( 1, -2, ratio=3),          # N  — Black Sea W (Zonguldak)
+        _port( 5, -4, ratio=3),          # NE — Rize / E Black Sea
+        _port( 6, -4, "ore"),            # E  — Ararat / Caucasus mines
+        _port( 0,  0, ratio=3),          # W  — Aegean (Izmir)
+        _port( 0,  1, "sheep"),          # SW — Bodrum / Aegean islands trade
+        _port( 4, -1, "wheat"),          # S  — Mersin / Çukurova grain
+        _port( 5, -2, ratio=3),          # SE — Iskenderun coast
     ]
     return MapData(map_id="turkey", tiles=tiles, ports=ports)
 
@@ -1243,60 +1433,72 @@ def vietnam_map() -> MapData:
 # ---------------------------------------------------------------------------
 
 def africa_xl_map() -> MapData:
-    tt = [
-        # Ring 0
-        ("forest",    9),    # (0,0)  Congo Basin center
-        # Ring 1
-        ("mountains", 6),    # (1,0)  East Africa Rift
-        ("fields",    4),    # (1,-1) Ethiopia/Nile
-        ("desert",    None), # (0,-1) Sudan border
-        ("forest",   11),    # (-1,0) DRC
-        ("hills",     3),    # (-1,1) Angola/Zambia
-        ("forest",    8),    # (0,1)  Congo South
-        # Ring 2
-        ("mountains",10),    # (2,0)  Tanzania/Rift Valley
-        ("fields",    5),    # (2,-1) Somalia/Kenya coast
-        ("desert",    None), # (2,-2) Horn of Africa
-        ("desert",    None), # (1,-2) North Sudan
-        ("desert",    None), # (0,-2) Sahara East
-        ("desert",    None), # (-1,-1) Sahara Central
-        ("forest",    2),    # (-2,0) Nigeria/Cameroon
-        ("pasture",   9),    # (-2,1) Gabon/DRC West
-        ("hills",     6),    # (-2,2) Namibia
-        ("fields",    5),    # (-1,2) Zambia/Zimbabwe
-        ("mountains", 4),    # (0,2)  Mozambique
-        ("mountains",11),    # (1,1)  Uganda/Kenya
-        # Ring 3
-        ("mountains",12),    # (3,0)  Madagascar
-        ("hills",     3),    # (2,1)  South Africa East
-        ("hills",     8),    # (1,2)  KwaZulu-Natal
-        ("fields",   10),    # (0,3)  Cape of Good Hope
-        ("pasture",   5),    # (-1,3) Botswana/Kalahari
-        ("hills",     9),    # (-2,3) Namibia South
-        ("forest",    6),    # (-3,3) Angola South
-        ("forest",    4),    # (-3,2) DRC South
-        ("forest",   11),    # (-3,1) Nigeria/Benin
-        ("pasture",   2),    # (-3,0) Ivory Coast/Ghana
-        ("forest",    9),    # (-2,-1) West Sahel
-        ("desert",    None), # (-1,-2) Mali/Niger
-        ("desert",    None), # (0,-3) Algeria/Tunisia
-        ("desert",    None), # (1,-3) Libya/Egypt
-        ("desert",    None), # (2,-3) Egypt/Sinai
-        ("desert",    None), # (3,-3) Arabian peninsula
-        ("desert",    None), # (3,-2) Red Sea coast
-        ("fields",    8),    # (3,-1) East Africa coast
+    # 39 tiles sculpted as an Africa-shaped continent:
+    # Sahara band across the north, West Africa bulge, Horn of Africa east
+    # bulge, Congo rainforest heart, Kalahari south, narrow Cape tip, and
+    # Madagascar as a separate 2-tile island east of Mozambique.
+    tiles = [
+        # North: Mediterranean coast / Sahara top edge  (r=-4, 4 tiles)
+        _tile(0, -4, "desert"),               # Morocco / Algeria coast (Atlas foothills)
+        _tile(1, -4, "desert"),               # Tunisia / Libya coast
+        _tile(2, -4, "desert"),               # Egypt / Nile delta edge
+        _tile(3, -4, "fields",    8),         # Nile valley (Egypt agriculture)
+        # Sahara wide band  (r=-3, 6 tiles)
+        _tile(-1, -3, "pasture",  2),         # Senegal / Mauritania coast (Sahel edge)
+        _tile(0, -3, "desert"),                # W Sahara
+        _tile(1, -3, "desert"),                # Central Sahara (Algeria)
+        _tile(2, -3, "desert"),                # Libya interior
+        _tile(3, -3, "desert"),                # Egypt south / Nubia
+        _tile(4, -3, "fields",    5),         # Red Sea coast / Eritrea
+        # Sahel / Horn belt  (r=-2, 6 tiles)
+        _tile(-1, -2, "fields",   9),         # Senegal / Guinea (Sahel farmland)
+        _tile(0, -2, "pasture",  11),         # Mali / Niger (Sahel pastoral)
+        _tile(1, -2, "fields",    4),         # Chad (Lake Chad basin)
+        _tile(2, -2, "desert"),                # Sudan desert
+        _tile(3, -2, "mountains", 6),         # Ethiopian Highlands (Abyssinia)
+        _tile(4, -2, "fields",   10),         # Horn of Africa / Somalia (east bulge)
+        # Guinea coast / Sudan belt  (r=-1, 6 tiles)
+        _tile(-2, -1, "forest",   3),         # Guinea / Sierra Leone (W Africa bulge)
+        _tile(-1, -1, "forest",  11),         # Ivory Coast / Ghana (rainforest)
+        _tile(0, -1, "forest",    5),         # Nigeria (Niger delta, tropical forest)
+        _tile(1, -1, "pasture",   9),         # Cameroon grasslands
+        _tile(2, -1, "forest",    8),         # S Sudan (swamps / jungle)
+        _tile(3, -1, "mountains",12),         # Rift Valley / Kenya highlands
+        # Equatorial Africa — Congo Basin  (r=0, 5 tiles)
+        _tile(-2, 0, "forest",    6),         # Gabon rainforest
+        _tile(-1, 0, "forest",    4),         # Congo basin W
+        _tile(0, 0, "forest",     9),         # DRC heart of the Congo
+        _tile(1, 0, "hills",     10),         # Uganda / Rwanda hills
+        _tile(2, 0, "mountains",  3),         # Kilimanjaro / Tanzania
+        # Southern Africa upper  (r=1, 4 tiles)
+        _tile(-2, 1, "forest",    8),         # Angola forests
+        _tile(-1, 1, "pasture",   5),         # Zambia / Copperbelt
+        _tile(0, 1, "fields",    11),         # Malawi / Mozambique interior
+        _tile(1, 1, "hills",      2),         # Zimbabwe plateau
+        # Southern Africa lower  (r=2, 3 tiles)
+        _tile(-2, 2, "desert"),                # Namib desert (Kalahari W)
+        _tile(-1, 2, "pasture",   6),         # Botswana / Kalahari pastoral
+        _tile(0, 2, "hills",      4),         # Transvaal / KwaZulu-Natal
+        # Cape tip  (r=3, 2 tiles — narrow taper)
+        _tile(-2, 3, "fields",   10),         # Western Cape (vineyards)
+        _tile(-1, 3, "mountains",11),         # Drakensberg / Cape of Good Hope
+        # Madagascar — separate island chain east of Mozambique
+        _tile(3, 1, "forest",     9),         # N Madagascar (rainforest)
+        _tile(3, 2, "hills",      3),         # S Madagascar (dry highlands)
     ]
-    return _from_large("africa_xl", tt, [
-        _port( 3,  0, "ore",   side=0),
-        _port( 1,  2, ratio=3, side=5),
-        _port( 0,  3, ratio=3, side=5),
-        _port(-2,  3, "wood",  side=4),
-        _port(-3,  1, ratio=3, side=3),
-        _port(-3,  0, "sheep", side=3),
-        _port(-2, -1, ratio=3, side=2),
-        _port( 3, -1, ratio=3, side=1),
-        _port( 2,  1, ratio=3, side=0),
-    ])
+    ports = [
+        _port(3, -4, ratio=3),                # Nile delta (Mediterranean)
+        _port(4, -3, "wheat"),                # Red Sea coast
+        _port(4, -2, ratio=3),                # Horn of Africa (Indian Ocean)
+        _port(3, 1, "wood"),                  # Madagascar N
+        _port(-1, 3, ratio=3),                # Cape of Good Hope
+        _port(-2, 3, ratio=3),                # Western Cape
+        _port(-2, 1, "sheep"),                # Angola coast
+        _port(-2, -1, ratio=3),               # Guinea coast
+        _port(-1, -3, "ore"),                 # Mauritania (iron ore)
+        _port(0, -4, ratio=3),                # Morocco coast
+    ]
+    return MapData(map_id="africa_xl", tiles=tiles, ports=ports)
 
 
 # ---------------------------------------------------------------------------
@@ -1305,61 +1507,77 @@ def africa_xl_map() -> MapData:
 # ---------------------------------------------------------------------------
 
 def eurasia_xl_map() -> MapData:
-    tt = [
-        # Ring 0
-        ("fields",    9),    # (0,0)  Central Asia steppe
-        # Ring 1
-        ("mountains", 6),    # (1,0)  Himalayas
-        ("fields",    4),    # (1,-1) North China
-        ("forest",   11),    # (0,-1) Siberia
-        ("fields",    3),    # (-1,0) Middle East/Persia
-        ("pasture",   8),    # (-1,1) Central Europe
-        ("mountains",10),    # (0,1)  South Asia
-        # Ring 2
-        ("mountains", 5),    # (2,0)  Southeast Asia/China coast
-        ("fields",    2),    # (2,-1) Korea/Japan
-        ("forest",    9),    # (2,-2) Far East Russia
-        ("forest",    6),    # (1,-2) Siberia East
-        ("forest",    5),    # (0,-2) West Siberia
-        ("desert",    None), # (-1,-1) Sahara/Arabia
-        ("desert",    None), # (-2,0) North Africa
-        ("pasture",   4),    # (-2,1) Western Europe
-        ("fields",   11),    # (-2,2) France/Germany
-        ("hills",    12),    # (-1,2) Alpine/Balkans
-        ("mountains", 3),    # (0,2)  Turkey/Caucasus
-        ("pasture",   8),    # (1,1)  India
-        # Ring 3
-        ("mountains",10),    # (3,0)  Pacific Rim
-        ("mountains", 5),    # (2,1)  Indochina
-        ("hills",     9),    # (1,2)  Indian Subcontinent S
-        ("pasture",   6),    # (0,3)  Arabian Sea coast
-        ("desert",    None), # (-1,3) Gulf region
-        ("desert",    None), # (-2,3) North Africa W
-        ("desert",    None), # (-3,3) Morocco/Sahara
-        ("fields",    4),    # (-3,2) Iberian Peninsula
-        ("pasture",  11),    # (-3,1) British Isles
-        ("forest",    2),    # (-3,0) Scandinavia/Iceland
-        ("forest",    9),    # (-2,-1) Northern Russia
-        ("forest",    6),    # (-1,-2) Ural region
-        ("forest",    4),    # (0,-3)  North Siberia
-        ("forest",   11),    # (1,-3)  Yakutia
-        ("forest",    3),    # (2,-3)  Kamchatka
-        ("mountains", 8),    # (3,-3) Japan/Sakhalin
-        ("mountains",10),    # (3,-2) Taiwan/Philippines
-        ("hills",     5),    # (3,-1) South China
+    # 42 tiles sculpted as the Eurasian supercontinent spanning from
+    # Iberia in the west to Far East in the east, with southern bulges
+    # for Arabia, India and Southeast Asia. British Isles are a
+    # separate NW island pair and Japan is a separate 3-tile island chain
+    # off the far east coast.
+    tiles = [
+        # Arctic Siberia strip (far north)  (r=-4, 6 tiles)
+        _tile(0, -4, "forest",    6),         # Scandinavia / Kola
+        _tile(1, -4, "forest",    3),         # N Russia tundra
+        _tile(2, -4, "forest",    9),         # W Siberia tundra
+        _tile(3, -4, "forest",   11),         # Central Siberia
+        _tile(4, -4, "forest",    5),         # E Siberia / Yakutia
+        _tile(5, -4, "mountains", 8),         # Chukotka / Kamchatka
+        # Northern belt — N Russia / Siberia taiga  (r=-3, 7 tiles)
+        _tile(-1, -3, "forest",   4),         # N Scandinavia
+        _tile(0, -3, "forest",    9),         # NW Russia
+        _tile(1, -3, "forest",   10),         # Ural region
+        _tile(2, -3, "forest",    6),         # W Siberia taiga
+        _tile(3, -3, "mountains", 2),         # Central Siberian plateau
+        _tile(4, -3, "forest",   12),         # E Siberia taiga
+        _tile(5, -3, "mountains", 4),         # Sakhalin / Sea of Okhotsk coast
+        # Temperate main belt — Europe through China  (r=-2, 8 tiles)
+        _tile(-2, -2, "pasture",  5),         # Iberia NW (Galicia / Portugal)
+        _tile(-1, -2, "fields",   8),         # France / Germany heartland
+        _tile(0, -2, "hills",    11),         # Alps / Carpathians
+        _tile(1, -2, "pasture",   3),         # Ukraine / S Russia steppe
+        _tile(2, -2, "fields",    6),         # Kazakhstan steppe
+        _tile(3, -2, "pasture",   9),         # Mongolia steppe
+        _tile(4, -2, "fields",    4),         # N China plain
+        _tile(5, -2, "hills",    10),         # NE China / Manchuria
+        # Southern temperate — Med / Caucasus / Central Asia / China  (r=-1, 8 tiles)
+        _tile(-2, -1, "fields",   9),         # Iberia S / Andalusia
+        _tile(-1, -1, "hills",    5),         # Italy / Balkans
+        _tile(0, -1, "mountains", 8),         # Turkey / Caucasus
+        _tile(1, -1, "fields",    2),         # Persia / Iran
+        _tile(2, -1, "mountains",12),         # Pamir / Tian Shan
+        _tile(3, -1, "mountains", 6),         # Himalayas / Tibet
+        _tile(4, -1, "fields",   10),         # Central China (Yellow River)
+        _tile(5, -1, "hills",     3),         # S China / Yangtze
+        # Southern bulge — Arabia / India / SE Asia  (r=0, 6 tiles)
+        _tile(-1, 0, "desert"),                # Arabia N
+        _tile(0, 0, "desert"),                 # Arabia heart (Rub' al Khali)
+        _tile(1, 0, "pasture",   11),         # Gulf / Oman coast
+        _tile(2, 0, "fields",     4),         # Indus / Pakistan
+        _tile(3, 0, "forest",     9),         # India (Ganges plain)
+        _tile(4, 0, "forest",     5),         # Indochina / Myanmar
+        # Far south bulge — Indian peninsula / SE Asia tip  (r=1, 2 tiles)
+        _tile(0, 1, "hills",      6),         # Yemen / Hadhramaut
+        _tile(1, 1, "forest",     8),         # S India / Kerala — Sri Lanka area
+        # British Isles — separate NW island pair
+        _tile(-4, -1, "pasture",  4),         # Scotland / N England
+        _tile(-4, 0, "fields",   10),         # S England / Ireland
+        # Japan — separate E island chain (Hokkaido / Honshu / Kyushu)
+        _tile(7, -4, "mountains", 3),         # Hokkaido
+        _tile(7, -3, "hills",    11),         # Honshu
+        _tile(7, -2, "forest",    2),         # Kyushu / Ryukyu
     ]
-    return _from_large("eurasia_xl", tt, [
-        _port( 3,  0, ratio=3, side=0),
-        _port( 2,  1, "ore",   side=0),
-        _port( 0,  3, ratio=3, side=5),
-        _port(-2,  3, ratio=3, side=4),
-        _port(-3,  2, "wheat", side=3),
-        _port(-3,  0, "wood",  side=3),
-        _port(-2, -1, ratio=3, side=2),
-        _port( 0, -3, ratio=3, side=2),
-        _port( 2, -3, ratio=3, side=1),
-        _port( 3, -1, "sheep", side=1),
-    ])
+    ports = [
+        _port(-4, 0, "wheat"),                # British Isles (trade hub)
+        _port(-4, -1, ratio=3),               # Scotland
+        _port(-2, -2, ratio=3),               # Iberia Atlantic
+        _port(-2, -1, "sheep"),               # S Iberia / Gibraltar
+        _port(0, 1, ratio=3),                 # Yemen / Red Sea
+        _port(1, 1, "wood"),                  # S India / Ceylon
+        _port(4, 0, ratio=3),                 # Indochina
+        _port(7, -2, "ore"),                  # Japan south
+        _port(7, -4, ratio=3),                # Japan north
+        _port(5, -4, ratio=3),                # Kamchatka
+        _port(0, -4, ratio=3),                # Scandinavia
+    ]
+    return MapData(map_id="eurasia_xl", tiles=tiles, ports=ports)
 
 
 # ---------------------------------------------------------------------------
@@ -1368,61 +1586,81 @@ def eurasia_xl_map() -> MapData:
 # ---------------------------------------------------------------------------
 
 def americas_xl_map() -> MapData:
-    tt = [
-        # Ring 0
-        ("forest",    9),    # (0,0)  Amazon Center
-        # Ring 1
-        ("forest",    6),    # (1,0)  Brazil East
-        ("fields",    4),    # (1,-1) Caribbean/Cuba
-        ("forest",   11),    # (0,-1) Central America
-        ("pasture",   3),    # (-1,0) Pacific Coast
-        ("fields",    8),    # (-1,1) Pampas/Uruguay
-        ("hills",    10),    # (0,1)  Argentina North
-        # Ring 2
-        ("mountains", 5),    # (2,0)  Atlantic Coast Brazil
-        ("fields",    2),    # (2,-1) Florida/SE USA
-        ("forest",    9),    # (2,-2) Eastern USA
-        ("fields",    6),    # (1,-2) Great Lakes/NE USA
-        ("forest",    5),    # (0,-2) Midwest USA
-        ("fields",    4),    # (-1,-1) Great Plains
-        ("forest",   11),    # (-2,0) Pacific Northwest
-        ("pasture",  12),    # (-2,1) Chilean coast
-        ("mountains", 3),    # (-2,2) Andes South
-        ("hills",     8),    # (-1,2) Patagonia
-        ("pasture",  10),    # (0,2)  Argentina South
-        ("hills",     5),    # (1,1)  Atlantic coast S
-        # Ring 3
-        ("mountains", 9),    # (3,0)  Caribbean Islands
-        ("forest",    6),    # (2,1)  Guyana/Suriname
-        ("forest",    4),    # (1,2)  Southern Brazil
-        ("hills",    11),    # (0,3)  Tierra del Fuego
-        ("mountains", 2),    # (-1,3) Cape Horn
-        ("pasture",   9),    # (-2,3) West Patagonia
-        ("pasture",   6),    # (-3,3) Chilean fjords
-        ("mountains", 4),    # (-3,2) Andes Central
-        ("fields",   11),    # (-3,1) Peru/Ecuador
-        ("forest",    3),    # (-3,0) Colombia
-        ("forest",    8),    # (-2,-1) Mexico
-        ("desert",    None), # (-1,-2) Sonora Desert
-        ("fields",   10),    # (0,-3) California
-        ("fields",    5),    # (1,-3) SW USA/Texas
-        ("pasture",   9),    # (2,-3) SE USA/Gulf Coast
-        ("desert",    None), # (3,-3) Bermuda/Atlantic
-        ("desert",    None), # (3,-2) Open Atlantic
-        ("forest",    8),    # (3,-1) Labrador/Newfoundland
+    # 42 tiles sculpted as the Americas — wide North America at top,
+    # narrow Central America isthmus, wider South America middle
+    # (Amazon / Brazil), tapering to Patagonia and Tierra del Fuego.
+    # Caribbean rendered as 2 scattered separate islands east of Mexico.
+    tiles = [
+        # Canada / Alaska (far north)  (r=-5, 5 tiles)
+        _tile(-2, -5, "forest",   9),         # Alaska / Yukon
+        _tile(-1, -5, "forest",   6),         # NW Territories
+        _tile(0, -5, "forest",    4),         # Hudson Bay / N Canada
+        _tile(1, -5, "forest",   11),         # Quebec N / Labrador
+        _tile(2, -5, "hills",     3),         # Newfoundland
+        # Northern USA / S Canada  (r=-4, 6 tiles)
+        _tile(-2, -4, "mountains",8),         # Pacific NW / BC (Cascades)
+        _tile(-1, -4, "mountains",5),         # Rocky Mountains
+        _tile(0, -4, "pasture",  10),         # Great Plains / Prairies
+        _tile(1, -4, "forest",    2),         # Great Lakes / Midwest
+        _tile(2, -4, "fields",   12),         # NE USA (New England)
+        _tile(3, -4, "forest",    9),         # Maine / Nova Scotia
+        # Southern USA  (r=-3, 5 tiles)
+        _tile(-1, -3, "pasture",  4),         # California coast
+        _tile(0, -3, "desert"),                # Arizona / Nevada (desert SW)
+        _tile(1, -3, "fields",    6),         # Texas / Great Plains S
+        _tile(2, -3, "fields",    8),         # Deep South / Mississippi
+        _tile(3, -3, "pasture",  11),         # Florida / Gulf Coast
+        # Mexico narrowing  (r=-2, 3 tiles)
+        _tile(0, -2, "desert"),                # Sonora / Chihuahua desert
+        _tile(1, -2, "mountains", 5),         # Sierra Madre / Mexico City
+        _tile(2, -2, "fields",    9),         # Yucatán / S Mexico
+        # Central America isthmus (narrowest)  (r=-1, 2 tiles)
+        _tile(0, -1, "forest",   10),         # Guatemala / Honduras jungle
+        _tile(1, -1, "forest",    3),         # Panama isthmus
+        # Northern S America — widening  (r=0, 4 tiles)
+        _tile(-1, 0, "mountains", 6),         # Andes N / Colombia
+        _tile(0, 0, "forest",    11),         # Venezuela / Orinoco
+        _tile(1, 0, "forest",     4),         # Guyana / Suriname
+        _tile(2, 0, "hills",      8),         # Guiana shield
+        # Amazon / Brazil wide middle (widest S America)  (r=1, 5 tiles)
+        _tile(-2, 1, "fields",    9),         # Peru / Ecuador
+        _tile(-1, 1, "mountains",10),         # Andes central / Bolivia
+        _tile(0, 1, "forest",     5),         # Amazon W
+        _tile(1, 1, "forest",     6),         # Amazon heart
+        _tile(2, 1, "forest",     8),         # NE Brazil coast
+        # Southern Brazil / Bolivia belt  (r=2, 4 tiles)
+        _tile(-2, 2, "mountains", 4),         # Andes S / Chile N
+        _tile(-1, 2, "pasture",  11),         # Bolivia / Altiplano
+        _tile(0, 2, "fields",     9),         # Paraguay / Gran Chaco
+        _tile(1, 2, "pasture",    3),         # S Brazil / Uruguay pampas
+        # Argentina / Chile  (r=3, 3 tiles)
+        _tile(-2, 3, "pasture",   5),         # Chile central coast
+        _tile(-1, 3, "fields",   10),         # Pampas (Argentina heartland)
+        _tile(0, 3, "pasture",   12),         # Patagonia N / Río Negro
+        # Patagonia  (r=4, 2 tiles)
+        _tile(-2, 4, "hills",     6),         # Chilean fjords
+        _tile(-1, 4, "pasture",   2),         # Patagonia S (Santa Cruz)
+        # Tierra del Fuego (southernmost tip)
+        _tile(-2, 5, "mountains",11),         # Tierra del Fuego / Cape Horn
+        # Caribbean — separate small islands (Cuba / Hispaniola area)
+        _tile(5, -4, "fields",    4),         # Cuba / Bahamas
+        _tile(5, -3, "forest",    8),         # Hispaniola / Puerto Rico
     ]
-    return _from_large("americas_xl", tt, [
-        _port( 3,  0, "wood",  side=0),
-        _port( 2,  1, ratio=3, side=0),
-        _port( 0,  3, ratio=3, side=5),
-        _port(-2,  3, "sheep", side=4),
-        _port(-3,  1, "ore",   side=3),
-        _port(-3,  0, ratio=3, side=3),
-        _port(-2, -1, ratio=3, side=2),
-        _port( 0, -3, "wheat", side=2),
-        _port( 2, -3, ratio=3, side=1),
-        _port( 3, -1, ratio=3, side=1),
-    ])
+    ports = [
+        _port(-2, -5, ratio=3),               # Alaska / Pacific
+        _port(-2, -4, "wood"),                # Pacific NW
+        _port(2, -5, ratio=3),                # Newfoundland / Atlantic
+        _port(3, -4, "sheep"),                # New England
+        _port(3, -3, ratio=3),                # Florida
+        _port(5, -4, ratio=3),                # Cuba
+        _port(5, -3, "wheat"),                # Hispaniola
+        _port(2, 1, ratio=3),                 # NE Brazil
+        _port(1, 2, "wood"),                  # Rio / S Brazil
+        _port(-2, 5, ratio=3),                # Cape Horn
+        _port(-2, 3, ratio=3),                # Chile central
+        _port(-2, 1, "ore"),                  # Peru (copper / silver)
+    ]
+    return MapData(map_id="americas_xl", tiles=tiles, ports=ports)
 
 
 # ---------------------------------------------------------------------------
