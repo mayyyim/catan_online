@@ -15,12 +15,6 @@
 
 ### 🟢 高性价比（推荐优先做）
 
-- [ ] **P3-09 国际化 (i18n)** — L
-  - 工作量：半天
-  - 价值：直接扩大用户群
-  - 方案：引入 react-i18next，先做英文 + 中文两套。提取所有前端文案到 locales/{en,zh}.json
-  - 文件：frontend/src/i18n/, 所有页面组件替换硬编码文本
-
 - [ ] **P3-07 匹配系统** — L
   - 工作量：1-2 天
   - 价值：让账号+ELO 系统真正发挥作用
@@ -57,6 +51,16 @@
 ## 已完成
 
 ### 2026-04-12
+
+- [x] **P3-09 国际化 (i18n)** — commit 93ae3a9
+  - i18next + react-i18next infrastructure
+  - 英文 + 中文两套完整 locale (270 keys 完全同步)
+  - 迁移所有页面：Home / Auth / Room / Leaderboard / Profile / Game
+  - LanguageSwitcher 组件（首页右下角 EN/中 切换）
+  - localStorage 持久化语言选择，首次根据浏览器语言自动检测
+  - 验证：tsc 0 errors, e2e_smoke 14/14 passed, bundle 含双语字符串
+
+- [x] **P2-02 建筑动画** — 已有 CSS 动画确认（roadDraw/buildPop/oceanShimmer），标记完成
 
 - [x] **`scripts/e2e_smoke.py` E2E 冒烟测试脚本** — commit d8b3433
   - 14 个测试覆盖：health / room CRUD / bot 持久化 / room full / auth / leaderboard / maps / invite

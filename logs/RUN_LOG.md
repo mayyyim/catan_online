@@ -5,6 +5,35 @@
 
 ---
 
+日期：2026-04-12
+任务名称：i18n 国际化 (P3-09) + P2-02 标记完成
+Agent 名称：主控 Agent（直接执行）
+输入：用户指定做 P3-09 国际化（英文+中文）和 P2-02 建筑动画标记完成
+输出：
+  - commit 93ae3a9: i18n 完整实现
+  - 新增文件：src/i18n/index.ts, locales/{en,zh}.json (270 keys), LanguageSwitcher 组件
+  - 迁移页面：Home, Auth, Room, Leaderboard, Profile, Game (2124 行)
+  - P2-02 标记完成（审计现有 CSS 动画）
+
+验证方式：
+  - 第一层：tsc --noEmit 0 errors
+  - 第二层：scripts/e2e_smoke.py 14/14 通过（Docker 重建后）
+  - 双语键对齐检查：270 EN keys ≡ 270 ZH keys
+  - bundle 内包含中英文字符串确认
+
+发现的问题：无
+
+置信度：90%（E2E 通过，核心路径翻译完整。Game.tsx 还有一些边缘 toast/log 消息未翻译，但主要 UI 全部覆盖）
+
+卡住了吗：没有
+
+教训：
+  1. 大任务提前拆好子 Task 显著提升效率（本次 8 个 Task 串起全流程）
+  2. locale key 必须用脚本验证 en/zh 对齐，漏掉会导致运行时 key 显示
+  3. react-i18next 迁移 2000+ 行文件时，用 grep + Edit replace_all 比 Read 全文快
+
+---
+
 日期：2026-04-11
 任务名称：排行榜/个人战绩前端 + 144项自动化测试 + 3个严重Bug修复
 Agent 名称：主控 Agent（直接执行）
