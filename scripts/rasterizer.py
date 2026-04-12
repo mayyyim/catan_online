@@ -61,9 +61,25 @@ class InfeasibleMap(Exception):
 # ---------------------------------------------------------------------------
 
 def load_polygon(slug: str) -> dict:
+    """Load polygon JSON and flip latitude so north is UP in hex space.
+
+    Natural Earth stores (lon, lat). In flat-top hex rendering, higher r
+    maps to higher screen y which appears LOWER on screen. So if we used
+    lat directly, north (high lat) would end up at the bottom.
+
+    We negate lat at load time so north becomes low y → low r → top of
+    the rendered hex grid. This is a single source of truth for the
+    orientation so all downstream stages (rasterize, shift-away, ports)
+    inherit the correct N/S orientation.
+    """
     path = os.path.join(POLYGON_DIR, f"{slug}.json")
     with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+    for poly in data.get("polygons", []):
+        poly["exterior"] = [[x, -y] for x, y in poly.get("exterior", [])]
+        holes = poly.get("holes") or []
+        poly["holes"] = [[[x, -y] for x, y in hole] for hole in holes]
+    return data
 
 
 def point_in_polygon(x: float, y: float, exterior: List[Point], holes: Optional[List[List[Point]]] = None) -> bool:
