@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { getRoomState, addBot, removeBot, joinRoom, fetchMapSummaries, fetchMapDetail } from '../api'
 import type { MapSummary, MapDetailData, MapDetailPort } from '../api'
@@ -264,6 +265,7 @@ function MapCard({
 // ─── Room page ──────────────────────────────────────────────────────────────
 
 export default function Room() {
+  const { t } = useTranslation()
   const { roomId } = useParams<{ roomId: string }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -429,11 +431,11 @@ export default function Room() {
       sessionStorage.setItem('player_name', joinName.trim())
       sessionStorage.setItem('invite_code', inviteCodeFromUrl.toUpperCase())
     } catch (e) {
-      setJoinError(e instanceof Error ? e.message : 'Failed to join')
+      setJoinError(e instanceof Error ? e.message : t('room.joinFailed'))
     } finally {
       setJoining(false)
     }
-  }, [joinName, inviteCodeFromUrl, setMyPlayerId])
+  }, [joinName, inviteCodeFromUrl, setMyPlayerId, t])
 
   const handleCopyInvite = useCallback(async () => {
     const link = `${window.location.origin}/room/${roomId}?code=${room?.inviteCode ?? ''}`
@@ -466,12 +468,12 @@ export default function Room() {
     return (
       <div className={styles.loading}>
         <div className={styles.joinCard}>
-          <h2 className={styles.joinTitle}>Join Game</h2>
-          <p className={styles.joinSubtitle}>You've been invited! Enter your name to join.</p>
+          <h2 className={styles.joinTitle}>{t('room.joinGame')}</h2>
+          <p className={styles.joinSubtitle}>{t('room.joinInvitedMsg')}</p>
           <input
             className={styles.seedInput}
             type="text"
-            placeholder="Your name..."
+            placeholder={t('room.yourNamePlaceholder')}
             value={joinName}
             onChange={e => setJoinName(e.target.value)}
             maxLength={20}
@@ -486,7 +488,7 @@ export default function Room() {
             type="button"
             style={{ marginTop: 12 }}
           >
-            {joining ? 'Joining...' : 'Join Room'}
+            {joining ? t('home.joining') : t('room.joinBtn')}
           </button>
         </div>
       </div>
@@ -497,7 +499,7 @@ export default function Room() {
     return (
       <div className={styles.loading}>
         <div className={styles.spinner} />
-        <p>Loading room...</p>
+        <p>{t('room.loadingRoom')}</p>
       </div>
     )
   }
@@ -506,22 +508,22 @@ export default function Room() {
     <div className={styles.page}>
       <header className={styles.header}>
         <div className={styles.headerLeft}>
-          <button className={styles.leaveBtn} onClick={handleLeaveRoom} type="button" title="Leave room">
-            ← Leave
+          <button className={styles.leaveBtn} onClick={handleLeaveRoom} type="button" title={t('room.leaveRoom')}>
+            ← {t('room.leaveRoom')}
           </button>
           <span className={styles.roomCode}>
-            Room: <strong>{room.inviteCode}</strong>
+            {t('room.roomLabel')}: <strong>{room.inviteCode}</strong>
           </span>
           <span className={`${styles.wsIndicator} ${styles[wsStatus]}`} title={wsStatus} />
         </div>
-        <h1 className={styles.pageTitle}>Waiting Room</h1>
+        <h1 className={styles.pageTitle}>{t('room.title')}</h1>
         <div className={styles.headerRight} />
       </header>
 
       <div className={styles.body}>
         {/* Left: Map selection */}
         <section className={styles.mapSection}>
-          <h2 className={styles.sectionTitle}>Select Map</h2>
+          <h2 className={styles.sectionTitle}>{t('room.selectMap')}</h2>
           <div className={styles.mapGrid}>
             {MAP_CONFIGS.map(map => (
               <MapCard
@@ -536,13 +538,13 @@ export default function Room() {
           </div>
           <div className={styles.seedRow}>
             <label className={styles.seedLabel} htmlFor="seed-input">
-              Random Seed (optional)
+              {t('room.randomSeed')}
             </label>
             <input
               id="seed-input"
               className={styles.seedInput}
               type="text"
-              placeholder="Leave blank for random"
+              placeholder={t('room.seedPlaceholder')}
               value={seed}
               onChange={e => setSeed(e.target.value)}
               disabled={!isHost}
@@ -554,11 +556,11 @@ export default function Room() {
         <section className={styles.rightSection}>
           {/* Game Rules */}
           <div className={styles.panel}>
-            <h2 className={styles.sectionTitle}>Game Rules</h2>
+            <h2 className={styles.sectionTitle}>{t('room.gameRules')}</h2>
             {isHost ? (
               <>
                 <div className={styles.ruleRow}>
-                  <label className={styles.ruleLabel}>Victory Points</label>
+                  <label className={styles.ruleLabel}>{t('room.vpTarget')}</label>
                   <select
                     className={styles.ruleSelect}
                     value={room.rules?.victory_points_target ?? 10}
@@ -567,9 +569,9 @@ export default function Room() {
                       victory_points_target: +e.target.value,
                     })}
                   >
-                    <option value={8}>8 VP (Short)</option>
-                    <option value={10}>10 VP (Standard)</option>
-                    <option value={12}>12 VP (Long)</option>
+                    <option value={8}>{t('room.vp8')}</option>
+                    <option value={10}>{t('room.vp10')}</option>
+                    <option value={12}>{t('room.vp12')}</option>
                   </select>
                 </div>
                 <div className={styles.ruleRow}>
@@ -582,9 +584,9 @@ export default function Room() {
                         friendly_robber: e.target.checked,
                       })}
                     />
-                    Friendly Robber
+                    {t('room.friendlyRobber')}
                   </label>
-                  <span className={styles.ruleDesc}>No robber until 4+ VP</span>
+                  <span className={styles.ruleDesc}>{t('room.friendlyRobberShort')}</span>
                 </div>
                 <div className={styles.ruleRow}>
                   <label className={styles.ruleCheckLabel}>
@@ -596,23 +598,23 @@ export default function Room() {
                         starting_resources_double: e.target.checked,
                       })}
                     />
-                    Double Starting Resources
+                    {t('room.doubleStart')}
                   </label>
-                  <span className={styles.ruleDesc}>2x from 2nd settlement</span>
+                  <span className={styles.ruleDesc}>{t('room.doubleStartShort')}</span>
                 </div>
               </>
             ) : (
               <div className={styles.ruleReadOnly}>
-                <span>{room.rules?.victory_points_target ?? 10} VP to win</span>
-                {room.rules?.friendly_robber && <span>Friendly Robber</span>}
-                {room.rules?.starting_resources_double && <span>Double Starting Resources</span>}
+                <span>{t('room.vpToWin', { count: room.rules?.victory_points_target ?? 10 })}</span>
+                {room.rules?.friendly_robber && <span>{t('room.friendlyRobber')}</span>}
+                {room.rules?.starting_resources_double && <span>{t('room.doubleStart')}</span>}
               </div>
             )}
           </div>
 
           <div className={styles.playerPanel}>
             <h2 className={styles.sectionTitle}>
-              Players ({room.players.length}/{room.maxPlayers})
+              {t('room.players')} ({room.players.length}/{room.maxPlayers})
             </h2>
             <div className={styles.playerList}>
               {room.players.map(player => (
@@ -623,7 +625,7 @@ export default function Room() {
                       className={styles.removeBotBtn}
                       onClick={() => handleRemoveBot(player.id)}
                       type="button"
-                      title="Remove bot"
+                      title={t('room.removeBotTitle')}
                     >
                       ×
                     </button>
@@ -631,11 +633,11 @@ export default function Room() {
                 </div>
               ))}
               {Array.from({ length: room.maxPlayers - room.players.length }).map((_, i) => (
-                <div key={`empty-${i}`} className={styles.emptySlot}>Waiting for player...</div>
+                <div key={`empty-${i}`} className={styles.emptySlot}>{t('room.waitingForPlayer')}</div>
               ))}
             </div>
             <button className={styles.inviteBtn} onClick={handleCopyInvite} type="button">
-              {copied ? 'Copied!' : 'Copy Invite Link'}
+              {copied ? t('room.copied') : t('room.copyLink')}
             </button>
           </div>
 
@@ -648,22 +650,22 @@ export default function Room() {
                   onChange={e => setBotDifficulty(e.target.value as 'easy' | 'medium' | 'hard')}
                   disabled={room.players.length >= room.maxPlayers}
                 >
-                  <option value="easy">Easy</option>
-                  <option value="medium">Medium</option>
-                  <option value="hard">Hard</option>
+                  <option value="easy">{t('room.easy')}</option>
+                  <option value="medium">{t('room.medium')}</option>
+                  <option value="hard">{t('room.hard')}</option>
                 </select>
                 <button className={styles.inviteBtn} onClick={() => handleAddBot()} disabled={room.players.length >= room.maxPlayers} type="button">
-                  Add Bot
+                  {t('room.addBot')}
                 </button>
               </div>
               <button className={styles.startBtn} onClick={handleStartGame} disabled={room.players.length < 2} type="button">
-                Start Game
-                {room.players.length < 2 && <span className={styles.startHint}>(need at least 2 players)</span>}
+                {t('room.startGame')}
+                {room.players.length < 2 && <span className={styles.startHint}>{t('room.startHint')}</span>}
               </button>
             </>
           )}
 
-          {!isHost && <p className={styles.waitingText}>Waiting for host to start the game...</p>}
+          {!isHost && <p className={styles.waitingText}>{t('room.waitingForHost')}</p>}
           {wsError && <p className={styles.waitingText} style={{ color: '#e63946' }}>{wsError}</p>}
         </section>
       </div>

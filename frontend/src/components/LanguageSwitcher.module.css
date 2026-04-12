@@ -1,0 +1,33 @@
+.switcher {
+  display: inline-flex;
+  gap: 0;
+  background: rgba(22, 33, 62, 0.7);
+  border: 1px solid rgba(74, 111, 165, 0.25);
+  border-radius: 10px;
+  padding: 3px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.btn {
+  padding: 6px 14px;
+  background: transparent;
+  color: #6c757d;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+  min-width: 38px;
+}
+
+.btn:hover {
+  color: #adb5bd;
+}
+
+.btn.active {
+  background: #ffd60a;
+  color: #0d1b2a;
+}

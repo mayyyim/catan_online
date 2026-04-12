@@ -1,13 +1,16 @@
 import { useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, Link } from 'react-router-dom'
 import { createRoom, joinRoom } from '../api'
 import { useRoom } from '../context/RoomContext'
 import { useAuth } from '../context/AuthContext'
+import { LanguageSwitcher } from '../components/LanguageSwitcher'
 import styles from './Home.module.css'
 
 type Mode = 'idle' | 'create' | 'join'
 
 export default function Home() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { setMyPlayerId } = useRoom()
   const { user, logout } = useAuth()
@@ -32,7 +35,7 @@ export default function Home() {
       sessionStorage.setItem('invite_code', res.invite_code)
       navigate(`/room/${res.room_id}`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create room')
+      setError(err instanceof Error ? err.message : t('home.createFailed'))
     } finally {
       setLoading(false)
     }
@@ -51,7 +54,7 @@ export default function Home() {
       sessionStorage.setItem('invite_code', inviteCode.trim().toUpperCase())
       navigate(`/room/${res.room_id}`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to join room')
+      setError(err instanceof Error ? err.message : t('home.joinFailed'))
     } finally {
       setLoading(false)
     }
@@ -77,15 +80,15 @@ export default function Home() {
           </svg>
         </div>
 
-        <h1 className={styles.title}>Catan Online</h1>
-        <p className={styles.subtitle}>Trade, Build, Settle</p>
+        <h1 className={styles.title}>{t('home.title')}</h1>
+        <p className={styles.subtitle}>{t('home.subtitle')}</p>
 
         {user && (
           <div className={styles.userBar}>
             <span className={styles.userName}>{user.display_name}</span>
-            <span className={styles.userElo}>{user.elo_rating} ELO</span>
+            <span className={styles.userElo}>{user.elo_rating} {t('home.elo')}</span>
             <button type="button" className={styles.ghostBtn} onClick={logout}>
-              Logout
+              {t('home.logout')}
             </button>
           </div>
         )}
@@ -96,44 +99,45 @@ export default function Home() {
               className={styles.primaryBtn}
               onClick={() => setMode('create')}
             >
-              Create Room
+              {t('home.createRoom')}
             </button>
             <button
               className={styles.secondaryBtn}
               onClick={() => setMode('join')}
             >
-              Join Room
+              {t('home.joinRoom')}
             </button>
             <Link to="/maps" className={styles.mapGalleryLink}>
-              Map Gallery
+              {t('home.mapGallery')}
             </Link>
             <Link to="/leaderboard" className={styles.mapGalleryLink}>
-              Leaderboard
+              {t('home.leaderboard')}
             </Link>
             {user && (
               <Link to="/profile" className={styles.mapGalleryLink}>
-                My Stats
+                {t('home.myStats')}
               </Link>
             )}
             {!user && (
               <Link to="/auth" className={styles.mapGalleryLink}>
-                Login / Register
+                {t('home.loginRegister')}
               </Link>
             )}
+            <LanguageSwitcher />
           </div>
         )}
 
         {mode === 'create' && (
           <form className={styles.form} onSubmit={handleCreate}>
-            <h2 className={styles.formTitle}>Create a Room</h2>
+            <h2 className={styles.formTitle}>{t('home.createFormTitle')}</h2>
             <label className={styles.label} htmlFor="create-name">
-              Your Name
+              {t('home.yourName')}
             </label>
             <input
               id="create-name"
               className={styles.input}
               type="text"
-              placeholder="Enter your name..."
+              placeholder={t('home.namePlaceholder')}
               value={playerName}
               onChange={e => setPlayerName(e.target.value)}
               maxLength={20}
@@ -146,14 +150,14 @@ export default function Home() {
                 className={styles.ghostBtn}
                 onClick={() => { setMode('idle'); setError('') }}
               >
-                Back
+                {t('common.back')}
               </button>
               <button
                 type="submit"
                 className={styles.primaryBtn}
                 disabled={loading || !playerName.trim()}
               >
-                {loading ? 'Creating...' : 'Create Room'}
+                {loading ? t('home.creating') : t('home.createRoom')}
               </button>
             </div>
           </form>
@@ -161,28 +165,28 @@ export default function Home() {
 
         {mode === 'join' && (
           <form className={styles.form} onSubmit={handleJoin}>
-            <h2 className={styles.formTitle}>Join a Room</h2>
+            <h2 className={styles.formTitle}>{t('home.joinFormTitle')}</h2>
             <label className={styles.label} htmlFor="join-code">
-              Invite Code
+              {t('home.inviteCode')}
             </label>
             <input
               id="join-code"
               className={styles.input}
               type="text"
-              placeholder="e.g. ABCD12"
+              placeholder={t('home.inviteCodePlaceholder')}
               value={inviteCode}
               onChange={e => setInviteCode(e.target.value.toUpperCase())}
               maxLength={8}
               autoFocus
             />
             <label className={styles.label} htmlFor="join-name">
-              Your Name
+              {t('home.yourName')}
             </label>
             <input
               id="join-name"
               className={styles.input}
               type="text"
-              placeholder="Enter your name..."
+              placeholder={t('home.namePlaceholder')}
               value={playerName}
               onChange={e => setPlayerName(e.target.value)}
               maxLength={20}
@@ -194,14 +198,14 @@ export default function Home() {
                 className={styles.ghostBtn}
                 onClick={() => { setMode('idle'); setError('') }}
               >
-                Back
+                {t('common.back')}
               </button>
               <button
                 type="submit"
                 className={styles.primaryBtn}
                 disabled={loading || !playerName.trim() || !inviteCode.trim()}
               >
-                {loading ? 'Joining...' : 'Join Room'}
+                {loading ? t('home.joining') : t('home.joinRoom')}
               </button>
             </div>
           </form>
@@ -209,7 +213,7 @@ export default function Home() {
       </main>
 
       <footer className={styles.footer}>
-        <span>Built with React + TypeScript</span>
+        <span>{t('home.footer')}</span>
       </footer>
     </div>
   )

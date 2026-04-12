@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef, type CSSProperties } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useGame } from '../context/GameContext'
 import { useRoom } from '../context/RoomContext'
@@ -187,6 +188,7 @@ function allEdgeIdsFromTiles(tiles: Array<{ q: number; r: number; s: number; ter
 }
 
 export default function Game() {
+  const { t } = useTranslation()
   const { roomId } = useParams<{ roomId: string }>()
   const navigate = useNavigate()
   const { game, myPlayerId, setGame, setMyPlayerId, selectedVertexId, selectedEdgeId, selectVertex, selectEdge } =
@@ -1083,7 +1085,7 @@ export default function Game() {
           <button
             className={styles.leaveBtn}
             type="button"
-            title="Leave game"
+            title={t('game.actions.leaveGame')}
             onClick={() => {
               const isFinished = game?.phase === 'finished' || !!game?.winner
               if (!isFinished && !window.confirm('Leave this game?')) return
@@ -1153,7 +1155,7 @@ export default function Game() {
           <button
             className={styles.helpBtn}
             type="button"
-            title="How to play"
+            title={t('game.actions.howToPlay')}
             aria-label="How to play"
             onClick={() => setShowTutorial(true)}
           >
@@ -1191,7 +1193,7 @@ export default function Game() {
         <aside className={styles.sidePanel}>
           {/* Bank resources row */}
           <div className={styles.bankRow}>
-            <span className={styles.bankLabel}>Bank</span>
+            <span className={styles.bankLabel}>{t('game.panels.bank')}</span>
             {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
               const knownTotal = players.reduce((sum, p) => {
                 const r = p.resources?.[res] ?? 0
@@ -1308,8 +1310,8 @@ export default function Game() {
                     </div>
                     <span className={styles.playerCardName}>{p.name}</span>
                     <div className={styles.playerCardBadges}>
-                      {hasLongestRoad && <span className={styles.playerBadge} title="Longest Road">LR</span>}
-                      {hasLargestArmy && <span className={styles.playerBadge} title="Largest Army">LA</span>}
+                      {hasLongestRoad && <span className={styles.playerBadge} title={t('game.tooltips.longestRoad')}>LR</span>}
+                      {hasLargestArmy && <span className={styles.playerBadge} title={t('game.tooltips.largestArmy')}>LA</span>}
                     </div>
                     <span className={styles.playerCardVP}>{p.victoryPoints}</span>
                   </div>
@@ -1346,12 +1348,12 @@ export default function Game() {
                   {(hasLongestRoad || hasLargestArmy) && (
                     <div className={styles.trophyBadges}>
                       {hasLongestRoad && (
-                        <span className={styles.trophyBadge} title="Longest Road (+2 VP)">
+                        <span className={styles.trophyBadge} title={t('game.tooltips.longestRoad')}>
                           {'🛤️'} Longest Road
                         </span>
                       )}
                       {hasLargestArmy && (
-                        <span className={styles.trophyBadge} title="Largest Army (+2 VP)">
+                        <span className={styles.trophyBadge} title={t('game.tooltips.largestArmy')}>
                           {'⚔️'} Largest Army
                         </span>
                       )}
@@ -1365,7 +1367,7 @@ export default function Game() {
           {/* Robber: discard panel */}
           {mustDiscard && (
             <div className={`${styles.panel} ${styles.robberPanel}`}>
-              <p className={styles.panelTitle}>Discard {discardRequired} cards (rolled 7)</p>
+              <p className={styles.panelTitle}>{t('game.panels.discardCards', { count: discardRequired })}</p>
               <div className={styles.discardGrid}>
                 {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
                   const have = myResources[res] ?? 0
@@ -1396,7 +1398,7 @@ export default function Game() {
           {/* Robber: place indicator */}
           {isRobberPlace && (
             <div className={`${styles.panel} ${styles.robberPanel}`}>
-              <p className={styles.panelTitle}>Move the Robber</p>
+              <p className={styles.panelTitle}>{t('game.panels.moveRobber')}</p>
               <p className={styles.robberHint}>Click a land tile on the map to move the robber.</p>
             </div>
           )}
@@ -1404,7 +1406,7 @@ export default function Game() {
           {/* Robber: steal target */}
           {isRobberSteal && robberStealTargets.length > 0 && (
             <div className={`${styles.panel} ${styles.robberPanel}`}>
-              <p className={styles.panelTitle}>Steal a resource</p>
+              <p className={styles.panelTitle}>{t('game.panels.stealResource')}</p>
               <div className={styles.stealGrid}>
                 {robberStealTargets.map(tid => {
                   const target = players.find(p => p.id === tid)
@@ -1460,7 +1462,7 @@ export default function Game() {
                   >
                     <span className={styles.devCardIcon}>{CARD_ICONS[card.card_type] ?? '?'}</span>
                     <span className={styles.devCardName}>{CARD_LABELS[card.card_type] ?? card.card_type}</span>
-                    {boughtThisTurn && <span className={styles.devCardNew}>NEW</span>}
+                    {boughtThisTurn && <span className={styles.devCardNew}>{t('game.devCards.new')}</span>}
                     {canPlay && (
                       <button
                         type="button"
@@ -1474,7 +1476,7 @@ export default function Game() {
                 )
               })}
               {devCards.length === 0 && (
-                <span style={{ fontSize: 12, color: '#6c757d' }}>No cards yet</span>
+                <span style={{ fontSize: 12, color: '#6c757d' }}>{t('game.devCards.noCardsYet')}</span>
               )}
             </div>
             {canTrade && (
@@ -1515,7 +1517,7 @@ export default function Game() {
                 >
                   Confirm ({yopTotal}/2)
                 </button>
-                <button type="button" className={styles.tradeResetBtn} onClick={() => setPlayingCard(null)}>Cancel</button>
+                <button type="button" className={styles.tradeResetBtn} onClick={() => setPlayingCard(null)}>{t('common.cancel')}</button>
               </div>
             </div>
           )}
@@ -1546,7 +1548,7 @@ export default function Game() {
                 >
                   Confirm {monopolyResource || '...'}
                 </button>
-                <button type="button" className={styles.tradeResetBtn} onClick={() => setPlayingCard(null)}>Cancel</button>
+                <button type="button" className={styles.tradeResetBtn} onClick={() => setPlayingCard(null)}>{t('common.cancel')}</button>
               </div>
             </div>
           )}
@@ -1554,7 +1556,7 @@ export default function Game() {
           {/* Road Building hint */}
           {turnPhase === 'road_building' && isMyTurn && (
             <div className={`${styles.panel} ${styles.yopPanel}`}>
-              <p className={styles.panelTitle}>Road Building</p>
+              <p className={styles.panelTitle}>{t('game.panels.roadBuilding')}</p>
               <p className={styles.roadBuildingHint}>Place 2 free roads on the map.</p>
             </div>
           )}
@@ -1574,7 +1576,7 @@ export default function Game() {
                 <div className={styles.tradeBody}>
                   {/* Offer (give) */}
                   <div className={styles.tradeSide}>
-                    <span className={styles.tradeLabel}>You give</span>
+                    <span className={styles.tradeLabel}>{t('game.trade.youGive')}</span>
                     {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
                       const have = myResources[res] ?? 0
                       const offering = tradeOffer[res] ?? 0
@@ -1591,7 +1593,7 @@ export default function Game() {
                   </div>
                   {/* Want (receive) */}
                   <div className={styles.tradeSide}>
-                    <span className={styles.tradeLabel}>You get <span className={styles.tradeCredits}>({tradeCredits} available)</span></span>
+                    <span className={styles.tradeLabel}>{t('game.trade.youGet')} <span className={styles.tradeCredits}>{t('game.trade.available', { count: tradeCredits })}</span></span>
                     {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
                       const wanting = tradeWant[res] ?? 0
                       return (
@@ -1609,7 +1611,7 @@ export default function Game() {
                     <button type="button" className={styles.tradeSubmitBtn} onClick={handleTradeSubmit} disabled={!tradeValid}>
                       Trade {tradeOfferTotal} → {tradeWantTotal}
                     </button>
-                    <button type="button" className={styles.tradeResetBtn} onClick={handleTradeReset}>Clear</button>
+                    <button type="button" className={styles.tradeResetBtn} onClick={handleTradeReset}>{t('game.actions.clear')}</button>
                   </div>
                 </div>
               )}
@@ -1634,9 +1636,9 @@ export default function Game() {
           {/* P2P Trade: Building a proposal */}
           {p2pProposing && (
             <div className={`${styles.panel} ${styles.p2pTradePanel}`}>
-              <p className={styles.panelTitle}>Propose Trade</p>
+              <p className={styles.panelTitle}>{t('game.panels.proposeTrade')}</p>
               <div className={styles.tradeSide}>
-                <span className={styles.tradeLabel}>You Give</span>
+                <span className={styles.tradeLabel}>{t('game.trade.youGiveUpper')}</span>
                 {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
                   const have = myResources[res] ?? 0
                   const offering = p2pOffer[res] ?? 0
@@ -1651,7 +1653,7 @@ export default function Game() {
                 })}
               </div>
               <div className={styles.tradeSide}>
-                <span className={styles.tradeLabel}>You Want</span>
+                <span className={styles.tradeLabel}>{t('game.trade.youWantUpper')}</span>
                 {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
                   const wanting = p2pWant[res] ?? 0
                   return (
@@ -1753,7 +1755,7 @@ export default function Game() {
           {/* Build actions */}
           {isMyTurn && (
             <div className={styles.panel}>
-              <p className={styles.panelTitle}>Build</p>
+              <p className={styles.panelTitle}>{t('game.panels.build')}</p>
               <div className={styles.buildGrid}>
                 <button
                   className={`${styles.buildBtn} ${buildMode === 'road' ? styles.active : ''}`}
@@ -1763,7 +1765,7 @@ export default function Game() {
                   title="Road (1 wood + 1 brick)"
                 >
                   <span className={styles.buildIcon}>{'🛤️'}</span>
-                  <span>Road</span>
+                  <span>{t('game.pieces.road')}</span>
                   <span className={styles.cost}>{'🌲🧱'}</span>
                 </button>
                 <button
@@ -1774,7 +1776,7 @@ export default function Game() {
                   title="Settlement (1 wood + 1 brick + 1 wheat + 1 sheep)"
                 >
                   <span className={styles.buildIcon}>{'🏠'}</span>
-                  <span>Settlement</span>
+                  <span>{t('game.pieces.settlement')}</span>
                   <span className={styles.cost}>{'🌲🧱🌾🐑'}</span>
                 </button>
                 <button
@@ -1785,7 +1787,7 @@ export default function Game() {
                   title="City (2 wheat + 3 ore)"
                 >
                   <span className={styles.buildIcon}>{'🏙️'}</span>
-                  <span>City</span>
+                  <span>{t('game.pieces.city')}</span>
                   <span className={styles.cost}>{'🌾🌾⛏️⛏️⛏️'}</span>
                 </button>
               </div>
@@ -1794,7 +1796,7 @@ export default function Game() {
 
           {/* Build Cost Reference Card (P1-07) */}
           <div className={`${styles.panel} ${styles.costRef}`}>
-            <p className={styles.panelTitle}>Build Costs</p>
+            <p className={styles.panelTitle}>{t('game.panels.buildCosts')}</p>
             <div className={styles.costGrid}>
               <div className={styles.costRow}>
                 <span className={styles.costPiece}>{'\uD83D\uDEE4\uFE0F'} Road</span>
@@ -1847,8 +1849,8 @@ export default function Game() {
                   {me.name} <span className={styles.playerCardYouTag}>(you)</span>
                 </span>
                 <div className={styles.playerCardBadges}>
-                  {game?.longestRoadPlayerId === me.id && <span className={styles.playerBadge} title="Longest Road">LR</span>}
-                  {game?.largestArmyPlayerId === me.id && <span className={styles.playerBadge} title="Largest Army">LA</span>}
+                  {game?.longestRoadPlayerId === me.id && <span className={styles.playerBadge} title={t('game.tooltips.longestRoad')}>LR</span>}
+                  {game?.largestArmyPlayerId === me.id && <span className={styles.playerBadge} title={t('game.tooltips.largestArmy')}>LA</span>}
                 </div>
                 <span className={styles.playerCardVP}>{me.victoryPoints}</span>
               </div>
@@ -1883,12 +1885,12 @@ export default function Game() {
               {(game?.longestRoadPlayerId === me.id || game?.largestArmyPlayerId === me.id) && (
                 <div className={styles.trophyBadges}>
                   {game?.longestRoadPlayerId === me.id && (
-                    <span className={styles.trophyBadge} title="Longest Road (+2 VP)">
+                    <span className={styles.trophyBadge} title={t('game.tooltips.longestRoad')}>
                       {'🛤️'} Longest Road
                     </span>
                   )}
                   {game?.largestArmyPlayerId === me.id && (
-                    <span className={styles.trophyBadge} title="Largest Army (+2 VP)">
+                    <span className={styles.trophyBadge} title={t('game.tooltips.largestArmy')}>
                       {'⚔️'} Largest Army
                     </span>
                   )}
@@ -1922,8 +1924,8 @@ export default function Game() {
                 <div className={styles.chatInputRow}>
                   <input value={chatInput} onChange={e => setChatInput(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && chatInput.trim()) { gameSocket.send({type:'chat',text:chatInput.trim()} as any); setChatInput('') }}}
-                    placeholder="Type a message..." maxLength={200} className={styles.chatInputField} />
-                  <button onClick={() => { if (chatInput.trim()) { gameSocket.send({type:'chat',text:chatInput.trim()} as any); setChatInput('') }}} className={styles.chatSendBtn}>Send</button>
+                    placeholder={t('game.chat.placeholder')} maxLength={200} className={styles.chatInputField} />
+                  <button onClick={() => { if (chatInput.trim()) { gameSocket.send({type:'chat',text:chatInput.trim()} as any); setChatInput('') }}} className={styles.chatSendBtn}>{t('game.actions.send')}</button>
                 </div>
               </div>
             )}
@@ -1931,7 +1933,7 @@ export default function Game() {
 
           {/* Event log */}
           <div className={styles.logPanel}>
-            <p className={styles.panelTitle}>Log</p>
+            <p className={styles.panelTitle}>{t('game.panels.log')}</p>
             <div className={styles.logScroll}>
               {log.length === 0 && (
                 <span className={styles.logEmpty}>No events yet.</span>
@@ -1991,7 +1993,7 @@ export default function Game() {
             disabled={isSetupPhase || !isMyTurn || turnPhase !== 'pre_roll' || rolling}
             type="button"
           >
-            {rolling ? 'Rolling...' : 'Roll Dice'}
+            {rolling ? t('game.actions.rolling') : t('game.actions.rollDice')}
           </button>
           <button
             className={styles.endTurnBtn}
@@ -1999,7 +2001,7 @@ export default function Game() {
             disabled={isSetupPhase || !isMyTurn || turnPhase !== 'post_roll'}
             type="button"
           >
-            End Turn
+            {t('game.actions.endTurn')}
           </button>
         </div>
       </footer>
@@ -2052,20 +2054,20 @@ export default function Game() {
 
             <div className={styles.winnerCard}>
               <span className={styles.winnerEmoji}>🏆</span>
-              <h2 className={styles.winnerTitle}>{winnerName} Wins!</h2>
+              <h2 className={styles.winnerTitle}>{t('game.winner.winsMessage', { name: winnerName })}</h2>
 
               {/* VP Breakdown Table */}
               <div className={styles.vpTableWrap}>
                 <table className={styles.vpTable}>
                   <thead>
                     <tr>
-                      <th>Player</th>
-                      <th>Settlements</th>
-                      <th>Cities</th>
-                      <th>LR</th>
-                      <th>LA</th>
-                      <th>VP Cards</th>
-                      <th>Total</th>
+                      <th>{t('game.winner.tableHeaders.player')}</th>
+                      <th>{t('game.winner.tableHeaders.settlements')}</th>
+                      <th>{t('game.winner.tableHeaders.cities')}</th>
+                      <th>{t('game.winner.tableHeaders.lr')}</th>
+                      <th>{t('game.winner.tableHeaders.la')}</th>
+                      <th>{t('game.winner.tableHeaders.vpCards')}</th>
+                      <th>{t('game.winner.tableHeaders.total')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2093,14 +2095,14 @@ export default function Game() {
                   onClick={() => { gameSocket.disconnect(); navigate('/') }}
                   type="button"
                 >
-                  Play Again
+                  {t('game.actions.playAgain')}
                 </button>
                 <button
                   className={styles.homeBtnOutline}
                   onClick={() => { gameSocket.disconnect(); navigate('/') }}
                   type="button"
                 >
-                  Back to Home
+                  {t('game.actions.backToHome')}
                 </button>
               </div>
             </div>
@@ -2112,8 +2114,8 @@ export default function Game() {
         <div className={styles.reconnectOverlay}>
           <div className={styles.reconnectCard}>
             <div className={styles.reconnectSpinner} />
-            <p className={styles.reconnectText}>Connection lost</p>
-            <p className={styles.reconnectSub}>Reconnecting...</p>
+            <p className={styles.reconnectText}>{t('game.reconnect.connectionLost')}</p>
+            <p className={styles.reconnectSub}>{t('game.reconnect.reconnecting')}</p>
           </div>
         </div>
       )}

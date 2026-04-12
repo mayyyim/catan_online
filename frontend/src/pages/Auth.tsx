@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, Link } from 'react-router-dom'
 import { authLogin, authRegister, authGuest } from '../api'
 import { useAuth } from '../context/AuthContext'
@@ -7,6 +8,7 @@ import styles from './Auth.module.css'
 type Tab = 'login' | 'register' | 'guest'
 
 export default function Auth() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { login } = useAuth()
 
@@ -27,7 +29,7 @@ export default function Auth() {
       login(user)
       navigate('/')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+      setError(err instanceof Error ? err.message : t('auth.loginFailed'))
     } finally {
       setLoading(false)
     }
@@ -43,7 +45,7 @@ export default function Auth() {
       login(user)
       navigate('/')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed')
+      setError(err instanceof Error ? err.message : t('auth.registerFailed'))
     } finally {
       setLoading(false)
     }
@@ -57,7 +59,7 @@ export default function Auth() {
       login(user)
       navigate('/')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create guest account')
+      setError(err instanceof Error ? err.message : t('auth.guestFailed'))
     } finally {
       setLoading(false)
     }
@@ -82,8 +84,8 @@ export default function Auth() {
           </svg>
         </div>
 
-        <h1 className={styles.title}>Catan Online</h1>
-        <p className={styles.subtitle}>Trade, Build, Settle</p>
+        <h1 className={styles.title}>{t('home.title')}</h1>
+        <p className={styles.subtitle}>{t('home.subtitle')}</p>
 
         <div className={styles.tabs}>
           <button
@@ -91,44 +93,44 @@ export default function Auth() {
             onClick={() => { setTab('login'); setError('') }}
             type="button"
           >
-            Login
+            {t('auth.login')}
           </button>
           <button
             className={`${styles.tab} ${tab === 'register' ? styles.tabActive : ''}`}
             onClick={() => { setTab('register'); setError('') }}
             type="button"
           >
-            Register
+            {t('auth.register')}
           </button>
           <button
             className={`${styles.tab} ${tab === 'guest' ? styles.tabActive : ''}`}
             onClick={() => { setTab('guest'); setError('') }}
             type="button"
           >
-            Guest
+            {t('auth.guest')}
           </button>
         </div>
 
         {tab === 'login' && (
           <form className={styles.card} onSubmit={handleLogin}>
-            <label className={styles.label} htmlFor="login-username">Username</label>
+            <label className={styles.label} htmlFor="login-username">{t('auth.username')}</label>
             <input
               id="login-username"
               className={styles.input}
               type="text"
-              placeholder="Enter username..."
+              placeholder={t('auth.usernameInputPlaceholder')}
               value={username}
               onChange={e => setUsername(e.target.value)}
               maxLength={30}
               autoFocus
               autoComplete="username"
             />
-            <label className={styles.label} htmlFor="login-password">Password</label>
+            <label className={styles.label} htmlFor="login-password">{t('auth.password')}</label>
             <input
               id="login-password"
               className={styles.input}
               type="password"
-              placeholder="Enter password..."
+              placeholder={t('auth.passwordInputPlaceholder')}
               value={password}
               onChange={e => setPassword(e.target.value)}
               autoComplete="current-password"
@@ -139,41 +141,41 @@ export default function Auth() {
               className={styles.primaryBtn}
               disabled={loading || !username.trim() || !password}
             >
-              {loading ? 'Logging in...' : 'Login'}
+              {loading ? t('auth.loggingIn') : t('auth.loginBtn')}
             </button>
           </form>
         )}
 
         {tab === 'register' && (
           <form className={styles.card} onSubmit={handleRegister}>
-            <label className={styles.label} htmlFor="reg-username">Username</label>
+            <label className={styles.label} htmlFor="reg-username">{t('auth.username')}</label>
             <input
               id="reg-username"
               className={styles.input}
               type="text"
-              placeholder="Choose a username..."
+              placeholder={t('auth.chooseUsername')}
               value={username}
               onChange={e => setUsername(e.target.value)}
               maxLength={30}
               autoFocus
               autoComplete="username"
             />
-            <label className={styles.label} htmlFor="reg-display">Display Name</label>
+            <label className={styles.label} htmlFor="reg-display">{t('auth.displayName')}</label>
             <input
               id="reg-display"
               className={styles.input}
               type="text"
-              placeholder="How others see you..."
+              placeholder={t('auth.displayNamePlaceholder')}
               value={displayName}
               onChange={e => setDisplayName(e.target.value)}
               maxLength={20}
             />
-            <label className={styles.label} htmlFor="reg-password">Password</label>
+            <label className={styles.label} htmlFor="reg-password">{t('auth.password')}</label>
             <input
               id="reg-password"
               className={styles.input}
               type="password"
-              placeholder="Choose a password..."
+              placeholder={t('auth.choosePassword')}
               value={password}
               onChange={e => setPassword(e.target.value)}
               autoComplete="new-password"
@@ -184,7 +186,7 @@ export default function Auth() {
               className={styles.primaryBtn}
               disabled={loading || !username.trim() || !password || !displayName.trim()}
             >
-              {loading ? 'Creating account...' : 'Register'}
+              {loading ? t('auth.registering') : t('auth.registerBtn')}
             </button>
           </form>
         )}
@@ -192,7 +194,7 @@ export default function Auth() {
         {tab === 'guest' && (
           <div className={styles.card}>
             <p className={styles.guestDescription}>
-              Play instantly without creating an account. Your stats will not be saved.
+              {t('auth.guestDescription')}
             </p>
             {error && <p className={styles.error}>{error}</p>}
             <button
@@ -201,20 +203,20 @@ export default function Auth() {
               disabled={loading}
               onClick={handleGuest}
             >
-              {loading ? 'Creating guest...' : 'Play as Guest'}
+              {loading ? t('auth.loadingGuest') : t('auth.guestBtn')}
             </button>
           </div>
         )}
 
-        <div className={styles.divider}><span>or</span></div>
+        <div className={styles.divider}><span>{t('auth.or')}</span></div>
 
         <Link to="/" className={styles.backLink}>
-          Continue without account
+          {t('auth.continueWithoutAccount')}
         </Link>
       </main>
 
       <footer className={styles.footer}>
-        <span>Built with React + TypeScript</span>
+        <span>{t('home.footer')}</span>
       </footer>
     </div>
   )

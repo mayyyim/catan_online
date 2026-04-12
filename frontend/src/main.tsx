@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import { initTheme } from './utils/theme'
+import './i18n'
 import './styles/global.css'
 
 initTheme()

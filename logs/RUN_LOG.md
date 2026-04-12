@@ -6,6 +6,41 @@
 ---
 
 日期：2026-04-11
+任务名称：排行榜/个人战绩前端 + 144项自动化测试 + 3个严重Bug修复
+Agent 名称：主控 Agent（直接执行）
+输入：继续完成未完成的 P3-02a/b（战绩+排行榜前端）、P3-13（自动化测试）、修复已知Bug
+输出：
+  - P3-02a/b 前端：Leaderboard + Profile 页面，3个 API 函数，3条路由 — commit: 4e69883
+  - P3-13 自动化测试：10个测试文件，144 个 test case，覆盖全部核心逻辑 — commit: 1bde105
+  - Bug 修复 x3 — commit: 9e3529f
+    - Bug1: Bot WS 断连时被从 waiting room 移除（根因：disconnect handler 没排除 bot）
+    - Bug2: stop_bot() 在 bot 自己 WS 连上时就被调用，杀掉 bot task（根因：没区分 bot 连接和人类重连）
+    - Bug3: passlib 1.7.4 + bcrypt 5.0 不兼容导致 auth 500（根因：Docker 安装了 bcrypt 5.x）
+
+验证方式：
+  - 第一层：pytest 144 passed, tsc --noEmit 0 errors
+  - 第二层：E2E 脚本验证 — 创建房间→加3 bot→等4秒→4 players存活 + 3 bots connected→auth 注册/登录→leaderboard API 全 PASS
+  - Docker rebuild 后重新验证
+
+发现的问题：
+  - Bot 加进房间后3秒内消失（WS disconnect handler 误删）
+  - Bot 连上就被自己杀掉（stop_bot 不区分 bot 连接和人类重连）
+  - Auth 注册 500（bcrypt 版本不兼容）
+  - 前两个 commit 只跑了静态检查就提交，bug 是后续手动测试才发现的
+
+置信度：92%（E2E 验证通过，Docker 重建后复验。setup 阶段 bot 自动对局未完整验证——bot 连上了但 setup 流程耗时超过测试超时时间）
+
+卡住了吗：小卡 — 不知道应用跑在 Docker 里，先试本地启动失败，绕了 20 分钟
+
+教训：
+  1. 单元测试全绿不等于功能正常，提交前必须跑 E2E 冒烟测试
+  2. 开始任务前先摸底运行环境（Docker/本地/端口占用），5分钟能省 20 分钟
+  3. 发现 bug 后先写最小复现脚本，再读代码找根因，不要边猜边改
+  4. 已更新军团工作流：新增「验证三层」「环境摸底清单」「Bug 定位流程」
+
+---
+
+日期：2026-04-11
 任务名称：发展卡系统完整实现 + 智能放置高亮 + 玩家信息面板 + 动效
 Agent 名称：Backend API Developer + Frontend Developer（并行）
 输入：实现完整发展卡系统（25张5种效果+最大骑士团）、修复放置高亮、加玩家面板和回合指示器
