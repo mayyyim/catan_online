@@ -56,6 +56,63 @@ class InfeasibleMap(Exception):
     pass
 
 
+# Per-map tile budget. Catan classic is 19, but country silhouettes need more
+# resolution: Italy's boot, Japan's archipelago, China's outline cannot fit
+# in 19-24 hexes. Cap is 60 to keep games playable. Targets are picked per
+# country shape complexity. Anything not listed falls back to 19 (std) or 37 (XL).
+PER_MAP_BUDGET: Dict[str, int] = {
+    # S: small / simple shapes 20-28
+    "korea": 22,
+    "vietnam": 24,
+    "new_zealand": 26,
+    "uk": 28,
+    "italy": 28,
+    "japan": 30,
+    "antarctica": 24,
+    # M: medium 30-45
+    "france": 36,
+    "germany": 32,
+    "spain": 34,
+    "egypt": 32,
+    "turkey": 32,
+    "indonesia": 40,
+    "mexico": 32,
+    "scandinavia": 38,
+    "south_africa": 30,
+    "argentina": 38,
+    "europe": 44,
+    # L: big countries 46-60
+    "china": 56,
+    "usa": 52,
+    "russia": 58,
+    "canada": 54,
+    "india": 46,
+    "brazil": 52,
+    "australia": 48,
+    # XL composites
+    "africa_xl": 60,
+    "eurasia_xl": 60,
+    "americas_xl": 60,
+}
+
+# Maps whose silhouette REQUIRES multiple disconnected island groups.
+# For these the rasterizer skips component compaction (which would glue all
+# islands into one blob) and skips the anchor-based stub placement (which
+# would drop tiny islands onto the mainland coast).
+MULTI_ISLAND_MAPS: Set[str] = {
+    "japan",
+    "uk",
+    "indonesia",
+    "new_zealand",
+    "china",
+    "italy",
+    "scandinavia",
+    "philippines",
+}
+
+MAX_BUDGET = 60
+
+
 # ---------------------------------------------------------------------------
 # Loading & geometry primitives
 # ---------------------------------------------------------------------------
@@ -290,18 +347,30 @@ def _find_connected_components(hexes: List[HexCoord]) -> List[List[HexCoord]]:
     return components
 
 
-def _fill_interior_voids(hexes: List[HexCoord], min_neighbors: int = 3) -> List[HexCoord]:
+def _fill_interior_voids(
+    hexes: List[HexCoord],
+    min_neighbors: int = 4,
+    max_growth_ratio: float = 0.20,
+) -> List[HexCoord]:
     """Fill empty hexes that have >= min_neighbors filled axial neighbors.
 
-    This closes single-hex and small multi-hex holes left by the polygon
-    rasterizer when the polygon boundary clips through a hex center even
-    though the hex is visually surrounded by land. Iterates until stable.
+    Closes single-hex and small multi-hex holes from polygon rasterizer
+    artifacts. Two safety guards prevent ballooning narrow shapes into disks:
+      - min_neighbors=4 (was 3) — only fill hexes nearly surrounded by land,
+        so concavities like Italy's boot toe stay concave.
+      - max_growth_ratio — abort if total fill exceeds this fraction of the
+        original tile count. A circular blob inflation hits this limit fast.
     """
     if not hexes:
         return hexes
+    original_count = len(hexes)
+    max_additions = max(2, int(original_count * max_growth_ratio))
     hs: Set[HexCoord] = set(hexes)
     result: List[HexCoord] = list(hexes)
+    added = 0
     for _ in range(20):  # bounded; convergence typically in 2-3 passes
+        if added >= max_additions:
+            break
         qmin = min(q for q, _ in hs) - 1
         qmax = max(q for q, _ in hs) + 1
         rmin = min(r for _, r in hs) - 1
@@ -317,8 +386,11 @@ def _fill_interior_voids(hexes: List[HexCoord], min_neighbors: int = 3) -> List[
         if not additions:
             break
         for h in additions:
+            if added >= max_additions:
+                return result
             hs.add(h)
             result.append(h)
+            added += 1
     return result
 
 
@@ -515,14 +587,18 @@ def _filter_polygons(polygons: List[dict], max_parts: int) -> List[dict]:
     return near
 
 
-def rasterize(polygon_data: dict, target_tiles: int) -> List[HexCoord]:
+def rasterize(polygon_data: dict, target_tiles: int, multi_island: bool = False) -> List[HexCoord]:
     polygons = polygon_data["polygons"]
-    # Keep only the largest polygon parts. For standard maps allow up to 6 islands,
-    # for XL allow up to 10. This prevents countries with many tiny islands
-    # (UK has dozens of tiny islets, Europe has 60 countries) from blowing
-    # the tile budget via _ensure_island_min fallback.
+    # Keep only the largest polygon parts. Multi-island maps need more parts
+    # (Indonesia, Japan, UK), XL maps may stitch sub-continents, single-mainland
+    # countries get a tighter cap to suppress tiny islets.
     size = polygon_data.get("size", "standard")
-    max_parts = 10 if size == "xl" else 3
+    if size == "xl":
+        max_parts = 10
+    elif multi_island:
+        max_parts = 8
+    else:
+        max_parts = 3
     polygons = _filter_polygons(polygons, max_parts)
     bbox = _polygon_bbox(polygons)
     # bbox diagonal gives initial scale estimate.
@@ -548,7 +624,11 @@ def rasterize(polygon_data: dict, target_tiles: int) -> List[HexCoord]:
             isl = islands[i]
             poly = polygons[i]
             cc = _largest_connected_component(isl) if isl else []
-            cc = _ensure_island_min(cc, poly, mid, anchor=anchor_hexes or None)
+            # For multi-island maps, never glue tiny stubs onto the mainland —
+            # let them sit at their natural geographic position so Taiwan reads
+            # as Taiwan, not "extra hex on the China coast".
+            anchor = None if multi_island else (anchor_hexes or None)
+            cc = _ensure_island_min(cc, poly, mid, anchor=anchor)
             processed_by_idx[i] = cc
             if len(cc) > len(anchor_hexes):
                 anchor_hexes = list(cc)
@@ -582,32 +662,45 @@ def rasterize(polygon_data: dict, target_tiles: int) -> List[HexCoord]:
     best = deduped
 
     # Step B: pull every disjoint CC toward the mainland so the final map is
-    # a single connected component (no more huge voids between islands).
-    best = _compact_components(best)
+    # a single connected component (skipped for multi-island maps where the
+    # whole point is preserving disconnected islands like Japan/UK/Indonesia).
+    if not multi_island:
+        best = _compact_components(best)
 
-    # Step B2: fill interior voids. Any empty hex whose axial neighbors are
-    # mostly filled (>=3) is almost certainly a rasterization artifact — the
-    # polygon's border clipped through its center even though it's visually
-    # surrounded by land. Iterate until no more voids (bounded).
+    # Step B2: fill interior voids — closes single-hex rasterization holes
+    # while staying bounded by max_growth_ratio so narrow shapes don't bloat.
     best = _fill_interior_voids(best)
 
-    # Enforce tile-count budget. Standard 16–24, XL 36–45. If we overshoot
-    # after compaction, trim from the smallest leaf hexes of the smallest
-    # peripheral components first (we already single-CC'd, so just drop the
-    # hexes farthest from the centroid).
-    size = polygon_data.get("size", "standard")
-    upper = 45 if size == "xl" else 24
+    # Enforce hard upper budget. Per-map target is the soft target; MAX_BUDGET
+    # is the absolute ceiling so games stay playable.
+    upper = MAX_BUDGET
     if len(best) > upper:
-        cq = sum(q for q, _ in best) / len(best)
-        cr = sum(r for _, r in best) / len(best)
-        best_sorted = sorted(
-            best,
-            key=lambda h: ((h[0] - cq) ** 2 + (h[1] - cr) ** 2),
-        )
-        best = best_sorted[:upper]
-        # Re-run compaction in case trimming split the component.
-        best = _compact_components(best)
-        best = _fill_interior_voids(best)
+        if multi_island:
+            # Trim from the LARGEST component only — preserve small islands
+            # (Taiwan, Sicily, Hokkaido) which are the silhouette signal.
+            components = _find_connected_components(best)
+            components.sort(key=len, reverse=True)
+            big = components[0]
+            small_total = sum(len(c) for c in components[1:])
+            keep_big = max(1, upper - small_total)
+            bcq = sum(q for q, _ in big) / len(big)
+            bcr = sum(r for _, r in big) / len(big)
+            big_sorted = sorted(
+                big, key=lambda h: ((h[0] - bcq) ** 2 + (h[1] - bcr) ** 2)
+            )
+            new_big = big_sorted[:keep_big]
+            best = new_big + [h for c in components[1:] for h in c]
+            best = _fill_interior_voids(best)
+        else:
+            cq = sum(q for q, _ in best) / len(best)
+            cr = sum(r for _, r in best) / len(best)
+            best_sorted = sorted(
+                best,
+                key=lambda h: ((h[0] - cq) ** 2 + (h[1] - cr) ** 2),
+            )
+            best = best_sorted[:upper]
+            best = _compact_components(best)
+            best = _fill_interior_voids(best)
 
     # Recenter around (0, 0).
     if best:
@@ -857,15 +950,23 @@ def build_map(slug: str, seed: Optional[int] = None) -> MapData:
     if seed is None:
         seed = sum(ord(c) for c in data.get("slug", slug)) * 101
     size = data.get("size", "standard")
-    target = 37 if size == "xl" else 19
-    hexes = rasterize(data, target)
-    # A10 hard gate: final map MUST be a single connected component.
-    cc = _largest_connected_component(hexes)
-    if len(cc) != len(hexes):
-        raise InfeasibleMap(
-            f"{slug}: map is not a single connected component "
-            f"({len(cc)}/{len(hexes)} tiles in largest CC)"
-        )
+    multi_island = slug in MULTI_ISLAND_MAPS
+    target = PER_MAP_BUDGET.get(slug, 37 if size == "xl" else 19)
+    hexes = rasterize(data, target, multi_island=multi_island)
+    # Connectivity gate: single-island maps must be one CC. Multi-island maps
+    # are allowed multiple CCs by design (Japan's four islands, UK + Ireland,
+    # China + Taiwan + Hainan), but each component must be non-empty.
+    if not multi_island:
+        cc = _largest_connected_component(hexes)
+        if len(cc) != len(hexes):
+            raise InfeasibleMap(
+                f"{slug}: map is not a single connected component "
+                f"({len(cc)}/{len(hexes)} tiles in largest CC)"
+            )
+    else:
+        components = _find_connected_components(hexes)
+        if not components or any(len(c) == 0 for c in components):
+            raise InfeasibleMap(f"{slug}: empty island component")
     terrain = assign_terrain(hexes, data.get("biome_hints"), seed)
     desert_hexes = {h for h, t in terrain.items() if t == TileType.DESERT}
     tokens = place_tokens(hexes, desert_hexes, seed)
