@@ -52,6 +52,15 @@
 
 ### 2026-04-12
 
+- [x] **28 国家/大陆地图形状重设计** — commit d8b3433 + 后续
+  - Phase 1（9 iconic maps）：italy/uk/japan/australia/france/korea/indonesia/new_zealand/brazil
+  - Phase 2（19 maps）：china/usa/india/egypt/canada/russia/germany/spain/mexico + europe/scandinavia/turkey/vietnam/argentina/south_africa/antarctica + 3 XL（africa_xl/eurasia_xl/americas_xl）
+  - 新增可视化工具：scripts/render_maps_png.py（matplotlib 渲染每张地图到 PNG）
+  - 军团协作：Musk（第一性原理审查）+ Senior PM（tracker）+ 3 Backend agents（并行批量执行）
+  - 所有 28 个地图现在形状明显，独立岛屿（Sicily/Ireland/Tasmania/Jeju/Taiwan/Madagascar/Newfoundland 等）有清晰海洋间隔
+  - 端口全部在真实海岸线上
+  - 验证：144 pytest passed, e2e_smoke 14/14 passed
+
 - [x] **P3-09 国际化 (i18n)** — commit 93ae3a9
   - i18next + react-i18next infrastructure
   - 英文 + 中文两套完整 locale (270 keys 完全同步)

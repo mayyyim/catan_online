@@ -232,8 +232,8 @@ def europe_map() -> MapData:
     # Scandinavia N, British Isles NW (separate), Eastern Europe E, Balkans/Greece SE.
     tiles = [
         # --- British Isles (SEPARATE islands; sea gap at q=-3 and q=-1) ---
-        _tile(-4,  1, "forest",    9),   # Ireland N (Ulster)
-        _tile(-4,  2, "pasture",  11),   # Ireland S (Munster, sheep)
+        _tile(-4,  0, "forest",    9),   # Ireland N (Ulster)
+        _tile(-4,  1, "pasture",  11),   # Ireland S (Munster, sheep)
         _tile(-2, -1, "mountains", 2),   # Scotland Highlands
         _tile(-2,  0, "hills",    10),   # N England (coal, Pennines)
         _tile(-2,  1, "fields",    4),   # S England (London basin)
@@ -267,8 +267,8 @@ def europe_map() -> MapData:
         _tile( 4, -1, "mountains", 2),   # Caucasus / S Russia
     ]
     ports = [
-        _port(-4,  1, ratio=3),          # NW — Atlantic (Ireland W)
-        _port(-4,  2, "sheep"),          # Ireland — wool export
+        _port(-4,  0, ratio=3),          # NW — Atlantic (Ireland W)
+        _port(-4,  1, "sheep"),          # Ireland — wool export
         _port(-2, -1, ratio=3),          # N Sea (Scotland)
         _port( 1, -3, ratio=3),          # N — Arctic Norway
         _port( 0,  2, "wheat"),          # SW — Iberia (grain)
@@ -1381,42 +1381,46 @@ def turkey_map() -> MapData:
 # ---------------------------------------------------------------------------
 
 def vietnam_map() -> MapData:
+    # Extremely elongated N→S country with a slight S-curve.
+    # Narrow column (q span only 2-3) but very tall (r span ~8).
+    # NW highlands at top, narrow waist at Da Nang, Mekong widens at S.
     tiles = [
-        # N Vietnam: NW mountains + Red River Delta  (r=-3)
-        _tile(-1,-3, "mountains", 9),   # NW Vietnam (Sapa / Fansipan 3143m — highest peak)
-        _tile( 0,-3, "fields",    8),   # Red River Delta (Hanoi — intensive rice!)
-        _tile( 1,-3, "forest",    6),   # Gulf of Tonkin coast / Quảng Ninh
-        # N-Central (r=-2)
-        _tile(-1,-2, "mountains", 4),   # NW highlands (Điện Biên Phủ — famous battle site)
-        _tile( 0,-2, "forest",    3),   # N highland forests (bamboo / tropical)
-        _tile( 1,-2, "hills",     5),   # N-C coast hills (Thanh Hóa)
-        # Central — Annamite spine begins  (r=-1)
-        _tile(-1,-1, "mountains",10),   # Annamite Range (Trường Sơn, steep & forested)
-        _tile( 0,-1, "hills",    11),   # Central coast plain (Huế — ancient capital)
-        _tile( 1,-1, "forest",    2),   # Central Highlands N / coastal forest
-        # Narrow waist — Da Nang  (r=0)
-        _tile( 0, 0, "hills",     9),   # Đà Nẵng coast (famous Marble Mountains)
-        _tile( 1, 0, "mountains", 6),   # Central Highlands (Kon Tum, Đà Lạt plateau)
-        _tile( 2, 0, "forest",    5),   # S Central forests (coffee growing region!)
-        # S Central  (r=1)
-        _tile( 1, 1, "hills",     4),   # Nha Trang / Bình Định coast
-        _tile( 2, 1, "forest",   11),   # S Highlands (coffee, rubber — major export!)
-        # Mekong approach  (r=2)
-        _tile( 2, 2, "fields",   12),   # Mekong Delta approach (rice paddies)
-        _tile( 3, 1, "pasture",   3),   # S Vietnam plains (Đồng Nai)
-        # Mekong Delta  (r=3)
-        _tile( 2, 3, "fields",    8),   # Mekong Delta (Cần Thơ — 2nd largest rice delta!)
-        _tile( 3, 2, "hills",    10),   # SE Vietnam coast (Vũng Tàu oil coast)
-        _tile( 3, 3, "hills",     4),   # Cà Mau peninsula (S tip — mangroves)
+        # --- Far N: NW highlands + Red River Delta + Tonkin (r=-3) ---
+        _tile(-1, -3, "mountains", 9),   # Sapa / Fansipan (highest peak 3143m)
+        _tile( 0, -3, "fields",    8),   # Red River Delta — Hanoi (rice!)
+        _tile( 1, -3, "hills",     6),   # Gulf of Tonkin coast / Hạ Long / Quảng Ninh
+        # --- N highlands / Dien Bien (r=-2) ---
+        _tile(-1, -2, "mountains", 4),   # NW highlands (Điện Biên Phủ)
+        _tile( 0, -2, "forest",    3),   # N bamboo forest (tropical mountain)
+        # --- Annamite spine begins / N-Central coast (r=-1) ---
+        _tile(-1, -1, "mountains",10),   # Annamite Range (Trường Sơn)
+        _tile( 0, -1, "hills",    11),   # Huế central coast (ancient capital)
+        # --- Narrow waist — Da Nang (r=0) ---
+        _tile( 0,  0, "hills",     5),   # Đà Nẵng (Marble Mountains, narrowest!)
+        _tile( 1,  0, "mountains", 6),   # Central Highlands (Kon Tum / Đà Lạt)
+        # --- S-Central (r=1) — coffee belt ---
+        _tile( 0,  1, "forest",    9),   # S-Central forest (coastal pine)
+        _tile( 1,  1, "forest",    2),   # S Highlands coffee + rubber (major export!)
+        # --- S widens for Mekong basin (r=2) ---
+        _tile(-1,  2, "fields",   12),   # Mekong Delta NW approach
+        _tile( 0,  2, "pasture",   4),   # Đồng Nai plains (Saigon hinterland)
+        _tile( 1,  2, "hills",    11),   # Phan Thiết / Mũi Né coast
+        # --- Mekong Delta proper (r=3) ---
+        _tile(-1,  3, "fields",    8),   # Mekong Delta (Cần Thơ — 2nd largest delta!)
+        _tile( 0,  3, "fields",   10),   # Mekong Delta center (Mỹ Tho)
+        _tile( 1,  3, "hills",     5),   # SE coast (Vũng Tàu oil coast)
+        # --- S tip — Cà Mau peninsula (r=4) ---
+        _tile(-1,  4, "hills",     3),   # Cà Mau peninsula (S tip)
+        _tile( 0,  4, "forest",   12),   # S mangroves (U Minh forest)
     ]
     ports = [
-        _port( 1,-3, ratio=3),           # N  — Gulf of Tonkin (Hải Phòng port)
-        _port( 1,-2, ratio=3),           # NC — N-C coast
-        _port( 0,-1, ratio=3),           # C  — Đà Nẵng / central coast
-        _port( 1, 1, ratio=3),           # SC — Nha Trang (fishing / tourism)
-        _port( 2, 2, "wheat"),           # S  — Mekong Delta (rice export!)
-        _port( 3, 3, ratio=3),           # S  — Cà Mau (S tip fishing coast)
-        _port( 0,-3, "wood"),            # NW — Hanoi river port (timber upstream)
+        _port( 1, -3, ratio=3),          # N  — Gulf of Tonkin (Hải Phòng)
+        _port( 0, -3, "wood"),           # NW — Hanoi river port (timber upstream)
+        _port( 0, -1, ratio=3),          # C  — Huế / central coast
+        _port( 1,  1, ratio=3),          # SC — Nha Trang (fishing / tourism)
+        _port( 1,  2, ratio=3),          # SC — Phan Thiết coast
+        _port(-1,  3, "wheat"),          # S  — Mekong Delta (rice export!)
+        _port( 0,  4, ratio=3),          # S  — Cà Mau (mangrove fishing coast)
     ]
     return MapData(map_id="vietnam", tiles=tiles, ports=ports)
 
