@@ -112,10 +112,17 @@ def edges_of_vertex(vk: VertexKey) -> List[EdgeKey]:
 
 
 def vertices_of_edge(ek: EdgeKey) -> List[VertexKey]:
-    """Return the 2 endpoint vertices of an edge."""
+    """Return the 2 endpoint vertices of an edge.
+
+    With corner 0 = right going clockwise and HEX_DIRECTIONS[i] giving the
+    neighbor offset for side i, the edge shared with that neighbor connects
+    corners (6-i)%6 and (7-i)%6. The earlier (i, i+1) mapping was only
+    correct for sides 0 and 3, silently breaking setup road adjacency on
+    all other sides.
+    """
     q, r, side = ek
-    c1 = side
-    c2 = (side + 1) % 6
+    c1 = (6 - side) % 6
+    c2 = (7 - side) % 6
     return [canonical_vertex(q, r, c1), canonical_vertex(q, r, c2)]
 
 

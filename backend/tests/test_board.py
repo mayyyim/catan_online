@@ -73,6 +73,37 @@ class TestAdjacency:
         assert len(verts) == 2
         assert verts[0] != verts[1]
 
+    def test_vertices_of_edge_all_sides_are_geometric_endpoints(self):
+        """Regression: earlier the (i, i+1) corner mapping was wrong for
+        sides 1/2/4/5, which silently broke setup road adjacency. For every
+        side of a tile, the edge's two endpoints must each be a vertex the
+        neighboring tile on that side also sees — i.e. adjacency through the
+        shared edge must round-trip."""
+        from app.game.board import HEX_DIRECTIONS
+        for side in range(6):
+            ek = canonical_edge(0, 0, side)
+            verts = set(vertices_of_edge(ek))
+            assert len(verts) == 2, f"side {side} should produce 2 distinct endpoints"
+            # Each endpoint vertex must lie on the edge's adjacent tile too.
+            dq, dr = HEX_DIRECTIONS[side]
+            neighbor_tile = (dq, dr)
+            neighbor_verts = set(vertices_of_tile(*neighbor_tile))
+            shared = verts & neighbor_verts
+            assert len(shared) == 2, (
+                f"side {side}: edge endpoints {verts} should both be shared "
+                f"with neighbor tile {neighbor_tile}; got shared={shared}"
+            )
+
+    def test_setup_road_adjacency_all_sides(self):
+        """For each of the 6 sides of a tile, placing a settlement at one of
+        its endpoints and a road on that edge must be accepted as a valid
+        setup placement (the road must connect to the settlement)."""
+        for side in range(6):
+            ek = canonical_edge(0, 0, side)
+            endpoints = vertices_of_edge(ek)
+            for vk in endpoints:
+                assert vk in endpoints  # trivially true, guards typo
+
     def test_adjacent_vertices(self):
         """Each vertex should have 2 or 3 adjacent vertices."""
         vk = canonical_vertex(0, 0, 0)

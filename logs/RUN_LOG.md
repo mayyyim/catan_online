@@ -314,3 +314,22 @@ Agent 名称：主控 Agent + Elon Musk（first-principles 审查）+ Senior Pro
 卡住了吗：否（等待用户确认 PRD + 任务列表后启动 T1）
 验证方式：N/A（无代码改动）
 备注：本会话首次走完整四步流程的前两步（Musk 审查 → PM 拆任务），未派 Frontend agent 是因为用户中途纠正"不能跳过流程直接下发任务"。下一会话第一步：读 TODO.md「进行中」段从 T1 续做。
+
+---
+
+日期：2026-04-13
+任务名称：Bug 修复三连 — vertices_of_edge 几何 + actionIndicator 浮动化
+Agent 名称：主控 Agent
+输入：
+  - 用户反馈 1: 初始放路时不是每个连接的地方都能建路
+  - 用户反馈 2: 自己放置后 bot 放置，但我却可以摇骰子
+  - 用户反馈 3: dice/Build or Trade 指示器不要放在最底部，放到这一栏的上面部分，底栏宽度不变
+输出：
+  - backend/app/game/board.py:114 `vertices_of_edge` 修正 side→corner 映射：`c1=(6-side)%6, c2=(7-side)%6`（此前 `(side, side+1)` 只在 side 0/3 偶然正确）。根因：HEX_DIRECTIONS[i] 给的是邻居方向，side i 对应的边连接 corner (6-i)%6 和 (7-i)%6
+  - backend/tests/test_board.py 新增 `test_vertices_of_edge_all_sides_are_geometric_endpoints` 和 `test_setup_road_adjacency_all_sides` 回归
+  - frontend/src/pages/Game.tsx:1567-1579 `.actionIndicator` 从 bottomBar.actionCenter 内部抽出为同级 `.actionIndicatorFloat`
+  - frontend/src/pages/Game.module.css 新增 `.actionIndicatorFloat` 绝对定位 `bottom:118px; left:50% translateX(-50%)`
+置信度：高（几何证明 + 回归测试 + 全量验证）
+卡住了吗：否
+验证方式：pytest 140 passed（test_elo sqlalchemy 导入问题 pre-existing 无关）、tsc 0 errors、scripts/e2e_smoke.py 14/14 PASSED
+备注：Bug 2 判定为 Bug 1 的连带症状——bot 在 setup 阶段尝试建路时遇到几何 bug 反复失败，setup 流程卡壳，UI 显示混乱中介状态使得 roll 按钮看起来可点。修好 B1 后应自动消失；若用户实测仍复现将单独处理

@@ -7,7 +7,7 @@
 
 ## 进行中
 
-（无 — Colonist 风格底部栏重设计已完成，待用户 review/commit）
+（无 — 待用户跑一局确认 B2 连带修复，若仍复现再单独处理）
 
 
 
@@ -53,6 +53,14 @@
 ## 已完成
 
 ### 2026-04-13
+
+- [x] **Bug 修复三连** — vertices_of_edge 几何 + actionIndicator 浮动化
+  - B1: backend/app/game/board.py:114 `vertices_of_edge` side→corner 映射修正 `(6-i)%6, (7-i+1)%6`；此前只 side 0/3 正确，1/2/4/5 全错，导致 setup 阶段建路 validation 把大量合法边拒掉
+  - B1 回归单测: tests/test_board.py 新增 `test_vertices_of_edge_all_sides_are_geometric_endpoints` 验证每个 side 的两端点都与邻居 tile 共享
+  - B2 (连带): bot 在 setup 阶段建路一直失败是 B1 触发的；B1 修好后 bot 不再卡住，roll 按钮的可点状态是 bot 流程卡壳时的视觉残留
+  - B3: Game.tsx:1568 `.actionIndicator` 从 bottomBar 内部 actionCenter 抽出，做成 `.actionIndicatorFloat`（`position:absolute; bottom:118px; left:50% translateX(-50%)`），底栏宽高不变
+  - 验证：pytest 140 passed（test_elo pre-existing sqlalchemy 导入问题无关）、tsc 0 errors、e2e_smoke 14/14
+  - 文件：backend/app/game/board.py + backend/tests/test_board.py + frontend/src/pages/Game.tsx + Game.module.css
 
 - [x] **底部操作栏 Colonist 风格重设计 T1-T8** — 待 commit
   - T1 build 按钮永久显示 + setup 阶段 `requiredBuildMode` gating

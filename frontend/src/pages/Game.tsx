@@ -1564,19 +1564,21 @@ export default function Game() {
           )}
         </div>
 
-        {/* Center: action indicator + buttons */}
-        <div className={styles.actionCenter}>
-          <div className={`${styles.actionIndicator} ${isMyTurn ? styles.actionIndicatorYou : ''}`}>
-            <div className={styles.diceArea}>
-              <DiceDisplay dice={game?.lastDiceRoll} rolling={rolling} />
-            </div>
-            <span className={styles.actionLabel}>{actionLabelText}</span>
-            {turnTimerRemaining != null && (
-              <span className={`${styles.actionTimer} ${turnTimerRemaining <= 10 ? styles.actionTimerLow : ''}`}>
-                {String(Math.floor(turnTimerRemaining / 60)).padStart(2, '0')}:{String(turnTimerRemaining % 60).padStart(2, '0')}
-              </span>
-            )}
+        {/* Action indicator — floats above the bottom bar so its height doesn't push the bar taller */}
+        <div className={`${styles.actionIndicatorFloat} ${isMyTurn ? styles.actionIndicatorYou : ''}`}>
+          <div className={styles.diceArea}>
+            <DiceDisplay dice={game?.lastDiceRoll} rolling={rolling} />
           </div>
+          <span className={styles.actionLabel}>{actionLabelText}</span>
+          {turnTimerRemaining != null && (
+            <span className={`${styles.actionTimer} ${turnTimerRemaining <= 10 ? styles.actionTimerLow : ''}`}>
+              {String(Math.floor(turnTimerRemaining / 60)).padStart(2, '0')}:{String(turnTimerRemaining % 60).padStart(2, '0')}
+            </span>
+          )}
+        </div>
+
+        {/* Center: action buttons */}
+        <div className={styles.actionCenter}>
           <div className={styles.actionBtns}>
             {(() => {
               const wood = myResources.wood ?? 0
