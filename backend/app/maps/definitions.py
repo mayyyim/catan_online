@@ -31,12 +31,11 @@ def _cached_builder(slug: str) -> Callable[[], MapData]:
 # All 28 supported map slugs. Keep order stable for /maps API output.
 _SLUGS = [
     # Standard maps (25)
-    "china", "japan", "usa", "europe", "uk",
+    "china", "czech_republic", "japan", "usa", "europe", "uk",
     "australia", "brazil", "antarctica", "india", "canada",
     "russia", "egypt", "mexico", "korea", "indonesia",
     "new_zealand", "france", "germany", "argentina", "south_africa",
     "italy", "scandinavia", "spain", "turkey", "vietnam",
-    "czech_republic",
     # XL maps (3)
     "africa_xl", "eurasia_xl", "americas_xl",
 ]
