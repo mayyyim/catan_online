@@ -296,3 +296,21 @@ Agent 名称：Backend API Developer
 - `frontend/src/pages/Room.module.css`: Added `.botRow` and `.botSelect` styles.
 
 **Verification**: Python `py_compile` pass (all 4 files), `npx tsc --noEmit` pass (0 errors).
+
+---
+
+日期：2026-04-13
+任务名称：底部操作栏 Colonist 风格重设计 — 规划阶段（PRD + 任务拆分）
+Agent 名称：主控 Agent + Elon Musk（first-principles 审查）+ Senior Project Manager（任务拆分）
+输入：
+  - 用户截图 ×2（当前 Game 页面 + Colonist.io 参考底栏）
+  - 需求："底部高度因为新的小窗口高度不一样而变化"，要求底部固定高度，所有 build/buy 按钮常驻（亮/灰），点资源卡开 Player Trade popover
+输出：
+  - 现状摸底：Game.tsx:1641 .bottomBar / 1677-1701 buildStrip 条件渲染 / 1178 floatingPanels（bottom:96px 绝对定位，含 Dev Cards + Bank Trade panel 常驻）—— 定位高度跳动根因
+  - Musk 审查结论：保留固定高度 + always-render 按钮策略；删 End Turn 图标化（保持大且醒目）；新增 setup phase gating（免费房不走资源判定）+ 键盘快捷键 R/S/C/D/Space。点资源卡开交易 + Dev popover 按用户明确要求保留
+  - Senior PM 拆 8 个 30-60min 子任务（T1-T8），写入 logs/TODO.md「进行中」段
+  - 触达文件范围：仅 frontend/src/pages/Game.tsx + Game.module.css
+置信度：中（规划完成，未开始编码；用户尚未拍板执行）
+卡住了吗：否（等待用户确认 PRD + 任务列表后启动 T1）
+验证方式：N/A（无代码改动）
+备注：本会话首次走完整四步流程的前两步（Musk 审查 → PM 拆任务），未派 Frontend agent 是因为用户中途纠正"不能跳过流程直接下发任务"。下一会话第一步：读 TODO.md「进行中」段从 T1 续做。

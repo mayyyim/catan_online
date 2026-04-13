@@ -199,7 +199,7 @@ export default function Game() {
   const [playersToDiscard, setPlayersToDiscard] = useState<string[]>([])
   const [robberStealTargets, setRobberStealTargets] = useState<string[]>([])
   const [discardSelection, setDiscardSelection] = useState<Record<string, number>>({})
-  const [tradeOpen, setTradeOpen] = useState(false)
+  const [, setTradeOpen] = useState(false)
   const [tradeOffer, setTradeOffer] = useState<Record<string, number>>({})
   const [tradeWant, setTradeWant] = useState<Record<string, number>>({})
 
@@ -1009,28 +1009,35 @@ export default function Game() {
         return
       }
 
-      if (key === 'r' && isMyTurn && turnPhase === 'pre_roll' && !isSetupPhase) {
-        handleRollDice()
-        return
-      }
-
-      if (key === 'e' && isMyTurn && turnPhase === 'post_roll' && !isSetupPhase) {
-        handleEndTurn()
-        return
-      }
-
-      if (key === '1' && !isSetupPhase) {
+      // R = road, S = settlement, C = city, D = buy dev card, Space = end turn
+      if (key === 'r' && !isSetupPhase) {
         toggleBuildMode('road')
         return
       }
 
-      if (key === '2' && !isSetupPhase) {
+      if (key === 's' && !isSetupPhase) {
         toggleBuildMode('settlement')
         return
       }
 
-      if (key === '3' && !isSetupPhase) {
+      if (key === 'c' && !isSetupPhase) {
         toggleBuildMode('city')
+        return
+      }
+
+      if (key === 'd' && isMyTurn && turnPhase === 'post_roll' && !isSetupPhase) {
+        handleBuyDevCard()
+        return
+      }
+
+      if ((key === ' ' || key === 'spacebar') && isMyTurn && turnPhase === 'post_roll' && !isSetupPhase) {
+        e.preventDefault()
+        handleEndTurn()
+        return
+      }
+
+      if (key === 'e' && isMyTurn && turnPhase === 'pre_roll' && !isSetupPhase) {
+        handleRollDice()
         return
       }
 
@@ -1041,7 +1048,27 @@ export default function Game() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isMyTurn, turnPhase, isSetupPhase, handleRollDice, handleEndTurn, toggleBuildMode, selectVertex, selectEdge])
+  }, [isMyTurn, turnPhase, isSetupPhase, handleRollDice, handleEndTurn, handleBuyDevCard, toggleBuildMode, selectVertex, selectEdge])
+
+  // Bottom-bar popovers (Dev Cards / Trade)
+  const [devPopoverOpen, setDevPopoverOpen] = useState(false)
+  const [tradePopoverOpen, setTradePopoverOpen] = useState<false | 'bank' | 'player'>(false)
+
+  // Click outside to close popovers
+  useEffect(() => {
+    if (!devPopoverOpen && !tradePopoverOpen) return
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      if (target.closest('[data-popover]')) return
+      // Don't close when clicking the buttons that toggle the popovers
+      if (target.closest('[data-popover-trigger]')) return
+      setDevPopoverOpen(false)
+      setTradePopoverOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [devPopoverOpen, tradePopoverOpen])
 
   // P2-06: Turn timer countdown
   useEffect(() => {
@@ -1097,7 +1124,7 @@ export default function Game() {
                       ? 'Choose a resource'
                       : String(turnPhase)
 
-  // Tab state for log/chat
+  // Tab state for log/chat (NB: these are after an early return above — pre-existing pattern)
   const [activeTab, setActiveTab] = useState<'log' | 'chat'>('log')
 
   return (
@@ -1278,140 +1305,6 @@ export default function Game() {
           <div className={`${styles.panel} ${styles.yopPanel}`}>
             <p className={styles.panelTitle}>{t('game.panels.roadBuilding')}</p>
             <p className={styles.roadBuildingHint}>Place 2 free roads on the map.</p>
-          </div>
-        )}
-
-        {/* Dev Cards */}
-        {(devCards.length > 0 || canTrade) && (
-          <div className={styles.panel}>
-            <button type="button" className={styles.devPanelToggle} onClick={() => {}}>
-              <span>Dev Cards ({devCards.length})</span>
-            </button>
-            <div className={styles.devCardList}>
-              {devCards.map((card, i) => {
-                const isVP = card.card_type === 'victory_point'
-                const isKnight = card.card_type === 'knight'
-                const boughtThisTurn = card.bought_on_turn === currentTurn
-                const knightPlayable = isKnight && !devCardPlayed && !boughtThisTurn && isMyTurn && (turnPhase === 'pre_roll' || turnPhase === 'post_roll')
-                const normalPlayable = !isKnight && !isVP && !devCardPlayed && !boughtThisTurn && isMyTurn && turnPhase === 'post_roll'
-                const canPlay = isVP ? false : isKnight ? knightPlayable : normalPlayable
-                const CARD_ICONS: Record<string, string> = { knight: '🗡️', victory_point: '🏆', year_of_plenty: '🌽', monopoly: '💰', road_building: '🛤️' }
-                const CARD_LABELS: Record<string, string> = { knight: 'Knight', victory_point: 'Victory Point', year_of_plenty: 'Year of Plenty', monopoly: 'Monopoly', road_building: 'Road Building' }
-                return (
-                  <div key={i} className={`${styles.devCardItem} ${canPlay ? styles.playable : ''}`}>
-                    <span className={styles.devCardIcon}>{CARD_ICONS[card.card_type] ?? '?'}</span>
-                    <span className={styles.devCardName}>{CARD_LABELS[card.card_type] ?? card.card_type}</span>
-                    {boughtThisTurn && <span className={styles.devCardNew}>{t('game.devCards.new')}</span>}
-                    {canPlay && (
-                      <button type="button" className={styles.devCardPlayBtn} onClick={() => handlePlayDevCard(card.card_type)}>Play</button>
-                    )}
-                  </div>
-                )
-              })}
-              {devCards.length === 0 && (
-                <span style={{ fontSize: 11, color: '#6c757d' }}>{t('game.devCards.noCardsYet')}</span>
-              )}
-            </div>
-            <button type="button" className={styles.buyDevCardBtn} onClick={handleBuyDevCard} disabled={!canTrade || !hasOreWheatSheep || deckCount === 0}>
-              Buy Card ({deckCount}) — ⛏️🌾🐑
-            </button>
-          </div>
-        )}
-
-        {/* Bank Trade */}
-        {canTrade && (
-          <div className={styles.panel}>
-            <button type="button" className={styles.tradePanelToggle} onClick={() => setTradeOpen(prev => !prev)}>
-              <span>{'🏦'} Bank Trade</span>
-              <span className={styles.toggleArrow}>{tradeOpen ? '▲' : '▼'}</span>
-            </button>
-            {tradeOpen && (
-              <div className={styles.tradeBody}>
-                <div className={styles.tradeSide}>
-                  <span className={styles.tradeLabel}>{t('game.trade.youGive')}</span>
-                  {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
-                    const have = myResources[res] ?? 0
-                    const offering = tradeOffer[res] ?? 0
-                    const ratio = tradeRatios[res] ?? 4
-                    return (
-                      <div key={res} className={styles.tradeRow}>
-                        <span className={styles.tradeRes}>{res} <span className={styles.tradeRatio}>{ratio}:1</span>{ratio < 4 && <span className={styles.portBadge} title={ratio === 2 ? `${res} port` : 'generic port'}>{ratio === 2 ? '\u2693' : '\uD83D\uDEA2'}</span>}</span>
-                        <button type="button" className={styles.tradeBtn} onClick={() => handleTradeOfferChange(res, -ratio)} disabled={offering < ratio}>-</button>
-                        <span className={styles.tradeCount}>{offering}</span>
-                        <button type="button" className={styles.tradeBtn} onClick={() => handleTradeOfferChange(res, ratio)} disabled={have - offering < ratio}>+</button>
-                      </div>
-                    )
-                  })}
-                </div>
-                <div className={styles.tradeSide}>
-                  <span className={styles.tradeLabel}>{t('game.trade.youGet')} <span className={styles.tradeCredits}>{t('game.trade.available', { count: tradeCredits })}</span></span>
-                  {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
-                    const wanting = tradeWant[res] ?? 0
-                    return (
-                      <div key={res} className={styles.tradeRow}>
-                        <span className={styles.tradeRes}>{res}</span>
-                        <button type="button" className={styles.tradeBtn} onClick={() => handleTradeWantChange(res, -1)} disabled={wanting <= 0}>-</button>
-                        <span className={styles.tradeCount}>{wanting}</span>
-                        <button type="button" className={styles.tradeBtn} onClick={() => handleTradeWantChange(res, 1)} disabled={tradeWantTotal >= tradeCredits}>+</button>
-                      </div>
-                    )
-                  })}
-                </div>
-                <div className={styles.tradeActions}>
-                  <button type="button" className={styles.tradeSubmitBtn} onClick={handleTradeSubmit} disabled={!tradeValid}>
-                    Trade {tradeOfferTotal} → {tradeWantTotal}
-                  </button>
-                  <button type="button" className={styles.tradeResetBtn} onClick={handleTradeReset}>{t('game.actions.clear')}</button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* P2P Trade: Propose */}
-        {canTrade && !p2pProposing && !p2pWaiting && (
-          <button type="button" className={styles.p2pProposeBtn} onClick={() => { setP2pProposing(true); setP2pOffer({}); setP2pWant({}) }}>
-            {'🤝'} Player Trade
-          </button>
-        )}
-
-        {/* P2P Trade: Building proposal */}
-        {p2pProposing && (
-          <div className={`${styles.panel} ${styles.p2pTradePanel}`}>
-            <p className={styles.panelTitle}>{t('game.panels.proposeTrade')}</p>
-            <div className={styles.tradeSide}>
-              <span className={styles.tradeLabel}>{t('game.trade.youGiveUpper')}</span>
-              {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
-                const have = myResources[res] ?? 0
-                const offering = p2pOffer[res] ?? 0
-                return (
-                  <div key={res} className={styles.tradeRow}>
-                    <span className={styles.tradeRes}>{RESOURCE_LABELS[res]} {res}</span>
-                    <button type="button" className={styles.tradeBtn} onClick={() => handleP2pOfferChange(res, -1)} disabled={offering <= 0}>-</button>
-                    <span className={styles.tradeCount}>{offering}</span>
-                    <button type="button" className={styles.tradeBtn} onClick={() => handleP2pOfferChange(res, 1)} disabled={offering >= have}>+</button>
-                  </div>
-                )
-              })}
-            </div>
-            <div className={styles.tradeSide}>
-              <span className={styles.tradeLabel}>{t('game.trade.youWantUpper')}</span>
-              {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
-                const wanting = p2pWant[res] ?? 0
-                return (
-                  <div key={res} className={styles.tradeRow}>
-                    <span className={styles.tradeRes}>{RESOURCE_LABELS[res]} {res}</span>
-                    <button type="button" className={styles.tradeBtn} onClick={() => handleP2pWantChange(res, -1)} disabled={wanting <= 0}>-</button>
-                    <span className={styles.tradeCount}>{wanting}</span>
-                    <button type="button" className={styles.tradeBtn} onClick={() => handleP2pWantChange(res, 1)}>+</button>
-                  </div>
-                )
-              })}
-            </div>
-            <div className={styles.tradeActions}>
-              <button type="button" className={styles.tradeSubmitBtn} onClick={handleP2pPropose} disabled={!p2pValid}>Send</button>
-              <button type="button" className={styles.tradeResetBtn} onClick={() => { setP2pProposing(false); setP2pOffer({}); setP2pWant({}) }}>Cancel</button>
-            </div>
           </div>
         )}
 
@@ -1646,9 +1539,19 @@ export default function Game() {
             return (
               <div
                 key={res}
-                className={`${styles.resCard} ${count === 0 ? styles.resCardDimmed : ''}`}
-                style={{ background: RES_CARD_COLORS[res] }}
-                title={`${res}: ${count}`}
+                className={`${styles.resCard} ${count === 0 ? styles.resCardDimmed : ''} ${canTrade ? styles.resCardClickable : ''}`}
+                style={{ background: RES_CARD_COLORS[res], cursor: canTrade ? 'pointer' : 'default' }}
+                title={canTrade ? `${res}: ${count} — click to trade` : `${res}: ${count}`}
+                data-popover-trigger="trade"
+                onClick={() => {
+                  if (!canTrade) return
+                  if (count > 0) {
+                    setP2pOffer({ [res]: 1 })
+                    setP2pWant({})
+                  }
+                  setP2pProposing(true)
+                  setTradePopoverOpen('player')
+                }}
               >
                 <span className={styles.resCardIcon}>{RESOURCE_LABELS[res]}</span>
                 <span className={styles.resCardCount}>{count}</span>
@@ -1675,30 +1578,255 @@ export default function Game() {
             )}
           </div>
           <div className={styles.actionBtns}>
-            {/* Build buttons */}
-            {isMyTurn && !isSetupPhase && (
-              <div className={styles.buildStrip}>
-                <button className={`${styles.buildBtn} ${buildMode === 'road' ? styles.active : ''}`} onClick={() => toggleBuildMode('road')} type="button" title="Road">
-                  <span className={styles.buildIcon}>{'🛤️'}</span>
-                  <span className={styles.cost}>{'🌲🧱'}</span>
-                </button>
-                <button className={`${styles.buildBtn} ${buildMode === 'settlement' ? styles.active : ''}`} onClick={() => toggleBuildMode('settlement')} type="button" title="Settlement">
-                  <span className={styles.buildIcon}>{'🏠'}</span>
-                  <span className={styles.cost}>{'🌲🧱🌾🐑'}</span>
-                </button>
-                <button className={`${styles.buildBtn} ${buildMode === 'city' ? styles.active : ''}`} onClick={() => toggleBuildMode('city')} type="button" title="City">
-                  <span className={styles.buildIcon}>{'🏙️'}</span>
-                  <span className={styles.cost}>{'🌾🌾⛏️⛏️⛏️'}</span>
-                </button>
-              </div>
-            )}
-            <button className={styles.rollBtn} onClick={handleRollDice} disabled={isSetupPhase || !isMyTurn || turnPhase !== 'pre_roll' || rolling} type="button">
-              {rolling ? t('game.actions.rolling') : t('game.actions.rollDice')}
-            </button>
-            <button className={styles.endTurnBtn} onClick={handleEndTurn} disabled={isSetupPhase || !isMyTurn || turnPhase !== 'post_roll'} type="button">
-              {t('game.actions.endTurn')}
-            </button>
+            {(() => {
+              const wood = myResources.wood ?? 0
+              const brick = myResources.brick ?? 0
+              const wheat = myResources.wheat ?? 0
+              const sheep = myResources.sheep ?? 0
+              const ore = myResources.ore ?? 0
+              const roadsLeft = 15 - (me?.roads ?? 0)
+              const settlementsLeft = 5 - (me?.settlements ?? 0)
+              const citiesLeft = 4 - (me?.cities ?? 0)
+              const setupRoadAllowed = isSetupPhase && isMyTurn && requiredBuildMode === 'road'
+              const setupSettlementAllowed = isSetupPhase && isMyTurn && requiredBuildMode === 'settlement'
+              const canRoad = setupRoadAllowed || (canTrade && wood >= 1 && brick >= 1 && roadsLeft > 0)
+              const canSettlement = setupSettlementAllowed || (canTrade && wood >= 1 && brick >= 1 && wheat >= 1 && sheep >= 1 && settlementsLeft > 0)
+              const canCity = canTrade && wheat >= 2 && ore >= 3 && citiesLeft > 0
+              const canDev = canTrade && hasOreWheatSheep && deckCount > 0
+              const canRoll = !isSetupPhase && isMyTurn && turnPhase === 'pre_roll' && !rolling
+              const canEnd = !isSetupPhase && isMyTurn && turnPhase === 'post_roll'
+              const setupMandatoryRoad = setupRoadAllowed
+              const setupMandatorySettlement = setupSettlementAllowed
+              return (
+                <>
+                  <button
+                    className={styles.rollBtn}
+                    onClick={handleRollDice}
+                    disabled={!canRoll}
+                    type="button"
+                    title="Roll Dice"
+                  >
+                    {rolling ? t('game.actions.rolling') : '🎲'}
+                  </button>
+                  <button
+                    className={styles.actionBtnIcon}
+                    style={{ visibility: buildMode !== 'none' ? 'visible' : 'hidden' }}
+                    onClick={() => setBuildMode('none')}
+                    type="button"
+                    title="Cancel build"
+                    aria-label="Cancel build"
+                  >
+                    <span className={styles.actionBtnGlyph}>✕</span>
+                  </button>
+                  <button
+                    className={styles.actionBtnIcon}
+                    onClick={() => { setDevPopoverOpen(prev => !prev); setTradePopoverOpen(false) }}
+                    disabled={!canDev && devCards.length === 0}
+                    type="button"
+                    title="Development Card [D]"
+                    aria-label="Development Card"
+                    data-popover-trigger="dev"
+                  >
+                    <span className={styles.actionBtnGlyph}>🎴</span>
+                    <span className={styles.actionBtnBadge}>{deckCount}</span>
+                  </button>
+                  <button
+                    className={`${styles.actionBtnIcon} ${buildMode === 'road' ? styles.actionBtnIconActive : ''} ${setupMandatoryRoad ? styles.actionBtnIconMandatory : ''}`}
+                    onClick={() => toggleBuildMode('road')}
+                    disabled={!canRoad}
+                    type="button"
+                    title="Build Road (1 wood, 1 brick) [R]"
+                    aria-label="Build Road"
+                  >
+                    <span className={styles.actionBtnGlyph}>🛤️</span>
+                    <span className={styles.actionBtnBadge}>{roadsLeft}</span>
+                  </button>
+                  <button
+                    className={`${styles.actionBtnIcon} ${buildMode === 'settlement' ? styles.actionBtnIconActive : ''} ${setupMandatorySettlement ? styles.actionBtnIconMandatory : ''}`}
+                    onClick={() => toggleBuildMode('settlement')}
+                    disabled={!canSettlement}
+                    type="button"
+                    title="Build Settlement (1 wood, 1 brick, 1 wheat, 1 sheep) [S]"
+                    aria-label="Build Settlement"
+                  >
+                    <span className={styles.actionBtnGlyph}>🏠</span>
+                    <span className={styles.actionBtnBadge}>{settlementsLeft}</span>
+                  </button>
+                  <button
+                    className={`${styles.actionBtnIcon} ${buildMode === 'city' ? styles.actionBtnIconActive : ''}`}
+                    onClick={() => toggleBuildMode('city')}
+                    disabled={!canCity}
+                    type="button"
+                    title="Build City (2 wheat, 3 ore) [C]"
+                    aria-label="Build City"
+                  >
+                    <span className={styles.actionBtnGlyph}>🏙️</span>
+                    <span className={styles.actionBtnBadge}>{citiesLeft}</span>
+                  </button>
+                  <button
+                    className={styles.endTurnBigBtn}
+                    onClick={handleEndTurn}
+                    disabled={!canEnd}
+                    type="button"
+                    title="End Turn [Space]"
+                    aria-label="End Turn"
+                  >
+                    End Turn ⏭
+                  </button>
+                </>
+              )
+            })()}
           </div>
+
+          {/* Dev Cards popover */}
+          {devPopoverOpen && (
+            <div className={styles.devPopover} role="dialog" aria-label="Development Cards" data-popover="dev">
+              <div className={styles.popoverHeader}>
+                <span className={styles.popoverTitle}>Development Cards</span>
+                <button type="button" className={styles.popoverClose} onClick={() => setDevPopoverOpen(false)} aria-label="Close">✕</button>
+              </div>
+              <div className={styles.devCardList}>
+                {devCards.map((card, i) => {
+                  const isVP = card.card_type === 'victory_point'
+                  const isKnight = card.card_type === 'knight'
+                  const boughtThisTurn = card.bought_on_turn === currentTurn
+                  const knightPlayable = isKnight && !devCardPlayed && !boughtThisTurn && isMyTurn && (turnPhase === 'pre_roll' || turnPhase === 'post_roll')
+                  const normalPlayable = !isKnight && !isVP && !devCardPlayed && !boughtThisTurn && isMyTurn && turnPhase === 'post_roll'
+                  const canPlay = isVP ? false : isKnight ? knightPlayable : normalPlayable
+                  const CARD_ICONS: Record<string, string> = { knight: '🗡️', victory_point: '🏆', year_of_plenty: '🌽', monopoly: '💰', road_building: '🛤️' }
+                  const CARD_LABELS: Record<string, string> = { knight: 'Knight', victory_point: 'Victory Point', year_of_plenty: 'Year of Plenty', monopoly: 'Monopoly', road_building: 'Road Building' }
+                  return (
+                    <div key={i} className={`${styles.devCardItem} ${canPlay ? styles.playable : ''}`}>
+                      <span className={styles.devCardIcon}>{CARD_ICONS[card.card_type] ?? '?'}</span>
+                      <span className={styles.devCardName}>{CARD_LABELS[card.card_type] ?? card.card_type}</span>
+                      {boughtThisTurn && <span className={styles.devCardNew}>{t('game.devCards.new')}</span>}
+                      {canPlay && (
+                        <button type="button" className={styles.devCardPlayBtn} onClick={() => { handlePlayDevCard(card.card_type); setDevPopoverOpen(false) }}>Play</button>
+                      )}
+                    </div>
+                  )
+                })}
+                {devCards.length === 0 && (
+                  <span style={{ fontSize: 11, color: '#6c757d' }}>{t('game.devCards.noCardsYet')}</span>
+                )}
+              </div>
+              <button
+                type="button"
+                className={styles.buyDevCardBtn}
+                onClick={() => { handleBuyDevCard(); setDevPopoverOpen(false) }}
+                disabled={!canTrade || !hasOreWheatSheep || deckCount === 0}
+              >
+                Buy Card ({deckCount}) — ⛏️🌾🐑
+              </button>
+            </div>
+          )}
+
+          {/* Trade popover (Bank / Player tabs) */}
+          {tradePopoverOpen && (
+            <div className={styles.tradePopover} role="dialog" aria-label="Trade" data-popover="trade">
+              <div className={styles.popoverHeader}>
+                <div className={styles.popoverTabs}>
+                  <button
+                    type="button"
+                    className={`${styles.popoverTab} ${tradePopoverOpen === 'bank' ? styles.popoverTabActive : ''}`}
+                    onClick={() => setTradePopoverOpen('bank')}
+                  >
+                    🏦 Bank
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.popoverTab} ${tradePopoverOpen === 'player' ? styles.popoverTabActive : ''}`}
+                    onClick={() => { setTradePopoverOpen('player'); if (!p2pProposing) { setP2pProposing(true); setP2pOffer({}); setP2pWant({}) } }}
+                  >
+                    🤝 Player
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className={styles.popoverClose}
+                  onClick={() => { setTradePopoverOpen(false); if (p2pProposing && !p2pWaiting) { setP2pProposing(false); setP2pOffer({}); setP2pWant({}) } }}
+                  aria-label="Close"
+                >✕</button>
+              </div>
+              {tradePopoverOpen === 'bank' && (
+                <div className={styles.tradeBody}>
+                  <div className={styles.tradeSide}>
+                    <span className={styles.tradeLabel}>{t('game.trade.youGive')}</span>
+                    {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
+                      const have = myResources[res] ?? 0
+                      const offering = tradeOffer[res] ?? 0
+                      const ratio = tradeRatios[res] ?? 4
+                      return (
+                        <div key={res} className={styles.tradeRow}>
+                          <span className={styles.tradeRes}>{res} <span className={styles.tradeRatio}>{ratio}:1</span>{ratio < 4 && <span className={styles.portBadge} title={ratio === 2 ? `${res} port` : 'generic port'}>{ratio === 2 ? '\u2693' : '\uD83D\uDEA2'}</span>}</span>
+                          <button type="button" className={styles.tradeBtn} onClick={() => handleTradeOfferChange(res, -ratio)} disabled={offering < ratio}>-</button>
+                          <span className={styles.tradeCount}>{offering}</span>
+                          <button type="button" className={styles.tradeBtn} onClick={() => handleTradeOfferChange(res, ratio)} disabled={have - offering < ratio}>+</button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className={styles.tradeSide}>
+                    <span className={styles.tradeLabel}>{t('game.trade.youGet')} <span className={styles.tradeCredits}>{t('game.trade.available', { count: tradeCredits })}</span></span>
+                    {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
+                      const wanting = tradeWant[res] ?? 0
+                      return (
+                        <div key={res} className={styles.tradeRow}>
+                          <span className={styles.tradeRes}>{res}</span>
+                          <button type="button" className={styles.tradeBtn} onClick={() => handleTradeWantChange(res, -1)} disabled={wanting <= 0}>-</button>
+                          <span className={styles.tradeCount}>{wanting}</span>
+                          <button type="button" className={styles.tradeBtn} onClick={() => handleTradeWantChange(res, 1)} disabled={tradeWantTotal >= tradeCredits}>+</button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className={styles.tradeActions}>
+                    <button type="button" className={styles.tradeSubmitBtn} onClick={() => { handleTradeSubmit(); setTradePopoverOpen(false) }} disabled={!tradeValid}>
+                      Trade {tradeOfferTotal} → {tradeWantTotal}
+                    </button>
+                    <button type="button" className={styles.tradeResetBtn} onClick={handleTradeReset}>{t('game.actions.clear')}</button>
+                  </div>
+                </div>
+              )}
+              {tradePopoverOpen === 'player' && (
+                <div className={styles.tradeBody}>
+                  <div className={styles.tradeSide}>
+                    <span className={styles.tradeLabel}>{t('game.trade.youGiveUpper')}</span>
+                    {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
+                      const have = myResources[res] ?? 0
+                      const offering = p2pOffer[res] ?? 0
+                      return (
+                        <div key={res} className={styles.tradeRow}>
+                          <span className={styles.tradeRes}>{RESOURCE_LABELS[res]} {res}</span>
+                          <button type="button" className={styles.tradeBtn} onClick={() => handleP2pOfferChange(res, -1)} disabled={offering <= 0}>-</button>
+                          <span className={styles.tradeCount}>{offering}</span>
+                          <button type="button" className={styles.tradeBtn} onClick={() => handleP2pOfferChange(res, 1)} disabled={offering >= have}>+</button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className={styles.tradeSide}>
+                    <span className={styles.tradeLabel}>{t('game.trade.youWantUpper')}</span>
+                    {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
+                      const wanting = p2pWant[res] ?? 0
+                      return (
+                        <div key={res} className={styles.tradeRow}>
+                          <span className={styles.tradeRes}>{RESOURCE_LABELS[res]} {res}</span>
+                          <button type="button" className={styles.tradeBtn} onClick={() => handleP2pWantChange(res, -1)} disabled={wanting <= 0}>-</button>
+                          <span className={styles.tradeCount}>{wanting}</span>
+                          <button type="button" className={styles.tradeBtn} onClick={() => handleP2pWantChange(res, 1)}>+</button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className={styles.tradeActions}>
+                    <button type="button" className={styles.tradeSubmitBtn} onClick={() => { handleP2pPropose(); setTradePopoverOpen(false) }} disabled={!p2pValid}>Send</button>
+                    <button type="button" className={styles.tradeResetBtn} onClick={() => { setP2pProposing(false); setP2pOffer({}); setP2pWant({}); setTradePopoverOpen(false) }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right: my player card */}

@@ -7,7 +7,7 @@
 
 ## 进行中
 
-（无）
+（无 — Colonist 风格底部栏重设计已完成，待用户 review/commit）
 
 
 
@@ -51,6 +51,19 @@
 ---
 
 ## 已完成
+
+### 2026-04-13
+
+- [x] **底部操作栏 Colonist 风格重设计 T1-T8** — 待 commit
+  - T1 build 按钮永久显示 + setup 阶段 `requiredBuildMode` gating
+  - T2 Roll Dice / End Turn 同条；`.bottomBar` 固定 height 110px + position relative
+  - T3 `.actionBtnIcon` 三态视觉（disabled 灰度 / active 金边 / setup mandatory 脉冲高亮）+ End Turn 大且醒目（绿色 endTurnBigBtn，非图标化，Musk pushback）
+  - T4 popover 架构：useState + click-outside（document mousedown，data-popover / data-popover-trigger）
+  - T5/T6 Dev Cards popover + Trade popover Bank/Player 双 tab（cream #f4ecd8 + #c9b896 边框）— popover CSS 全部新增
+  - T7 资源卡点击 → 预填 p2pOffer={[res]:1} + 打开 player tab
+  - T8 键盘快捷键 R/S/C/D/Space（替代旧的 1/2/3/E）；E 保留为 Roll
+  - 验证：tsc 0 errors, e2e_smoke 14/14 passed
+  - 文件：frontend/src/pages/Game.tsx + Game.module.css
 
 ### 2026-04-09
 
