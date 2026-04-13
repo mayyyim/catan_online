@@ -5,6 +5,27 @@
 
 ---
 
+日期：2026-04-09
+任务名称：买发展卡按钮始终可见 + 国家地图重设计 + 房间退出/销毁
+Agent 名称：主控 Agent（直接执行，跨 context 延续）
+输入：
+  1. "没有买发展卡的地方呢" — Buy Card 按钮隐藏在 canTrade 条件内
+  2. "国家地图要更详细更像国家的地形，不要设计通用的" — 10 个 _from_std 地图全部重设计
+  3. "退出后返回不到首页，只有机器人时房间销毁" — 房间退出/销毁逻辑
+输出：
+  - frontend/src/pages/Game.tsx: 去掉 {canTrade && (...)} 条件，改为始终渲染 Buy Card 按钮，禁用条件包含 !canTrade
+  - backend/app/maps/definitions.py: France/Germany/Spain/Italy/Scandinavia/Turkey/Vietnam/Argentina/South Africa/New Zealand 全部自定义坐标形状
+  - backend/app/store.py: 新增 delete_room() + has_human_players()
+  - backend/app/game/models.py: Player 增加 is_bot 字段
+  - backend/app/routers/websocket.py: disconnect handler 检查 has_human_players → delete_room
+  - frontend/src/pages/Room.tsx: 新增 handleLeaveRoom + ← Leave 按钮
+置信度：高
+卡住了吗：否
+验证方式：ast.parse 语法检查，28 maps loaded OK
+备注：跨两个 context 完成，本 context 续上一个 context 的 dev card buy UI 任务
+
+---
+
 日期：2026-04-12
 任务名称：i18n 国际化 (P3-09) + P2-02 标记完成
 Agent 名称：主控 Agent（直接执行）

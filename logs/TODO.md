@@ -9,6 +9,8 @@
 
 （无）
 
+
+
 ---
 
 ## 待办
@@ -49,6 +51,22 @@
 ---
 
 ## 已完成
+
+### 2026-04-09
+
+- [x] **买发展卡按钮始终可见** — Game.tsx:1482
+  - 问题：Buy Card 按钮被 `{canTrade && ...}` 包裹，玩家在非自己回合时完全看不到按钮
+  - 修复：去掉条件渲染，改为始终显示按钮，禁用条件 = `!canTrade || !hasOreWheatSheep || deckCount === 0`
+
+- [x] **国家地图形状重设计（本会话前半段，上个 context 完成）**
+  - France/Germany/Spain/Italy/Scandinavia/Turkey/Vietnam/Argentina/South Africa/New Zealand
+  - 全部从 `_from_std` 通用布局改为自定义地形形状
+  - 验证：28 maps loaded OK
+
+- [x] **房间退出 → 返回首页** — Room.tsx handleLeaveRoom + navigate('/')
+  - 新增 `← Leave` 按钮，点击断开 WS 并导航到首页
+
+- [x] **房间无人类玩家时自动销毁** — store.py delete_room / has_human_players + websocket.py disconnect handler
 
 ### 2026-04-12
 

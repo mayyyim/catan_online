@@ -3,11 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useGame } from '../context/GameContext'
 import { useRoom } from '../context/RoomContext'
-import { useAuth } from '../context/AuthContext'
 import { gameSocket } from '../ws/gameSocket'
 import { HexGrid } from '../components/HexGrid'
 import { DiceDisplay } from '../components/DiceDisplay'
-import { PlayerAvatar } from '../components/PlayerAvatar'
 import { generateBoard } from '../engine/boardUtils'
 import type { ResourceType, Port, DevCard, DevCardType } from '../types'
 import { RESOURCE_LABELS } from '../types'
@@ -194,8 +192,6 @@ export default function Game() {
   const { game, myPlayerId, setGame, setMyPlayerId, selectedVertexId, selectedEdgeId, selectVertex, selectEdge } =
     useGame()
   const { setMyPlayerId: setRoomPlayerId } = useRoom()
-  const { user: authUser } = useAuth()
-
   const [buildMode, setBuildMode] = useState<BuildMode>('none')
   const [rolling, setRolling] = useState(false)
   const [wsStatus, setWsStatus] = useState<'connected' | 'disconnected' | 'error'>('disconnected')
@@ -243,7 +239,6 @@ export default function Game() {
   // Chat state
   const [chatMessages, setChatMessages] = useState<Array<{player_name: string; player_color: string; text: string}>>([])
   const [chatInput, setChatInput] = useState('')
-  const [chatOpen, setChatOpen] = useState(false)
 
   // Resource production toast state
   const [resourceToast, setResourceToast] = useState<string | null>(null)
@@ -1077,363 +1072,220 @@ export default function Game() {
     )
   }
 
+  // Compute current action label for bottom center indicator
+  const actionLabelText = isSetupPhase
+    ? isMyTurn
+      ? `Place ${requiredBuildMode === 'settlement' ? 'Settlement' : 'Road'}`
+      : `${currentPlayer?.name ?? '...'} placing...`
+    : mustDiscard
+      ? 'Discard cards'
+      : isRobberPlace
+        ? 'Move the Robber'
+        : isRobberSteal
+          ? 'Steal a resource'
+          : turnPhase === 'robber_discard'
+            ? 'Waiting for discards...'
+            : turnPhase === 'pre_roll'
+              ? isMyTurn ? 'Roll Dice' : `${currentPlayer?.name ?? '...'} rolling...`
+              : turnPhase === 'post_roll'
+                ? isMyTurn ? 'Build or Trade' : `${currentPlayer?.name ?? '...'} building...`
+                : turnPhase === 'road_building'
+                  ? 'Place free roads'
+                  : turnPhase === 'year_of_plenty'
+                    ? 'Pick 2 resources'
+                    : turnPhase === 'monopoly'
+                      ? 'Choose a resource'
+                      : String(turnPhase)
+
+  // Tab state for log/chat
+  const [activeTab, setActiveTab] = useState<'log' | 'chat'>('log')
+
   return (
     <div className={styles.page}>
-      {/* Top score bar */}
-      <header className={styles.topBar}>
-        <div className={styles.topLeft}>
-          <button
-            className={styles.leaveBtn}
-            type="button"
-            title={t('game.actions.leaveGame')}
-            onClick={() => {
-              const isFinished = game?.phase === 'finished' || !!game?.winner
-              if (!isFinished && !window.confirm('Leave this game?')) return
-              gameSocket.disconnect()
-              navigate('/')
-            }}
-          >
-            <span aria-hidden="true">&larr;</span> Leave
-          </button>
-          <span className={styles.roomLabel}>Room {roomId}</span>
-          {authUser && (
-            <span className={styles.authBadge} title={`${authUser.display_name} — ${authUser.elo_rating} ELO`}>
-              {authUser.display_name} <span className={styles.eloBadge}>{authUser.elo_rating}</span>
-            </span>
-          )}
-          <span
-            className={`${styles.wsIndicator} ${styles[wsStatus]}`}
-            title={wsStatus}
-          />
-          <button
-            className={styles.muteBtn}
-            type="button"
-            title={muted ? 'Unmute sounds' : 'Mute sounds'}
-            aria-label={muted ? 'Unmute sounds' : 'Mute sounds'}
-            onClick={() => {
-              const next = !muted
-              setMutedState(next)
-              setMuted(next)
-            }}
-          >
-            {muted ? '\uD83D\uDD07' : '\uD83D\uDD0A'}
-          </button>
-          <button
-            className={styles.themeBtn}
-            type="button"
-            title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-            onClick={() => {
-              const next: Theme = theme === 'dark' ? 'light' : 'dark'
-              setThemeState(next)
-              setTheme(next)
-            }}
-          >
-            {theme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19'}
-          </button>
-        </div>
+      {/* ═══ Left toolbar ═══ */}
+      <nav className={styles.toolbar}>
+        <button
+          className={styles.toolBtn}
+          type="button"
+          title="Leave game"
+          onClick={() => {
+            const isFinished = game?.phase === 'finished' || !!game?.winner
+            if (!isFinished && !window.confirm('Leave this game?')) return
+            gameSocket.disconnect()
+            navigate('/')
+          }}
+        >
+          {'←'}
+        </button>
+        <button
+          className={styles.toolBtn}
+          type="button"
+          title={muted ? 'Unmute' : 'Mute'}
+          onClick={() => { const next = !muted; setMutedState(next); setMuted(next) }}
+        >
+          {muted ? '🔇' : '🔊'}
+        </button>
+        <button
+          className={styles.toolBtn}
+          type="button"
+          title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          onClick={() => { const next: Theme = theme === 'dark' ? 'light' : 'dark'; setThemeState(next); setTheme(next) }}
+        >
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
+        <button
+          className={styles.toolBtn}
+          type="button"
+          title="How to play"
+          onClick={() => setShowTutorial(true)}
+        >
+          ?
+        </button>
 
-        <div className={styles.scoreboard}>
-          {orderedPlayers.map(p => (
-            <div
-              key={p.id}
-              className={`${styles.scoreCard} ${
-                p.id === game?.currentPlayerId ? styles.activeScore : ''
-              } ${p.id === myPlayerId ? styles.myScore : ''}`}
-              style={{ '--player-color': p.color } as CSSProperties}
-            >
-              <PlayerAvatar player={p} isMe={p.id === myPlayerId} compact />
-              <span className={styles.scoreVP}>{p.victoryPoints} VP</span>
-            </div>
-          ))}
-        </div>
+        <div className={styles.toolBtnSpacer} />
 
-        <div className={styles.topRight}>
-          {game?.phase && (
-            <span className={styles.phaseTag}>{game.phase.replace(/_/g, ' ')}</span>
-          )}
-          <button
-            className={styles.helpBtn}
-            type="button"
-            title={t('game.actions.howToPlay')}
-            aria-label="How to play"
-            onClick={() => setShowTutorial(true)}
-          >
-            ?
-          </button>
-        </div>
-      </header>
+        <span
+          className={`${styles.wsIndicator} ${styles[wsStatus]}`}
+          title={wsStatus}
+        />
+      </nav>
 
-      <div className={styles.body}>
-        {/* Main map area */}
-        <main ref={mapContainerRef} className={styles.mapArea}>
-          <HexGrid
-            tiles={tiles}
-            ports={ports}
-            buildings={buildings}
-            roads={roads}
-            players={players}
-            selectedVertexId={selectedVertexId}
-            selectedEdgeId={selectedEdgeId}
-            buildableVertices={buildableVertices}
-            buildableEdges={buildableEdges}
-            onVertexClick={handleVertexClick}
-            onEdgeClick={handleEdgeClick}
-            onTileClick={isRobberPlace ? handleTileClick : undefined}
-            activePortResources={activePortResources}
-            width={mapSize.width}
-            height={mapSize.height}
-          />
-          {resourceToast && (
-            <div className={styles.resourceToast}>{resourceToast}</div>
-          )}
-        </main>
+      {/* ═══ Main map area ═══ */}
+      <main ref={mapContainerRef} className={styles.mapArea}>
+        <HexGrid
+          tiles={tiles}
+          ports={ports}
+          buildings={buildings}
+          roads={roads}
+          players={players}
+          selectedVertexId={selectedVertexId}
+          selectedEdgeId={selectedEdgeId}
+          buildableVertices={buildableVertices}
+          buildableEdges={buildableEdges}
+          onVertexClick={handleVertexClick}
+          onEdgeClick={handleEdgeClick}
+          onTileClick={isRobberPlace ? handleTileClick : undefined}
+          activePortResources={activePortResources}
+          width={mapSize.width}
+          height={mapSize.height}
+        />
+        {resourceToast && (
+          <div className={styles.resourceToast}>{resourceToast}</div>
+        )}
+      </main>
 
-        {/* Right panel */}
-        <aside className={styles.sidePanel}>
-          {/* Bank resources row */}
-          <div className={styles.bankRow}>
-            <span className={styles.bankLabel}>{t('game.panels.bank')}</span>
-            {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
-              const knownTotal = players.reduce((sum, p) => {
-                const r = p.resources?.[res] ?? 0
-                return sum + r
-              }, 0)
-              const bankRemaining = 19 - knownTotal
-              const isDepleted = bankRemaining <= 0
-              return (
-                <span key={res} className={`${styles.bankItem} ${isDepleted ? styles.bankDepleted : ''}`} title={isDepleted ? 'Depleted' : `${bankRemaining} remaining`}>
-                  {RESOURCE_LABELS[res]}
-                  <span className={`${styles.bankCount} ${isDepleted ? styles.bankCountLow : bankRemaining <= 3 ? styles.bankCountLow : ''}`}>
-                    {bankRemaining}
-                  </span>
-                </span>
-              )
-            })}
-            <span className={styles.bankDivider} />
-            <span className={styles.bankItem}>
-              {'🎴'}
-              <span className={styles.bankCount}>{deckCount}</span>
-            </span>
-          </div>
-
-          {/* P2-06: Turn timer bar */}
-          {turnTimerRemaining != null && (
-            <div className={styles.timerBar}>
-              <div
-                className={`${styles.timerFill} ${turnTimerRemaining <= 10 ? styles.timerLow : ''}`}
-                style={{ width: `${Math.max(0, (turnTimerRemaining / turnTimerDuration) * 100)}%` }}
-              />
-            </div>
-          )}
-
-          {/* Turn banner */}
-          <div className={isMyTurn ? styles.turnBannerYou : styles.turnBannerWait}>
-            <span className={styles.turnBannerLabel}>
-              {isMyTurn ? 'YOUR TURN' : `Waiting for ${currentPlayer?.name ?? '...'}...`}
-              {turnTimerRemaining != null && (
-                <span className={`${styles.timerText} ${turnTimerRemaining <= 10 ? styles.timerTextLow : ''}`}> ({turnTimerRemaining}s)</span>
-              )}
-            </span>
-            <span className={styles.turnStep}>
-              {isSetupPhase
-                ? isMyTurn
-                  ? `Setup Round ${game?.phase === 'setup_round1' ? '1' : '2'}: Place your ${game?.phase === 'setup_round1' ? '1st' : '2nd'} ${requiredBuildMode}`
-                  : `Waiting for ${currentPlayer?.name ?? '...'} to place their ${requiredBuildMode}...`
-                : mustDiscard
-                  ? 'Discard cards (rolled 7)'
-                  : isRobberPlace
-                    ? 'Move the robber'
-                    : isRobberSteal
-                      ? 'Choose who to steal from'
-                      : turnPhase === 'robber_discard'
-                        ? 'Waiting for others to discard...'
-                        : turnPhase === 'pre_roll'
-                          ? 'Roll the dice'
-                          : turnPhase === 'post_roll'
-                            ? 'Build or trade'
-                            : turnPhase === 'road_building'
-                              ? 'Place free roads'
-                              : turnPhase === 'year_of_plenty'
-                                ? 'Pick 2 resources'
-                                : turnPhase === 'monopoly'
-                                  ? 'Choose a resource to monopolize'
-                                  : turnPhase}
-            </span>
-          </div>
-
-          {/* Setup draft order indicator */}
-          {isSetupPhase && setupOrder && setupOrder.length > 0 && (
-            <div style={{ textAlign: 'center', fontSize: '0.85rem', padding: '4px 8px', opacity: 0.85 }}>
-              Order: {setupOrder.map((idx, i) => {
-                const p = players[idx]
-                const isCurrent = p?.id === game?.currentPlayerId
+      {/* ═══ Floating panels (over map, left of sidebar) ═══ */}
+      <div className={styles.floatingPanels}>
+        {/* Robber: discard */}
+        {mustDiscard && (
+          <div className={`${styles.panel} ${styles.robberPanel}`}>
+            <p className={styles.panelTitle}>{t('game.panels.discardCards', { count: discardRequired })}</p>
+            <div className={styles.discardGrid}>
+              {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
+                const have = myResources[res] ?? 0
+                const sel = discardSelection[res] ?? 0
+                if (have === 0) return null
                 return (
-                  <span key={i}>
-                    {i > 0 && ' \u2192 '}
-                    <span style={{ fontWeight: isCurrent ? 'bold' : 'normal', textDecoration: isCurrent ? 'underline' : 'none' }}>
-                      {p?.name ?? `P${idx + 1}`}
-                    </span>
-                  </span>
+                  <div key={res} className={styles.discardRow}>
+                    <span className={styles.discardLabel}>{res}</span>
+                    <button type="button" className={styles.discardBtn} onClick={() => handleDiscardChange(res, -1)} disabled={sel <= 0}>-</button>
+                    <span className={styles.discardCount}>{sel}</span>
+                    <button type="button" className={styles.discardBtn} onClick={() => handleDiscardChange(res, 1)} disabled={sel >= have}>+</button>
+                    <span className={styles.discardHave}>/{have}</span>
+                  </div>
                 )
               })}
             </div>
-          )}
+            <button type="button" className={styles.discardSubmitBtn} onClick={handleDiscardSubmit} disabled={discardTotal !== discardRequired}>
+              Discard {discardTotal}/{discardRequired}
+            </button>
+          </div>
+        )}
 
-          {/* Turn info / dice */}
-          <div className={styles.turnSection}>
-            <div className={styles.turnHeader}>
-              <DiceDisplay
-                dice={game?.lastDiceRoll}
-                rolling={rolling}
-              />
+        {/* Robber: place */}
+        {isRobberPlace && (
+          <div className={`${styles.panel} ${styles.robberPanel}`}>
+            <p className={styles.panelTitle}>{t('game.panels.moveRobber')}</p>
+            <p className={styles.robberHint}>Click a land tile on the map.</p>
+          </div>
+        )}
+
+        {/* Robber: steal */}
+        {isRobberSteal && robberStealTargets.length > 0 && (
+          <div className={`${styles.panel} ${styles.robberPanel}`}>
+            <p className={styles.panelTitle}>{t('game.panels.stealResource')}</p>
+            <div className={styles.stealGrid}>
+              {robberStealTargets.map(tid => {
+                const target = players.find(p => p.id === tid)
+                return (
+                  <button key={tid} type="button" className={styles.stealBtn} onClick={() => handleSteal(tid)} style={{ borderColor: target?.color }}>
+                    Steal from {target?.name ?? tid}
+                  </button>
+                )
+              })}
             </div>
           </div>
+        )}
 
-          {/* Other players' info cards */}
-          <div className={styles.playersGrid}>
-            {orderedPlayers.filter(p => p.id !== myPlayerId).map(p => {
-              const cardCount = p.resourceCount ?? Object.values(p.resources).reduce((a, b) => a + b, 0)
-              const hasLongestRoad = game?.longestRoadPlayerId === p.id
-              const hasLargestArmy = game?.largestArmyPlayerId === p.id
-              const knightsCount = (p as any).knightsPlayed ?? 0
-              const isActive = p.id === game?.currentPlayerId
-              return (
-                <div
-                  key={p.id}
-                  className={`${styles.playerCard} ${isActive ? styles.playerCardActive : ''}`}
-                  style={{ '--player-color': p.color } as CSSProperties}
-                >
-                  <div className={styles.playerCardHeader}>
-                    <div className={styles.playerCardAvatar} style={{ backgroundColor: p.color }}>
-                      {p.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
-                    </div>
-                    <span className={styles.playerCardName}>{p.name}</span>
-                    <div className={styles.playerCardBadges}>
-                      {hasLongestRoad && <span className={styles.playerBadge} title={t('game.tooltips.longestRoad')}>LR</span>}
-                      {hasLargestArmy && <span className={styles.playerBadge} title={t('game.tooltips.largestArmy')}>LA</span>}
-                    </div>
-                    <span className={styles.playerCardVP}>{p.victoryPoints}</span>
+        {/* Year of Plenty */}
+        {playingCard === 'year_of_plenty' && (
+          <div className={`${styles.panel} ${styles.yopPanel}`}>
+            <p className={styles.panelTitle}>Year of Plenty — Pick 2</p>
+            <div className={styles.discardGrid}>
+              {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
+                const sel = yopSelection[res] ?? 0
+                return (
+                  <div key={res} className={styles.discardRow}>
+                    <span className={styles.discardLabel}>{res}</span>
+                    <button type="button" className={styles.discardBtn} onClick={() => handleYopChange(res, -1)} disabled={sel <= 0}>-</button>
+                    <span className={styles.discardCount}>{sel}</span>
+                    <button type="button" className={styles.discardBtn} onClick={() => handleYopChange(res, 1)} disabled={yopTotal >= 2}>+</button>
                   </div>
-                  <div className={styles.resCardBacks}>
-                    {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as const).map(res => (
-                      <div
-                        key={res}
-                        className={styles.resCardBack}
-                        style={{ background: RES_CARD_COLORS[res] }}
-                        title={res}
-                      >
-                        <span className={styles.resCardBackCount}>?</span>
-                      </div>
-                    ))}
-                    <span style={{ fontSize: 11, color: '#8a9bb0', marginLeft: 2 }}>{cardCount}</span>
-                    {(() => {
-                      const rawP = rawPlayers.find(rp => rp.player_id === p.id)
-                      const devCount = rawP?.dev_card_count ?? 0
-                      return (
-                        <div className={styles.devCardBack} title={`Dev cards: ${devCount}`}>
-                          <span className={styles.resCardBackCount}>{devCount}</span>
-                        </div>
-                      )
-                    })()}
-                  </div>
-                  <div className={styles.playerCardBuildings}>
-                    <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'🏠'}</span><span className={styles.buildingCount}>{p.settlements}</span></span>
-                    <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'🏙️'}</span><span className={styles.buildingCount}>{p.cities}</span></span>
-                    <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'🛤️'}</span><span className={styles.buildingCount}>{p.roads}</span></span>
-                    {knightsCount > 0 && (
-                      <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'⚔️'}</span><span className={styles.buildingCount}>{knightsCount}</span></span>
-                    )}
-                  </div>
-                  {(hasLongestRoad || hasLargestArmy) && (
-                    <div className={styles.trophyBadges}>
-                      {hasLongestRoad && (
-                        <span className={styles.trophyBadge} title={t('game.tooltips.longestRoad')}>
-                          {'🛤️'} Longest Road
-                        </span>
-                      )}
-                      {hasLargestArmy && (
-                        <span className={styles.trophyBadge} title={t('game.tooltips.largestArmy')}>
-                          {'⚔️'} Largest Army
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Robber: discard panel */}
-          {mustDiscard && (
-            <div className={`${styles.panel} ${styles.robberPanel}`}>
-              <p className={styles.panelTitle}>{t('game.panels.discardCards', { count: discardRequired })}</p>
-              <div className={styles.discardGrid}>
-                {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
-                  const have = myResources[res] ?? 0
-                  const sel = discardSelection[res] ?? 0
-                  if (have === 0) return null
-                  return (
-                    <div key={res} className={styles.discardRow}>
-                      <span className={styles.discardLabel}>{res}</span>
-                      <button type="button" className={styles.discardBtn} onClick={() => handleDiscardChange(res, -1)} disabled={sel <= 0}>-</button>
-                      <span className={styles.discardCount}>{sel}</span>
-                      <button type="button" className={styles.discardBtn} onClick={() => handleDiscardChange(res, 1)} disabled={sel >= have}>+</button>
-                      <span className={styles.discardHave}>/{have}</span>
-                    </div>
-                  )
-                })}
-              </div>
-              <button
-                type="button"
-                className={styles.discardSubmitBtn}
-                onClick={handleDiscardSubmit}
-                disabled={discardTotal !== discardRequired}
-              >
-                Discard {discardTotal}/{discardRequired}
+                )
+              })}
+            </div>
+            <div className={styles.tradeActions}>
+              <button type="button" className={styles.tradeSubmitBtn} onClick={handlePlayYearOfPlenty} disabled={yopTotal !== 2}>
+                Confirm ({yopTotal}/2)
               </button>
+              <button type="button" className={styles.tradeResetBtn} onClick={() => setPlayingCard(null)}>{t('common.cancel')}</button>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Robber: place indicator */}
-          {isRobberPlace && (
-            <div className={`${styles.panel} ${styles.robberPanel}`}>
-              <p className={styles.panelTitle}>{t('game.panels.moveRobber')}</p>
-              <p className={styles.robberHint}>Click a land tile on the map to move the robber.</p>
+        {/* Monopoly */}
+        {playingCard === 'monopoly' && (
+          <div className={`${styles.panel} ${styles.monopolyPanel}`}>
+            <p className={styles.panelTitle}>Monopoly — Pick a resource</p>
+            <div className={styles.devCardList}>
+              {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => (
+                <button key={res} type="button" className={`${styles.devCardItem} ${monopolyResource === res ? styles.playable : ''}`} onClick={() => setMonopolyResource(res)} style={{ cursor: 'pointer', textTransform: 'capitalize' }}>
+                  {res}
+                </button>
+              ))}
             </div>
-          )}
-
-          {/* Robber: steal target */}
-          {isRobberSteal && robberStealTargets.length > 0 && (
-            <div className={`${styles.panel} ${styles.robberPanel}`}>
-              <p className={styles.panelTitle}>{t('game.panels.stealResource')}</p>
-              <div className={styles.stealGrid}>
-                {robberStealTargets.map(tid => {
-                  const target = players.find(p => p.id === tid)
-                  return (
-                    <button
-                      key={tid}
-                      type="button"
-                      className={styles.stealBtn}
-                      onClick={() => handleSteal(tid)}
-                      style={{ borderColor: target?.color }}
-                    >
-                      Steal from {target?.name ?? tid}
-                    </button>
-                  )
-                })}
-              </div>
+            <div className={styles.tradeActions} style={{ marginTop: 6 }}>
+              <button type="button" className={styles.tradeSubmitBtn} onClick={handlePlayMonopoly} disabled={!monopolyResource}>
+                Confirm {monopolyResource || '...'}
+              </button>
+              <button type="button" className={styles.tradeResetBtn} onClick={() => setPlayingCard(null)}>{t('common.cancel')}</button>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Development Cards (collapsible) */}
+        {/* Road Building */}
+        {turnPhase === 'road_building' && isMyTurn && (
+          <div className={`${styles.panel} ${styles.yopPanel}`}>
+            <p className={styles.panelTitle}>{t('game.panels.roadBuilding')}</p>
+            <p className={styles.roadBuildingHint}>Place 2 free roads on the map.</p>
+          </div>
+        )}
+
+        {/* Dev Cards */}
+        {(devCards.length > 0 || canTrade) && (
           <div className={styles.panel}>
-            <button
-              type="button"
-              className={styles.devPanelToggle}
-              onClick={() => setTradeOpen(prev => prev)} // dev cards always visible, toggle handled by CSS
-            >
-              <span>Development Cards ({devCards.length})</span>
+            <button type="button" className={styles.devPanelToggle} onClick={() => {}}>
+              <span>Dev Cards ({devCards.length})</span>
             </button>
             <div className={styles.devCardList}>
               {devCards.map((card, i) => {
@@ -1443,399 +1295,414 @@ export default function Game() {
                 const knightPlayable = isKnight && !devCardPlayed && !boughtThisTurn && isMyTurn && (turnPhase === 'pre_roll' || turnPhase === 'post_roll')
                 const normalPlayable = !isKnight && !isVP && !devCardPlayed && !boughtThisTurn && isMyTurn && turnPhase === 'post_roll'
                 const canPlay = isVP ? false : isKnight ? knightPlayable : normalPlayable
-
                 const CARD_ICONS: Record<string, string> = { knight: '🗡️', victory_point: '🏆', year_of_plenty: '🌽', monopoly: '💰', road_building: '🛤️' }
                 const CARD_LABELS: Record<string, string> = { knight: 'Knight', victory_point: 'Victory Point', year_of_plenty: 'Year of Plenty', monopoly: 'Monopoly', road_building: 'Road Building' }
-                const CARD_TOOLTIPS: Record<string, string> = {
-                  knight: 'Knight: Move the robber and steal a resource. Counts toward Largest Army.',
-                  victory_point: 'Victory Point: Worth 1 VP. Revealed at game end.',
-                  year_of_plenty: 'Year of Plenty: Take any 2 resources from the bank.',
-                  monopoly: 'Monopoly: Name a resource. All players give you all of that resource.',
-                  road_building: 'Road Building: Place 2 roads for free.',
-                }
-
                 return (
-                  <div
-                    key={i}
-                    className={`${styles.devCardItem} ${canPlay ? styles.playable : ''}`}
-                    title={CARD_TOOLTIPS[card.card_type] ?? ''}
-                  >
+                  <div key={i} className={`${styles.devCardItem} ${canPlay ? styles.playable : ''}`}>
                     <span className={styles.devCardIcon}>{CARD_ICONS[card.card_type] ?? '?'}</span>
                     <span className={styles.devCardName}>{CARD_LABELS[card.card_type] ?? card.card_type}</span>
                     {boughtThisTurn && <span className={styles.devCardNew}>{t('game.devCards.new')}</span>}
                     {canPlay && (
-                      <button
-                        type="button"
-                        className={styles.devCardPlayBtn}
-                        onClick={() => handlePlayDevCard(card.card_type)}
-                      >
-                        Play
-                      </button>
+                      <button type="button" className={styles.devCardPlayBtn} onClick={() => handlePlayDevCard(card.card_type)}>Play</button>
                     )}
                   </div>
                 )
               })}
               {devCards.length === 0 && (
-                <span style={{ fontSize: 12, color: '#6c757d' }}>{t('game.devCards.noCardsYet')}</span>
+                <span style={{ fontSize: 11, color: '#6c757d' }}>{t('game.devCards.noCardsYet')}</span>
               )}
             </div>
-            {canTrade && (
-              <button
-                type="button"
-                className={styles.buyDevCardBtn}
-                onClick={handleBuyDevCard}
-                disabled={!hasOreWheatSheep || deckCount === 0}
-              >
-                Buy Card ({deckCount} left) — ⛏️🌾🐑
-              </button>
+            <button type="button" className={styles.buyDevCardBtn} onClick={handleBuyDevCard} disabled={!canTrade || !hasOreWheatSheep || deckCount === 0}>
+              Buy Card ({deckCount}) — ⛏️🌾🐑
+            </button>
+          </div>
+        )}
+
+        {/* Bank Trade */}
+        {canTrade && (
+          <div className={styles.panel}>
+            <button type="button" className={styles.tradePanelToggle} onClick={() => setTradeOpen(prev => !prev)}>
+              <span>{'🏦'} Bank Trade</span>
+              <span className={styles.toggleArrow}>{tradeOpen ? '▲' : '▼'}</span>
+            </button>
+            {tradeOpen && (
+              <div className={styles.tradeBody}>
+                <div className={styles.tradeSide}>
+                  <span className={styles.tradeLabel}>{t('game.trade.youGive')}</span>
+                  {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
+                    const have = myResources[res] ?? 0
+                    const offering = tradeOffer[res] ?? 0
+                    const ratio = tradeRatios[res] ?? 4
+                    return (
+                      <div key={res} className={styles.tradeRow}>
+                        <span className={styles.tradeRes}>{res} <span className={styles.tradeRatio}>{ratio}:1</span>{ratio < 4 && <span className={styles.portBadge} title={ratio === 2 ? `${res} port` : 'generic port'}>{ratio === 2 ? '\u2693' : '\uD83D\uDEA2'}</span>}</span>
+                        <button type="button" className={styles.tradeBtn} onClick={() => handleTradeOfferChange(res, -ratio)} disabled={offering < ratio}>-</button>
+                        <span className={styles.tradeCount}>{offering}</span>
+                        <button type="button" className={styles.tradeBtn} onClick={() => handleTradeOfferChange(res, ratio)} disabled={have - offering < ratio}>+</button>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className={styles.tradeSide}>
+                  <span className={styles.tradeLabel}>{t('game.trade.youGet')} <span className={styles.tradeCredits}>{t('game.trade.available', { count: tradeCredits })}</span></span>
+                  {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
+                    const wanting = tradeWant[res] ?? 0
+                    return (
+                      <div key={res} className={styles.tradeRow}>
+                        <span className={styles.tradeRes}>{res}</span>
+                        <button type="button" className={styles.tradeBtn} onClick={() => handleTradeWantChange(res, -1)} disabled={wanting <= 0}>-</button>
+                        <span className={styles.tradeCount}>{wanting}</span>
+                        <button type="button" className={styles.tradeBtn} onClick={() => handleTradeWantChange(res, 1)} disabled={tradeWantTotal >= tradeCredits}>+</button>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className={styles.tradeActions}>
+                  <button type="button" className={styles.tradeSubmitBtn} onClick={handleTradeSubmit} disabled={!tradeValid}>
+                    Trade {tradeOfferTotal} → {tradeWantTotal}
+                  </button>
+                  <button type="button" className={styles.tradeResetBtn} onClick={handleTradeReset}>{t('game.actions.clear')}</button>
+                </div>
+              </div>
             )}
           </div>
+        )}
 
-          {/* Year of Plenty selection */}
-          {playingCard === 'year_of_plenty' && (
-            <div className={`${styles.panel} ${styles.yopPanel}`}>
-              <p className={styles.panelTitle}>Year of Plenty — Pick 2 resources</p>
-              <div className={styles.discardGrid}>
-                {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
-                  const sel = yopSelection[res] ?? 0
-                  return (
-                    <div key={res} className={styles.discardRow}>
-                      <span className={styles.discardLabel}>{res}</span>
-                      <button type="button" className={styles.discardBtn} onClick={() => handleYopChange(res, -1)} disabled={sel <= 0}>-</button>
-                      <span className={styles.discardCount}>{sel}</span>
-                      <button type="button" className={styles.discardBtn} onClick={() => handleYopChange(res, 1)} disabled={yopTotal >= 2}>+</button>
-                    </div>
-                  )
-                })}
-              </div>
-              <div className={styles.tradeActions}>
-                <button
-                  type="button"
-                  className={styles.tradeSubmitBtn}
-                  onClick={handlePlayYearOfPlenty}
-                  disabled={yopTotal !== 2}
-                >
-                  Confirm ({yopTotal}/2)
-                </button>
-                <button type="button" className={styles.tradeResetBtn} onClick={() => setPlayingCard(null)}>{t('common.cancel')}</button>
-              </div>
-            </div>
-          )}
+        {/* P2P Trade: Propose */}
+        {canTrade && !p2pProposing && !p2pWaiting && (
+          <button type="button" className={styles.p2pProposeBtn} onClick={() => { setP2pProposing(true); setP2pOffer({}); setP2pWant({}) }}>
+            {'🤝'} Player Trade
+          </button>
+        )}
 
-          {/* Monopoly selection */}
-          {playingCard === 'monopoly' && (
-            <div className={`${styles.panel} ${styles.monopolyPanel}`}>
-              <p className={styles.panelTitle}>Monopoly — Pick a resource</p>
-              <div className={styles.devCardList}>
-                {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => (
-                  <button
-                    key={res}
-                    type="button"
-                    className={`${styles.devCardItem} ${monopolyResource === res ? styles.playable : ''}`}
-                    onClick={() => setMonopolyResource(res)}
-                    style={{ cursor: 'pointer', textTransform: 'capitalize' }}
-                  >
-                    {res}
-                  </button>
-                ))}
-              </div>
-              <div className={styles.tradeActions} style={{ marginTop: 8 }}>
-                <button
-                  type="button"
-                  className={styles.tradeSubmitBtn}
-                  onClick={handlePlayMonopoly}
-                  disabled={!monopolyResource}
-                >
-                  Confirm {monopolyResource || '...'}
-                </button>
-                <button type="button" className={styles.tradeResetBtn} onClick={() => setPlayingCard(null)}>{t('common.cancel')}</button>
-              </div>
-            </div>
-          )}
-
-          {/* Road Building hint */}
-          {turnPhase === 'road_building' && isMyTurn && (
-            <div className={`${styles.panel} ${styles.yopPanel}`}>
-              <p className={styles.panelTitle}>{t('game.panels.roadBuilding')}</p>
-              <p className={styles.roadBuildingHint}>Place 2 free roads on the map.</p>
-            </div>
-          )}
-
-          {/* Trade with bank (collapsible) */}
-          {canTrade && (
-            <div className={styles.panel}>
-              <button
-                type="button"
-                className={styles.tradePanelToggle}
-                onClick={() => setTradeOpen(prev => !prev)}
-              >
-                <span>{'🏦'} Bank Trade</span>
-                <span className={styles.toggleArrow}>{tradeOpen ? '▲' : '▼'}</span>
-              </button>
-              {tradeOpen && (
-                <div className={styles.tradeBody}>
-                  {/* Offer (give) */}
-                  <div className={styles.tradeSide}>
-                    <span className={styles.tradeLabel}>{t('game.trade.youGive')}</span>
-                    {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
-                      const have = myResources[res] ?? 0
-                      const offering = tradeOffer[res] ?? 0
-                      const ratio = tradeRatios[res] ?? 4
-                      return (
-                        <div key={res} className={styles.tradeRow}>
-                          <span className={styles.tradeRes}>{res} <span className={styles.tradeRatio}>{ratio}:1</span>{ratio < 4 && <span className={styles.portBadge} title={ratio === 2 ? `${res} port` : 'generic port'}>{ratio === 2 ? '\u2693' : '\uD83D\uDEA2'}</span>}</span>
-                          <button type="button" className={styles.tradeBtn} onClick={() => handleTradeOfferChange(res, -ratio)} disabled={offering < ratio}>-</button>
-                          <span className={styles.tradeCount}>{offering}</span>
-                          <button type="button" className={styles.tradeBtn} onClick={() => handleTradeOfferChange(res, ratio)} disabled={have - offering < ratio}>+</button>
-                        </div>
-                      )
-                    })}
+        {/* P2P Trade: Building proposal */}
+        {p2pProposing && (
+          <div className={`${styles.panel} ${styles.p2pTradePanel}`}>
+            <p className={styles.panelTitle}>{t('game.panels.proposeTrade')}</p>
+            <div className={styles.tradeSide}>
+              <span className={styles.tradeLabel}>{t('game.trade.youGiveUpper')}</span>
+              {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
+                const have = myResources[res] ?? 0
+                const offering = p2pOffer[res] ?? 0
+                return (
+                  <div key={res} className={styles.tradeRow}>
+                    <span className={styles.tradeRes}>{RESOURCE_LABELS[res]} {res}</span>
+                    <button type="button" className={styles.tradeBtn} onClick={() => handleP2pOfferChange(res, -1)} disabled={offering <= 0}>-</button>
+                    <span className={styles.tradeCount}>{offering}</span>
+                    <button type="button" className={styles.tradeBtn} onClick={() => handleP2pOfferChange(res, 1)} disabled={offering >= have}>+</button>
                   </div>
-                  {/* Want (receive) */}
-                  <div className={styles.tradeSide}>
-                    <span className={styles.tradeLabel}>{t('game.trade.youGet')} <span className={styles.tradeCredits}>{t('game.trade.available', { count: tradeCredits })}</span></span>
-                    {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
-                      const wanting = tradeWant[res] ?? 0
-                      return (
-                        <div key={res} className={styles.tradeRow}>
-                          <span className={styles.tradeRes}>{res}</span>
-                          <button type="button" className={styles.tradeBtn} onClick={() => handleTradeWantChange(res, -1)} disabled={wanting <= 0}>-</button>
-                          <span className={styles.tradeCount}>{wanting}</span>
-                          <button type="button" className={styles.tradeBtn} onClick={() => handleTradeWantChange(res, 1)} disabled={tradeWantTotal >= tradeCredits}>+</button>
-                        </div>
-                      )
-                    })}
-                  </div>
-                  {/* Actions */}
-                  <div className={styles.tradeActions}>
-                    <button type="button" className={styles.tradeSubmitBtn} onClick={handleTradeSubmit} disabled={!tradeValid}>
-                      Trade {tradeOfferTotal} → {tradeWantTotal}
-                    </button>
-                    <button type="button" className={styles.tradeResetBtn} onClick={handleTradeReset}>{t('game.actions.clear')}</button>
-                  </div>
-                </div>
-              )}
+                )
+              })}
             </div>
-          )}
+            <div className={styles.tradeSide}>
+              <span className={styles.tradeLabel}>{t('game.trade.youWantUpper')}</span>
+              {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
+                const wanting = p2pWant[res] ?? 0
+                return (
+                  <div key={res} className={styles.tradeRow}>
+                    <span className={styles.tradeRes}>{RESOURCE_LABELS[res]} {res}</span>
+                    <button type="button" className={styles.tradeBtn} onClick={() => handleP2pWantChange(res, -1)} disabled={wanting <= 0}>-</button>
+                    <span className={styles.tradeCount}>{wanting}</span>
+                    <button type="button" className={styles.tradeBtn} onClick={() => handleP2pWantChange(res, 1)}>+</button>
+                  </div>
+                )
+              })}
+            </div>
+            <div className={styles.tradeActions}>
+              <button type="button" className={styles.tradeSubmitBtn} onClick={handleP2pPropose} disabled={!p2pValid}>Send</button>
+              <button type="button" className={styles.tradeResetBtn} onClick={() => { setP2pProposing(false); setP2pOffer({}); setP2pWant({}) }}>Cancel</button>
+            </div>
+          </div>
+        )}
 
-          {/* P2P Trade: Propose button */}
-          {canTrade && !p2pProposing && !p2pWaiting && (
+        {/* P2P Trade: Waiting */}
+        {p2pWaiting && (
+          <div className={`${styles.panel} ${styles.p2pWaiting}`}>
+            <p className={styles.panelTitle}>
+              <span className={styles.p2pWaitingSpinner} />
+              Waiting for response...
+            </p>
+            <div className={styles.p2pSummary}>
+              <span className={styles.p2pSummaryLabel}>Offer:</span>
+              <span className={styles.p2pSummaryValue}>
+                {Object.entries(p2pSentOffer).filter(([, n]) => n > 0).map(([r, n]) => `${n} ${r}`).join(', ') || 'nothing'}
+              </span>
+            </div>
+            <div className={styles.p2pSummary}>
+              <span className={styles.p2pSummaryLabel}>Want:</span>
+              <span className={styles.p2pSummaryValue}>
+                {Object.entries(p2pSentWant).filter(([, n]) => n > 0).map(([r, n]) => `${n} ${r}`).join(', ') || 'nothing'}
+              </span>
+            </div>
+            <button type="button" className={styles.p2pCancelBtn} onClick={handleP2pCancel}>Cancel</button>
+          </div>
+        )}
+
+        {/* P2P Trade: Incoming */}
+        {tradeProposal && tradeProposal.proposer_id !== myPlayerId && (
+          <div className={`${styles.panel} ${styles.p2pProposalIncoming}`} role="alert">
+            <p className={styles.panelTitle}>Trade from {tradeProposal.proposer_name}</p>
+            <div className={styles.p2pSummary}>
+              <span className={styles.p2pSummaryLabel}>Offer:</span>
+              <span className={styles.p2pSummaryValue}>
+                {Object.entries(tradeProposal.offer).filter(([, n]) => n > 0).map(([r, n]) => `${n} ${r}`).join(', ')}
+              </span>
+            </div>
+            <div className={styles.p2pSummary}>
+              <span className={styles.p2pSummaryLabel}>Want:</span>
+              <span className={styles.p2pSummaryValue}>
+                {Object.entries(tradeProposal.want).filter(([, n]) => n > 0).map(([r, n]) => `${n} ${r}`).join(', ')}
+              </span>
+            </div>
+            <div className={styles.p2pResponseActions}>
+              <button type="button" className={styles.p2pAcceptBtn} onClick={() => handleP2pAccept(tradeProposal.id)}>Accept</button>
+              <button type="button" className={styles.p2pRejectBtn} onClick={() => handleP2pReject(tradeProposal.id)}>Reject</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ═══ Right sidebar ═══ */}
+      <aside className={styles.sidebar}>
+        {/* Log / Chat tabs */}
+        <div className={styles.logChatArea}>
+          <div className={styles.tabBar}>
             <button
               type="button"
-              className={styles.p2pProposeBtn}
-              onClick={() => {
-                setP2pProposing(true)
-                setP2pOffer({})
-                setP2pWant({})
-              }}
+              className={`${styles.tabBtn} ${activeTab === 'log' ? styles.tabBtnActive : ''}`}
+              onClick={() => setActiveTab('log')}
             >
-              {'🤝'} Propose Trade with Players
+              Log
             </button>
-          )}
-
-          {/* P2P Trade: Building a proposal */}
-          {p2pProposing && (
-            <div className={`${styles.panel} ${styles.p2pTradePanel}`}>
-              <p className={styles.panelTitle}>{t('game.panels.proposeTrade')}</p>
-              <div className={styles.tradeSide}>
-                <span className={styles.tradeLabel}>{t('game.trade.youGiveUpper')}</span>
-                {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
-                  const have = myResources[res] ?? 0
-                  const offering = p2pOffer[res] ?? 0
-                  return (
-                    <div key={res} className={styles.tradeRow}>
-                      <span className={styles.tradeRes}>{RESOURCE_LABELS[res]} {res}</span>
-                      <button type="button" className={styles.tradeBtn} onClick={() => handleP2pOfferChange(res, -1)} disabled={offering <= 0}>-</button>
-                      <span className={styles.tradeCount}>{offering}</span>
-                      <button type="button" className={styles.tradeBtn} onClick={() => handleP2pOfferChange(res, 1)} disabled={offering >= have}>+</button>
+            <button
+              type="button"
+              className={`${styles.tabBtn} ${activeTab === 'chat' ? styles.tabBtnActive : ''}`}
+              onClick={() => setActiveTab('chat')}
+            >
+              Chat
+            </button>
+          </div>
+          {activeTab === 'log' ? (
+            <div className={styles.tabContent}>
+              {log.length === 0 && <span className={styles.logEmpty}>No events yet.</span>}
+              {[...log].reverse().map((entry, i) => (
+                <div key={i} className={styles.logEntry}>{entry}</div>
+              ))}
+            </div>
+          ) : (
+            <div className={styles.tabContent}>
+              <div className={styles.chatBody}>
+                <div className={styles.chatMessages}>
+                  {chatMessages.map((m, i) => (
+                    <div key={i} className={styles.chatMsg}>
+                      <span style={{ color: m.player_color, fontWeight: 600 }}>{m.player_name}</span>: {m.text}
                     </div>
-                  )
-                })}
-              </div>
-              <div className={styles.tradeSide}>
-                <span className={styles.tradeLabel}>{t('game.trade.youWantUpper')}</span>
-                {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
-                  const wanting = p2pWant[res] ?? 0
-                  return (
-                    <div key={res} className={styles.tradeRow}>
-                      <span className={styles.tradeRes}>{RESOURCE_LABELS[res]} {res}</span>
-                      <button type="button" className={styles.tradeBtn} onClick={() => handleP2pWantChange(res, -1)} disabled={wanting <= 0}>-</button>
-                      <span className={styles.tradeCount}>{wanting}</span>
-                      <button type="button" className={styles.tradeBtn} onClick={() => handleP2pWantChange(res, 1)}>+</button>
-                    </div>
-                  )
-                })}
-              </div>
-              <div className={styles.tradeActions}>
-                <button
-                  type="button"
-                  className={styles.tradeSubmitBtn}
-                  onClick={handleP2pPropose}
-                  disabled={!p2pValid}
-                >
-                  Send Proposal
-                </button>
-                <button
-                  type="button"
-                  className={styles.tradeResetBtn}
-                  onClick={() => { setP2pProposing(false); setP2pOffer({}); setP2pWant({}) }}
-                >
-                  Cancel
-                </button>
+                  ))}
+                </div>
+                <div className={styles.quickChatRow}>
+                  {['👍', '😄', '😱', 'gg'].map(emoji => (
+                    <button key={emoji} className={styles.quickChatBtn} onClick={() => { gameSocket.send({ type: 'chat', text: emoji } as any) }}>
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+                <div className={styles.chatInputRow}>
+                  <input
+                    value={chatInput}
+                    onChange={e => setChatInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && chatInput.trim()) { gameSocket.send({ type: 'chat', text: chatInput.trim() } as any); setChatInput('') } }}
+                    placeholder={t('game.chat.placeholder')}
+                    maxLength={200}
+                    className={styles.chatInputField}
+                  />
+                  <button onClick={() => { if (chatInput.trim()) { gameSocket.send({ type: 'chat', text: chatInput.trim() } as any); setChatInput('') } }} className={styles.chatSendBtn}>{t('game.actions.send')}</button>
+                </div>
               </div>
             </div>
           )}
+        </div>
 
-          {/* P2P Trade: Waiting for response (proposer view) */}
-          {p2pWaiting && (
-            <div className={`${styles.panel} ${styles.p2pWaiting}`}>
-              <p className={styles.panelTitle}>
-                <span className={styles.p2pWaitingSpinner} />
-                Waiting for response...
-              </p>
-              <div className={styles.p2pSummary}>
-                <span className={styles.p2pSummaryLabel}>Your offer:</span>
-                <span className={styles.p2pSummaryValue}>
-                  {Object.entries(p2pSentOffer).filter(([, n]) => n > 0).map(([r, n]) => `${n} ${r}`).join(', ') || 'nothing'}
+        {/* Timer bar */}
+        {turnTimerRemaining != null && (
+          <div className={styles.timerBar}>
+            <div
+              className={`${styles.timerFill} ${turnTimerRemaining <= 10 ? styles.timerLow : ''}`}
+              style={{ width: `${Math.max(0, (turnTimerRemaining / turnTimerDuration) * 100)}%` }}
+            />
+          </div>
+        )}
+
+        {/* Bank resource strip */}
+        <div className={styles.bankStrip}>
+          {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as ResourceType[]).map(res => {
+            const knownTotal = players.reduce((sum, p) => {
+              const r = p.resources?.[res] ?? 0
+              return sum + r
+            }, 0)
+            const bankRemaining = 19 - knownTotal
+            const isDepleted = bankRemaining <= 0
+            return (
+              <div key={res} className={`${styles.bankItem} ${isDepleted ? styles.bankDepleted : ''}`} title={isDepleted ? 'Depleted' : `${bankRemaining} remaining`}>
+                <span className={styles.bankResIcon}>{RESOURCE_LABELS[res]}</span>
+                <span className={`${styles.bankCount} ${isDepleted || bankRemaining <= 3 ? styles.bankCountLow : ''}`}>
+                  {bankRemaining}
                 </span>
               </div>
-              <div className={styles.p2pSummary}>
-                <span className={styles.p2pSummaryLabel}>You want:</span>
-                <span className={styles.p2pSummaryValue}>
-                  {Object.entries(p2pSentWant).filter(([, n]) => n > 0).map(([r, n]) => `${n} ${r}`).join(', ') || 'nothing'}
+            )
+          })}
+          <span className={styles.bankDivider} />
+          <div className={styles.bankItem} title={`Dev cards: ${deckCount}`}>
+            <span className={styles.bankResIcon}>{'🎴'}</span>
+            <span className={styles.bankCount}>{deckCount}</span>
+          </div>
+        </div>
+
+        {/* Setup order */}
+        {isSetupPhase && setupOrder && setupOrder.length > 0 && (
+          <div className={styles.setupOrder}>
+            {setupOrder.map((idx, i) => {
+              const p = players[idx]
+              const isCurrent = p?.id === game?.currentPlayerId
+              return (
+                <span key={i}>
+                  {i > 0 && ' → '}
+                  <span style={{ fontWeight: isCurrent ? 'bold' : 'normal', textDecoration: isCurrent ? 'underline' : 'none' }}>
+                    {p?.name ?? `P${idx + 1}`}
+                  </span>
                 </span>
-              </div>
-              <button
-                type="button"
-                className={styles.p2pCancelBtn}
-                onClick={handleP2pCancel}
+              )
+            })}
+          </div>
+        )}
+
+        {/* Opponent player cards */}
+        <div className={styles.opponentsList}>
+          {orderedPlayers.filter(p => p.id !== myPlayerId).map(p => {
+            const cardCount = p.resourceCount ?? Object.values(p.resources).reduce((a, b) => a + b, 0)
+            const hasLongestRoad = game?.longestRoadPlayerId === p.id
+            const hasLargestArmy = game?.largestArmyPlayerId === p.id
+            const knightsCount = (p as any).knightsPlayed ?? 0
+            const isActive = p.id === game?.currentPlayerId
+            return (
+              <div
+                key={p.id}
+                className={`${styles.playerCard} ${isActive ? styles.playerCardActive : ''}`}
+                style={{ '--player-color': p.color } as CSSProperties}
               >
-                Cancel Proposal
-              </button>
-            </div>
-          )}
+                <div className={styles.playerCardHeader}>
+                  <div className={styles.playerCardAvatar} style={{ backgroundColor: p.color }}>
+                    {p.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
+                  </div>
+                  <span className={styles.playerCardName}>{p.name}</span>
+                  <div className={styles.playerCardBadges}>
+                    {hasLongestRoad && <span className={styles.playerBadge} title={t('game.tooltips.longestRoad')}>LR</span>}
+                    {hasLargestArmy && <span className={styles.playerBadge} title={t('game.tooltips.largestArmy')}>LA</span>}
+                  </div>
+                  <span className={styles.playerCardVP}>{p.victoryPoints}</span>
+                </div>
+                <div className={styles.resCardBacks}>
+                  {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as const).map(res => (
+                    <div key={res} className={styles.resCardBack} style={{ background: RES_CARD_COLORS[res] }} title={res}>
+                      <span className={styles.resCardBackCount}>?</span>
+                    </div>
+                  ))}
+                  <span style={{ fontSize: 11, color: '#8a9bb0', marginLeft: 2 }}>{cardCount}</span>
+                  {(() => {
+                    const rawP = rawPlayers.find(rp => rp.player_id === p.id)
+                    const devCount = rawP?.dev_card_count ?? 0
+                    return (
+                      <div className={styles.devCardBack} title={`Dev cards: ${devCount}`}>
+                        <span className={styles.resCardBackCount}>{devCount}</span>
+                      </div>
+                    )
+                  })()}
+                </div>
+                <div className={styles.playerCardBuildings}>
+                  <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'🏠'}</span><span className={styles.buildingCount}>{p.settlements}</span></span>
+                  <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'🏙️'}</span><span className={styles.buildingCount}>{p.cities}</span></span>
+                  <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'🛤️'}</span><span className={styles.buildingCount}>{p.roads}</span></span>
+                  {knightsCount > 0 && (
+                    <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'⚔️'}</span><span className={styles.buildingCount}>{knightsCount}</span></span>
+                  )}
+                </div>
+                {(hasLongestRoad || hasLargestArmy) && (
+                  <div className={styles.trophyBadges}>
+                    {hasLongestRoad && <span className={styles.trophyBadge} title={t('game.tooltips.longestRoad')}>{'🛤️'} LR</span>}
+                    {hasLargestArmy && <span className={styles.trophyBadge} title={t('game.tooltips.largestArmy')}>{'⚔️'} LA</span>}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </aside>
 
-          {/* P2P Trade: Incoming proposal (non-proposer view) */}
-          {tradeProposal && tradeProposal.proposer_id !== myPlayerId && (
-            <div className={`${styles.panel} ${styles.p2pProposalIncoming}`} role="alert">
-              <p className={styles.panelTitle}>
-                Trade Offer from {tradeProposal.proposer_name}
-              </p>
-              <div className={styles.p2pSummary}>
-                <span className={styles.p2pSummaryLabel}>They offer:</span>
-                <span className={styles.p2pSummaryValue}>
-                  {Object.entries(tradeProposal.offer).filter(([, n]) => n > 0).map(([r, n]) => `${n} ${r}`).join(', ')}
-                </span>
+      {/* ═══ Bottom bar ═══ */}
+      <div className={`${styles.bottomBar} ${myHandTotal > 7 ? styles.bottomBarDanger : ''}`}>
+        {/* Left: my resource cards */}
+        <div className={styles.myResCards}>
+          {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as const).map(res => {
+            const count = myResources[res] ?? 0
+            return (
+              <div
+                key={res}
+                className={`${styles.resCard} ${count === 0 ? styles.resCardDimmed : ''}`}
+                style={{ background: RES_CARD_COLORS[res] }}
+                title={`${res}: ${count}`}
+              >
+                <span className={styles.resCardIcon}>{RESOURCE_LABELS[res]}</span>
+                <span className={styles.resCardCount}>{count}</span>
+                <span className={styles.resCardName}>{res}</span>
               </div>
-              <div className={styles.p2pSummary}>
-                <span className={styles.p2pSummaryLabel}>They want:</span>
-                <span className={styles.p2pSummaryValue}>
-                  {Object.entries(tradeProposal.want).filter(([, n]) => n > 0).map(([r, n]) => `${n} ${r}`).join(', ')}
-                </span>
-              </div>
-              <div className={styles.p2pResponseActions}>
-                <button
-                  type="button"
-                  className={styles.p2pAcceptBtn}
-                  onClick={() => handleP2pAccept(tradeProposal.id)}
-                >
-                  Accept
-                </button>
-                <button
-                  type="button"
-                  className={styles.p2pRejectBtn}
-                  onClick={() => handleP2pReject(tradeProposal.id)}
-                >
-                  Reject
-                </button>
-              </div>
-            </div>
+            )
+          })}
+          {myHandTotal > 7 && (
+            <span className={styles.handWarning}>{'⚠️'} {myHandTotal} cards!</span>
           )}
+        </div>
 
-          {/* Build actions */}
-          {isMyTurn && (
-            <div className={styles.panel}>
-              <p className={styles.panelTitle}>{t('game.panels.build')}</p>
-              <div className={styles.buildGrid}>
-                <button
-                  className={`${styles.buildBtn} ${buildMode === 'road' ? styles.active : ''}`}
-                  onClick={() => toggleBuildMode('road')}
-                  disabled={isSetupPhase}
-                  type="button"
-                  title="Road (1 wood + 1 brick)"
-                >
+        {/* Center: action indicator + buttons */}
+        <div className={styles.actionCenter}>
+          <div className={`${styles.actionIndicator} ${isMyTurn ? styles.actionIndicatorYou : ''}`}>
+            <div className={styles.diceArea}>
+              <DiceDisplay dice={game?.lastDiceRoll} rolling={rolling} />
+            </div>
+            <span className={styles.actionLabel}>{actionLabelText}</span>
+            {turnTimerRemaining != null && (
+              <span className={`${styles.actionTimer} ${turnTimerRemaining <= 10 ? styles.actionTimerLow : ''}`}>
+                {String(Math.floor(turnTimerRemaining / 60)).padStart(2, '0')}:{String(turnTimerRemaining % 60).padStart(2, '0')}
+              </span>
+            )}
+          </div>
+          <div className={styles.actionBtns}>
+            {/* Build buttons */}
+            {isMyTurn && !isSetupPhase && (
+              <div className={styles.buildStrip}>
+                <button className={`${styles.buildBtn} ${buildMode === 'road' ? styles.active : ''}`} onClick={() => toggleBuildMode('road')} type="button" title="Road">
                   <span className={styles.buildIcon}>{'🛤️'}</span>
-                  <span>{t('game.pieces.road')}</span>
                   <span className={styles.cost}>{'🌲🧱'}</span>
                 </button>
-                <button
-                  className={`${styles.buildBtn} ${buildMode === 'settlement' ? styles.active : ''}`}
-                  onClick={() => toggleBuildMode('settlement')}
-                  disabled={isSetupPhase}
-                  type="button"
-                  title="Settlement (1 wood + 1 brick + 1 wheat + 1 sheep)"
-                >
+                <button className={`${styles.buildBtn} ${buildMode === 'settlement' ? styles.active : ''}`} onClick={() => toggleBuildMode('settlement')} type="button" title="Settlement">
                   <span className={styles.buildIcon}>{'🏠'}</span>
-                  <span>{t('game.pieces.settlement')}</span>
                   <span className={styles.cost}>{'🌲🧱🌾🐑'}</span>
                 </button>
-                <button
-                  className={`${styles.buildBtn} ${buildMode === 'city' ? styles.active : ''}`}
-                  onClick={() => toggleBuildMode('city')}
-                  disabled={isSetupPhase}
-                  type="button"
-                  title="City (2 wheat + 3 ore)"
-                >
+                <button className={`${styles.buildBtn} ${buildMode === 'city' ? styles.active : ''}`} onClick={() => toggleBuildMode('city')} type="button" title="City">
                   <span className={styles.buildIcon}>{'🏙️'}</span>
-                  <span>{t('game.pieces.city')}</span>
                   <span className={styles.cost}>{'🌾🌾⛏️⛏️⛏️'}</span>
                 </button>
               </div>
-            </div>
-          )}
-
-          {/* Build Cost Reference Card (P1-07) */}
-          <div className={`${styles.panel} ${styles.costRef}`}>
-            <p className={styles.panelTitle}>{t('game.panels.buildCosts')}</p>
-            <div className={styles.costGrid}>
-              <div className={styles.costRow}>
-                <span className={styles.costPiece}>{'\uD83D\uDEE4\uFE0F'} Road</span>
-                <span className={styles.costDots}>
-                  <span className={styles.resDot} style={{ background: '#4a8c3f' }} title="Wood" />
-                  <span className={styles.resDot} style={{ background: '#c0392b' }} title="Brick" />
-                </span>
-              </div>
-              <div className={styles.costRow}>
-                <span className={styles.costPiece}>{'\uD83C\uDFE0'} Settlement</span>
-                <span className={styles.costDots}>
-                  <span className={styles.resDot} style={{ background: '#4a8c3f' }} title="Wood" />
-                  <span className={styles.resDot} style={{ background: '#c0392b' }} title="Brick" />
-                  <span className={styles.resDot} style={{ background: '#f1c40f' }} title="Wheat" />
-                  <span className={styles.resDot} style={{ background: '#7dcea0' }} title="Sheep" />
-                </span>
-              </div>
-              <div className={styles.costRow}>
-                <span className={styles.costPiece}>{'\uD83C\uDFD9\uFE0F'} City</span>
-                <span className={styles.costDots}>
-                  <span className={styles.resDot} style={{ background: '#f1c40f' }} title="Wheat" />
-                  <span className={styles.resDot} style={{ background: '#f1c40f' }} title="Wheat" />
-                  <span className={styles.resDot} style={{ background: '#7f8c8d' }} title="Ore" />
-                  <span className={styles.resDot} style={{ background: '#7f8c8d' }} title="Ore" />
-                  <span className={styles.resDot} style={{ background: '#7f8c8d' }} title="Ore" />
-                </span>
-              </div>
-              <div className={styles.costRow}>
-                <span className={styles.costPiece}>{'\uD83C\uDFB4'} Dev Card</span>
-                <span className={styles.costDots}>
-                  <span className={styles.resDot} style={{ background: '#f1c40f' }} title="Wheat" />
-                  <span className={styles.resDot} style={{ background: '#7dcea0' }} title="Sheep" />
-                  <span className={styles.resDot} style={{ background: '#7f8c8d' }} title="Ore" />
-                </span>
-              </div>
-            </div>
+            )}
+            <button className={styles.rollBtn} onClick={handleRollDice} disabled={isSetupPhase || !isMyTurn || turnPhase !== 'pre_roll' || rolling} type="button">
+              {rolling ? t('game.actions.rolling') : t('game.actions.rollDice')}
+            </button>
+            <button className={styles.endTurnBtn} onClick={handleEndTurn} disabled={isSetupPhase || !isMyTurn || turnPhase !== 'post_roll'} type="button">
+              {t('game.actions.endTurn')}
+            </button>
           </div>
+        </div>
 
-          {/* My player card (at bottom, larger) */}
+        {/* Right: my player card */}
+        <div className={styles.myCardBottom}>
           {me && (
             <div
               className={`${styles.playerCard} ${styles.playerCardMe} ${isMyTurn ? styles.playerCardActive : ''}`}
@@ -1848,31 +1715,7 @@ export default function Game() {
                 <span className={styles.playerCardName}>
                   {me.name} <span className={styles.playerCardYouTag}>(you)</span>
                 </span>
-                <div className={styles.playerCardBadges}>
-                  {game?.longestRoadPlayerId === me.id && <span className={styles.playerBadge} title={t('game.tooltips.longestRoad')}>LR</span>}
-                  {game?.largestArmyPlayerId === me.id && <span className={styles.playerBadge} title={t('game.tooltips.largestArmy')}>LA</span>}
-                </div>
                 <span className={styles.playerCardVP}>{me.victoryPoints}</span>
-              </div>
-              <div className={styles.resCardBacks}>
-                {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as const).map(res => {
-                  const count = myResources[res] ?? 0
-                  return (
-                    <div
-                      key={res}
-                      className={`${styles.resCardBack} ${styles.resCardBackMine} ${count === 0 ? styles.resCardBackDimmed : ''}`}
-                      style={{ '--card-color': RES_CARD_COLORS[res], background: RES_CARD_COLORS[res] } as CSSProperties}
-                      title={`${res}: ${count}`}
-                    >
-                      <span className={styles.resCardBackCount}>{count}</span>
-                      <span className={styles.resCardBackLabel}>{res.slice(0, 2)}</span>
-                    </div>
-                  )
-                })}
-                <div className={styles.devCardBack} title={`Dev cards: ${devCards.length}`}>
-                  <span className={styles.resCardBackCount}>{devCards.length}</span>
-                  <span className={styles.devCardBackLabel}>dev</span>
-                </div>
               </div>
               <div className={styles.playerCardBuildings}>
                 <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'🏠'}</span><span className={styles.buildingCount}>{me.settlements}</span></span>
@@ -1882,129 +1725,10 @@ export default function Game() {
                   <span className={styles.buildingStat}><span className={styles.buildingIcon}>{'⚔️'}</span><span className={styles.buildingCount}>{(me as any).knightsPlayed}</span></span>
                 )}
               </div>
-              {(game?.longestRoadPlayerId === me.id || game?.largestArmyPlayerId === me.id) && (
-                <div className={styles.trophyBadges}>
-                  {game?.longestRoadPlayerId === me.id && (
-                    <span className={styles.trophyBadge} title={t('game.tooltips.longestRoad')}>
-                      {'🛤️'} Longest Road
-                    </span>
-                  )}
-                  {game?.largestArmyPlayerId === me.id && (
-                    <span className={styles.trophyBadge} title={t('game.tooltips.largestArmy')}>
-                      {'⚔️'} Largest Army
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
           )}
-
-          {/* Chat panel */}
-          <div className={styles.panel}>
-            <button className={styles.chatToggle} onClick={() => setChatOpen(p => !p)}>
-              <span>{'\u{1F4AC}'} Chat</span>
-              <span className={styles.toggleArrow}>{chatOpen ? '\u25B2' : '\u25BC'}</span>
-            </button>
-            {chatOpen && (
-              <div className={styles.chatBody}>
-                <div className={styles.chatMessages}>
-                  {chatMessages.map((m, i) => (
-                    <div key={i} className={styles.chatMsg}>
-                      <span style={{color: m.player_color, fontWeight: 600}}>{m.player_name}</span>: {m.text}
-                    </div>
-                  ))}
-                </div>
-                <div className={styles.quickChatRow}>
-                  {['\u{1F44D}', '\u{1F604}', '\u{1F631}', 'gg'].map(emoji => (
-                    <button key={emoji} className={styles.quickChatBtn} onClick={() => { gameSocket.send({type:'chat',text:emoji} as any) }}>
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-                <div className={styles.chatInputRow}>
-                  <input value={chatInput} onChange={e => setChatInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && chatInput.trim()) { gameSocket.send({type:'chat',text:chatInput.trim()} as any); setChatInput('') }}}
-                    placeholder={t('game.chat.placeholder')} maxLength={200} className={styles.chatInputField} />
-                  <button onClick={() => { if (chatInput.trim()) { gameSocket.send({type:'chat',text:chatInput.trim()} as any); setChatInput('') }}} className={styles.chatSendBtn}>{t('game.actions.send')}</button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Event log */}
-          <div className={styles.logPanel}>
-            <p className={styles.panelTitle}>{t('game.panels.log')}</p>
-            <div className={styles.logScroll}>
-              {log.length === 0 && (
-                <span className={styles.logEmpty}>No events yet.</span>
-              )}
-              {[...log].reverse().map((entry, i) => (
-                <div key={i} className={styles.logEntry}>
-                  {entry}
-                </div>
-              ))}
-            </div>
-          </div>
-        </aside>
+        </div>
       </div>
-
-      {/* Bottom action bar with large resource cards */}
-      <footer className={`${styles.actionBar} ${myHandTotal > 7 ? styles.actionBarDanger : ''}`}>
-        <div className={styles.actionLeft}>
-          {isSetupPhase ? (
-            <span className={styles.buildHint}>
-              Setup Round {game?.phase === 'setup_round1' ? '1' : '2'}: place your {game?.phase === 'setup_round1' ? '1st' : '2nd'} {requiredBuildMode}
-            </span>
-          ) : buildMode !== 'none' ? (
-            <span className={styles.buildHint}>
-              Click map to place {buildMode}
-            </span>
-          ) : (
-            <div className={styles.bottomResCardsWrap}>
-              <div className={styles.bottomResCards}>
-                {(['wood', 'brick', 'wheat', 'sheep', 'ore'] as const).map(res => {
-                  const count = myResources[res] ?? 0
-                  return (
-                    <div
-                      key={res}
-                      className={`${styles.resCard} ${count === 0 ? styles.resCardDimmed : ''}`}
-                      style={{ background: RES_CARD_COLORS[res] }}
-                      title={`${res}: ${count}`}
-                    >
-                      <span className={styles.resCardIcon}>{RESOURCE_LABELS[res]}</span>
-                      <span className={styles.resCardCount}>{count}</span>
-                      <span className={styles.resCardName}>{res}</span>
-                    </div>
-                  )
-                })}
-              </div>
-              {myHandTotal > 7 && (
-                <div className={styles.handWarning}>
-                  {'\u26A0\uFE0F'} You have {myHandTotal} cards — risk losing half on a 7!
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        <div className={styles.actionRight}>
-          <button
-            className={styles.rollBtn}
-            onClick={handleRollDice}
-            disabled={isSetupPhase || !isMyTurn || turnPhase !== 'pre_roll' || rolling}
-            type="button"
-          >
-            {rolling ? t('game.actions.rolling') : t('game.actions.rollDice')}
-          </button>
-          <button
-            className={styles.endTurnBtn}
-            onClick={handleEndTurn}
-            disabled={isSetupPhase || !isMyTurn || turnPhase !== 'post_roll'}
-            type="button"
-          >
-            {t('game.actions.endTurn')}
-          </button>
-        </div>
-      </footer>
 
       {/* Victory overlay */}
       {game?.winner && (() => {
