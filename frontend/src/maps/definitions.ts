@@ -31,6 +31,19 @@ export const MAP_CONFIGS: MapConfig[] = [
     ]),
   },
   {
+    id: 'czech_republic',
+    name: '🇨🇿 Czech Republic',
+    description: 'Landlocked Bohemia — rail hubs and border crossings act as inland ports (Praha, Plzeň, Brno, Ostrava).',
+    tags: ['inland ports', 'balanced'],
+    preview: P([
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+      ['ocean', 'forest', 'fields', 'mountains', 'ocean'],
+      ['ocean', 'hills', 'desert', 'pasture', 'ocean'],
+      ['ocean', 'fields', 'mountains', 'ocean'],
+      ['ocean', 'ocean', 'ocean', 'ocean'],
+    ]),
+  },
+  {
     id: 'japan',
     name: '🇯🇵 Japan',
     description: 'Four islands rich in ports — maritime trade nation.',
