@@ -36,6 +36,7 @@ _SLUGS = [
     "russia", "egypt", "mexico", "korea", "indonesia",
     "new_zealand", "france", "germany", "argentina", "south_africa",
     "italy", "scandinavia", "spain", "turkey", "vietnam",
+    "czech_republic",
     # XL maps (3)
     "africa_xl", "eurasia_xl", "americas_xl",
 ]

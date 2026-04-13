@@ -333,3 +333,26 @@ Agent 名称：主控 Agent
 卡住了吗：否
 验证方式：pytest 140 passed（test_elo sqlalchemy 导入问题 pre-existing 无关）、tsc 0 errors、scripts/e2e_smoke.py 14/14 PASSED
 备注：Bug 2 判定为 Bug 1 的连带症状——bot 在 setup 阶段尝试建路时遇到几何 bug 反复失败，setup 流程卡壳，UI 显示混乱中介状态使得 roll 按钮看起来可点。修好 B1 后应自动消失；若用户实测仍复现将单独处理
+
+---
+
+日期：2026-04-13
+任务名称：内陆港通用能力 + 捷克共和国地图（IP1-IP5）
+Agent 名称：主控 Agent + Elon Musk（first-principles 审查）+ Senior PM（任务拆分）+ Backend Architect agent（中途 ENOTFOUND 失败，主控接手执行）
+输入：
+  - 用户："帮我添加一个捷克的地图呢～"
+  - 用户决策（响应 Musk 的"内陆无港口"反对意见）：陆地口岸/铁路枢纽算港口；做成通用能力；复用现有船只图标；2:1 单资源 + 3:1 通用混搭
+  - Musk 关键洞察：港口锚定的是 edge（side），不是 tile；无需新 schema flag，现有 Port (q,r,side,resource,ratio) 已够
+输出：
+  - backend/app/maps/rasterizer.py: build_map 新增 explicit ports 分支，data.get("ports") 存在时跳过 detect_ports 直接构造，PER_MAP_BUDGET 加 czech_republic=16
+  - backend/app/maps/data/polygons/czech_republic.json: 新建，~24 点边界 polygon + 5 个 ports（Praha/Plzeň/Brno/Ostrava/ČB 历史贸易中心）
+  - backend/app/maps/definitions.py: _SLUGS 列表追加 czech_republic
+  - backend/tests/test_inland_ports.py: 新建，11 个测试覆盖 czech 显式 ports + germany 自动检测向后兼容 + registry 注册
+  - 渲染产物：/tmp/catan_maps/czech_republic.png 17T/5P
+置信度：高
+卡住了吗：否
+验证方式：pytest 151 passed (140→151), e2e_smoke 14/14, Maps API 29 maps, PNG 视觉确认船图标位于 Plzeň/Brno/Ostrava/Praha/ČB 对应 hex
+备注：
+  - Backend Architect agent 启动后 ENOTFOUND 中断，0 file changes，主控接手用相同上下文直接执行
+  - Musk 反提案"Mitteleuropa（CZ+SK+AT+HU）地图"未实现，留作未来可选 backlog 项
+  - 内陆港通用能力解锁后，后续可给 Scandinavia 内陆 / Russia 中部 / Turkey 内陆 等补陆港，丰富贸易体验

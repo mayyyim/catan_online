@@ -63,6 +63,7 @@ class InfeasibleMap(Exception):
 PER_MAP_BUDGET: Dict[str, int] = {
     # S: small / simple shapes 20-28
     "korea": 22,
+    "czech_republic": 16,
     "vietnam": 24,
     "new_zealand": 26,
     "uk": 28,
@@ -970,7 +971,25 @@ def build_map(slug: str, seed: Optional[int] = None) -> MapData:
     terrain = assign_terrain(hexes, data.get("biome_hints"), seed)
     desert_hexes = {h for h, t in terrain.items() if t == TileType.DESERT}
     tokens = place_tokens(hexes, desert_hexes, seed)
-    ports = detect_ports(hexes, seed)
+
+    explicit_ports = data.get("ports")
+    if explicit_ports:
+        # Polygon JSON has hand-authored ports — honor them verbatim regardless
+        # of whether the edge faces ocean. Enables inland ports on landlocked
+        # maps (border crossings / rail hubs) without a new schema flag.
+        ports = []
+        for p in explicit_ports:
+            res_raw = p.get("resource")
+            res = Resource(res_raw) if res_raw else None
+            ports.append(Port(
+                q=int(p["q"]),
+                r=int(p["r"]),
+                resource=res,
+                ratio=int(p.get("ratio", 3)),
+                side=int(p["side"]),
+            ))
+    else:
+        ports = detect_ports(hexes, seed)
 
     tiles: List[Tile] = []
     for h in hexes:

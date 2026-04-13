@@ -1,0 +1,44 @@
+{
+  "slug": "czech_republic",
+  "name": "Czech Republic",
+  "size": "standard",
+  "biome_hints": {},
+  "polygons": [
+    {
+      "exterior": [
+        [12.09, 50.25],
+        [12.4, 50.85],
+        [13.2, 50.78],
+        [14.3, 50.9],
+        [14.7, 51.01],
+        [15.3, 50.98],
+        [16.3, 50.66],
+        [16.9, 50.45],
+        [17.65, 50.25],
+        [18.45, 49.92],
+        [18.85, 49.52],
+        [18.15, 49.08],
+        [17.4, 48.86],
+        [16.9, 48.72],
+        [16.48, 48.77],
+        [15.7, 48.86],
+        [14.98, 48.78],
+        [14.7, 48.58],
+        [14.0, 48.6],
+        [13.5, 48.58],
+        [12.85, 48.98],
+        [12.4, 49.32],
+        [12.48, 49.97],
+        [12.09, 50.25]
+      ],
+      "holes": []
+    }
+  ],
+  "ports": [
+    {"q": 0, "r": 0, "side": 0, "resource": null, "ratio": 3, "_label": "Praha"},
+    {"q": -3, "r": 2, "side": 1, "resource": "wheat", "ratio": 2, "_label": "Plzen"},
+    {"q": 2, "r": -1, "side": 3, "resource": "sheep", "ratio": 2, "_label": "Brno"},
+    {"q": 4, "r": -2, "side": 3, "resource": "ore", "ratio": 2, "_label": "Ostrava"},
+    {"q": -1, "r": 0, "side": 5, "resource": null, "ratio": 3, "_label": "Ceske Budejovice"}
+  ]
+}

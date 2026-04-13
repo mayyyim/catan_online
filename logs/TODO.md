@@ -7,7 +7,7 @@
 
 ## 进行中
 
-（无 — 待用户跑一局确认 B2 连带修复，若仍复现再单独处理）
+（无）
 
 
 
@@ -53,6 +53,15 @@
 ## 已完成
 
 ### 2026-04-13
+
+- [x] **内陆港通用能力 + 捷克共和国地图** — IP1-IP5
+  - IP1 `rasterizer.py:build_map` 读 `data["ports"]` 显式列表，存在则跳过 `detect_ports`，否则走老路径（向后兼容）
+  - IP2 `czech_republic.json` 新建，~24 点边界 polygon + 5 个显式 ports（Praha 0,0,side0 3:1 generic / Plzeň -3,2,side1 2:1 wheat / Brno 2,-1,side3 2:1 sheep / Ostrava 4,-2,side3 2:1 ore / ČB -1,0,side5 3:1 generic）
+  - IP3 `definitions.py._SLUGS` + `rasterizer.PER_MAP_BUDGET` 注册 czech_republic, budget=16
+  - IP4 `tests/test_inland_ports.py` 11 个测试：czech 端口数量/类型/坐标/anchored on land/inland-facing side；germany 仍走 detect_ports 无回归；registry 注册
+  - IP5 渲染 17T/5P PNG (53KB) ✓、pytest 151 passed (140→151)、e2e_smoke 14/14、Maps API 显示 29 地图（28→29）
+  - 文件：rasterizer.py, definitions.py, czech_republic.json, test_inland_ports.py
+  - Musk 反提案"Mitteleuropa" 用户保留为未来可选
 
 - [x] **Bug 修复三连** — vertices_of_edge 几何 + actionIndicator 浮动化
   - B1: backend/app/game/board.py:114 `vertices_of_edge` side→corner 映射修正 `(6-i)%6, (7-i+1)%6`；此前只 side 0/3 正确，1/2/4/5 全错，导致 setup 阶段建路 validation 把大量合法边拒掉
