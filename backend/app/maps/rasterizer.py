@@ -954,6 +954,18 @@ def build_map(slug: str, seed: Optional[int] = None) -> MapData:
     multi_island = slug in MULTI_ISLAND_MAPS
     target = PER_MAP_BUDGET.get(slug, 37 if size == "xl" else 19)
     hexes = rasterize(data, target, multi_island=multi_island)
+
+    # Inject manually-specified island tiles (e.g. Taiwan, Hainan for China).
+    # Positions are given as final recentered hex coords and are guaranteed
+    # non-adjacent to the mainland by construction in the polygon JSON.
+    hexes_set: Set[HexCoord] = set(hexes)
+    for island_spec in data.get("extra_islands", []):
+        for qr in island_spec.get("hexes", []):
+            hx: HexCoord = (int(qr[0]), int(qr[1]))
+            if hx not in hexes_set:
+                hexes.append(hx)
+                hexes_set.add(hx)
+
     # Connectivity gate: single-island maps must be one CC. Multi-island maps
     # are allowed multiple CCs by design (Japan's four islands, UK + Ireland,
     # China + Taiwan + Hainan), but each component must be non-empty.

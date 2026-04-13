@@ -3,6 +3,18 @@
   "name": "China",
   "size": "standard",
   "biome_hints": {},
+  "extra_islands": [
+    {
+      "name": "Taiwan",
+      "note": "Positioned 2+ hexes east of mainland coast with visible sea gap",
+      "hexes": [[6, -3], [6, -4]]
+    },
+    {
+      "name": "Hainan",
+      "note": "Positioned 2+ hexes south of Guangdong coast with visible sea gap",
+      "hexes": [[0, -4], [1, -4]]
+    }
+  ],
   "polygons": [
     {
       "exterior": [
