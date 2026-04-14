@@ -54,14 +54,26 @@
 
 ### 2026-04-13
 
+- [x] **地图修复 A+B：中国台湾/海南坐标 + 捷克形状** — 2026-04-13
+  - A: china.json extra_islands 修正：台湾 (7,1)(7,2) 东南方 gap=2、海南 (0,5)(1,5) 正南方 gap=2；港口同步更新
+  - A: 修复前坐标完全错误（台湾 r=-2/-3 在北部，海南 r=-7 超出大陆北边界）
+  - B: czech_republic 预算 16→22，21T 更好地展现波西米亚圆润 + 摩拉维亚细长；5 个端口全落在陆地
+  - 验证：151 pytest passed，e2e_smoke 14/14，PNG 渲染确认位置正确
+  - 文件：china.json, rasterizer.py
+
+- [x] **中国地图台湾+海南岛** — commit ae9506a
+  - 问题：台湾海峡仅1°宽，任何合理 tile 数下都不够放 1 个 hex gap
+  - 方案：rasterizer 新增 `extra_islands` 机制（generic，任何地图可用）
+  - 大陆维持 56 tiles；初始坐标台湾 (6,-3)(6,-4)、海南 (0,-4)(1,-4)（本次已修正）
+  - 两个岛屿与大陆 min gap = 2 hexes，共 60T / 3 组件 [56,2,2]
+  - 157 pytest passed
+
 - [x] **内陆港通用能力 + 捷克共和国地图** — IP1-IP5
-  - IP1 `rasterizer.py:build_map` 读 `data["ports"]` 显式列表，存在则跳过 `detect_ports`，否则走老路径（向后兼容）
-  - IP2 `czech_republic.json` 新建，~24 点边界 polygon + 5 个显式 ports（Praha 0,0,side0 3:1 generic / Plzeň -3,2,side1 2:1 wheat / Brno 2,-1,side3 2:1 sheep / Ostrava 4,-2,side3 2:1 ore / ČB -1,0,side5 3:1 generic）
-  - IP3 `definitions.py._SLUGS` + `rasterizer.PER_MAP_BUDGET` 注册 czech_republic, budget=16
-  - IP4 `tests/test_inland_ports.py` 11 个测试：czech 端口数量/类型/坐标/anchored on land/inland-facing side；germany 仍走 detect_ports 无回归；registry 注册
-  - IP5 渲染 17T/5P PNG (53KB) ✓、pytest 151 passed (140→151)、e2e_smoke 14/14、Maps API 显示 29 地图（28→29）
-  - 文件：rasterizer.py, definitions.py, czech_republic.json, test_inland_ports.py
-  - Musk 反提案"Mitteleuropa" 用户保留为未来可选
+  - IP1 `rasterizer.py:build_map` 读 `data["ports"]` 显式列表
+  - IP2 `czech_republic.json` 新建，~24 点边界 polygon + 5 个显式 ports
+  - IP3 `definitions.py._SLUGS` + `rasterizer.PER_MAP_BUDGET` 注册 czech_republic, budget=16（本次改为22）
+  - IP4 `tests/test_inland_ports.py` 11 个测试
+  - IP5 渲染 17T/5P PNG ✓，pytest 151 passed，e2e_smoke 14/14
 
 - [x] **Bug 修复三连** — vertices_of_edge 几何 + actionIndicator 浮动化
   - B1: backend/app/game/board.py:114 `vertices_of_edge` side→corner 映射修正 `(6-i)%6, (7-i+1)%6`；此前只 side 0/3 正确，1/2/4/5 全错，导致 setup 阶段建路 validation 把大量合法边拒掉

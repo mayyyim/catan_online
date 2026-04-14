@@ -63,7 +63,7 @@ class InfeasibleMap(Exception):
 PER_MAP_BUDGET: Dict[str, int] = {
     # S: small / simple shapes 20-28
     "korea": 22,
-    "czech_republic": 16,
+    "czech_republic": 22,
     "vietnam": 24,
     "new_zealand": 26,
     "uk": 28,

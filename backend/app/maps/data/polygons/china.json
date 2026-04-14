@@ -6,14 +6,33 @@
   "extra_islands": [
     {
       "name": "Taiwan",
-      "note": "Positioned 2+ hexes east of mainland coast with visible sea gap",
-      "hexes": [[6, -3], [6, -4]]
+      "note": "East of mainland southern coast; mainland easternmost at r=0 is q=5; gap=2 from (5,0) at axial_dist=3",
+      "hexes": [[7, 1], [7, 2]]
     },
     {
       "name": "Hainan",
-      "note": "Positioned 2+ hexes south of Guangdong coast with visible sea gap",
-      "hexes": [[0, -4], [1, -4]]
+      "note": "South of mainland; mainland southernmost at q=0 is r=2; gap=2 from (0,2) at axial_dist=3",
+      "hexes": [[0, 5], [1, 5]]
     }
+  ],
+  "ports": [
+    {"q": 6,  "r": -1, "side": 5, "ratio": 3},
+    {"q": -2, "r": 2,  "side": 5, "ratio": 3},
+    {"q": 0,  "r": -3, "side": 3, "ratio": 2, "resource": "sheep"},
+    {"q": 4,  "r": -5, "side": 1, "ratio": 3},
+    {"q": 4,  "r": 1,  "side": 4, "ratio": 3},
+    {"q": 2,  "r": 0,  "side": 5, "ratio": 3},
+    {"q": -6, "r": 4,  "side": 4, "ratio": 3},
+    {"q": 3,  "r": 0,  "side": 4, "ratio": 2, "resource": "wheat"},
+    {"q": 5,  "r": 0,  "side": 0, "ratio": 2, "resource": "wood"},
+    {"q": 0,  "r": 0,  "side": 5, "ratio": 2, "resource": "brick"},
+    {"q": -6, "r": 3,  "side": 3, "ratio": 3},
+    {"q": -4, "r": 4,  "side": 0, "ratio": 3},
+    {"q": -6, "r": 2,  "side": 2, "ratio": 3},
+    {"q": 4,  "r": -1, "side": 1, "ratio": 2, "resource": "ore"},
+    {"q": -1, "r": -2, "side": 2, "ratio": 3},
+    {"q": 7,  "r": 1,  "side": 0, "ratio": 3},
+    {"q": 0,  "r": 5,  "side": 5, "ratio": 3}
   ],
   "polygons": [
     {
