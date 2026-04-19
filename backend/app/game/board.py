@@ -31,6 +31,31 @@ HEX_DIRECTIONS = [
     (-1, 0), (-1, 1), (0, 1),
 ]
 
+# ---------------------------------------------------------------------------
+# Edge-side neighbor mapping (DIFFERENT from HEX_DIRECTIONS).
+#
+# Frontend authority (HexGrid.tsx): edge `i` is drawn between hexCorners[i]
+# and hexCorners[(i+1)%6], with corner 0 = right going clockwise. The
+# neighbor tile that shares edge `i` is therefore:
+#
+#     edge 0 (corners 0-1, lower-right)  -> (+1,  0)
+#     edge 1 (corners 1-2, bottom)       -> ( 0, +1)
+#     edge 2 (corners 2-3, lower-left)   -> (-1, +1)
+#     edge 3 (corners 3-4, upper-left)   -> (-1,  0)
+#     edge 4 (corners 4-5, top)          -> ( 0, -1)
+#     edge 5 (corners 5-0, upper-right)  -> (+1, -1)
+#
+# This is DIFFERENT from HEX_DIRECTIONS (which is the port-side convention
+# used by maps/ports.py, maps/topology.py, maps/rasterizer.py). Ports and
+# edges use two distinct `side` conventions that both happen to range 0-5
+# but are reflections of each other.
+# ---------------------------------------------------------------------------
+
+EDGE_NEIGHBORS = [
+    (1, 0), (0, 1), (-1, 1),
+    (-1, 0), (0, -1), (1, -1),
+]
+
 
 def hex_neighbors(q: int, r: int) -> List[Tuple[int, int]]:
     return [(q + dq, r + dr) for dq, dr in HEX_DIRECTIONS]
@@ -76,7 +101,15 @@ def canonical_vertex(q: int, r: int, corner: int) -> VertexKey:
 # ---------------------------------------------------------------------------
 
 def canonical_edge(q: int, r: int, side: int) -> EdgeKey:
-    dq, dr = HEX_DIRECTIONS[side]
+    """Canonical key for the edge at tile (q, r), side index `side`.
+
+    `side` is the frontend edge index (0-5) where edge `i` spans corners `i`
+    and `(i+1)%6`. The same physical edge appears as side `(i+3)%6` of the
+    neighbor tile found via EDGE_NEIGHBORS[side]. We return the
+    lexicographically smallest (q, r, side) representation so both ends
+    canonicalize to the same key.
+    """
+    dq, dr = EDGE_NEIGHBORS[side]
     neighbor = (q + dq, r + dr, (side + 3) % 6)
     return min((q, r, side), neighbor)
 
@@ -114,15 +147,25 @@ def edges_of_vertex(vk: VertexKey) -> List[EdgeKey]:
 def vertices_of_edge(ek: EdgeKey) -> List[VertexKey]:
     """Return the 2 endpoint vertices of an edge.
 
-    With corner 0 = right going clockwise and HEX_DIRECTIONS[i] giving the
-    neighbor offset for side i, the edge shared with that neighbor connects
-    corners (6-i)%6 and (7-i)%6. The earlier (i, i+1) mapping was only
-    correct for sides 0 and 3, silently breaking setup road adjacency on
-    all other sides.
+    Frontend authority (HexGrid.tsx): edge `side` of a tile spans
+    hexCorners[side] and hexCorners[(side+1)%6]. So the endpoints are
+    corners `side` and `(side+1) % 6`.
+
+    Earlier revisions tried `(side, side+1)` without aligning EDGE_NEIGHBORS
+    with the frontend edge index (leaving HEX_DIRECTIONS as the neighbor
+    list), which broke the round-trip. A later "fix" used `(6-side, 7-side)`
+    which self-consistently round-tripped through HEX_DIRECTIONS but
+    returned geometrically wrong corners — breaking setup road adjacency
+    because the post-settlement road-endpoint check used corners on the
+    WRONG physical edge.
+
+    The correct fix is BOTH: use EDGE_NEIGHBORS for canonicalization AND
+    return corners (side, side+1). See EDGE_NEIGHBORS comment for why
+    HEX_DIRECTIONS alone cannot serve both port-side and edge-side.
     """
     q, r, side = ek
-    c1 = (6 - side) % 6
-    c2 = (7 - side) % 6
+    c1 = side % 6
+    c2 = (side + 1) % 6
     return [canonical_vertex(q, r, c1), canonical_vertex(q, r, c2)]
 
 

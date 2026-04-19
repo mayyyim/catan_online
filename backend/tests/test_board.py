@@ -78,14 +78,20 @@ class TestAdjacency:
         sides 1/2/4/5, which silently broke setup road adjacency. For every
         side of a tile, the edge's two endpoints must each be a vertex the
         neighboring tile on that side also sees — i.e. adjacency through the
-        shared edge must round-trip."""
-        from app.game.board import HEX_DIRECTIONS
+        shared edge must round-trip.
+
+        Uses EDGE_NEIGHBORS (geometric edge→neighbor mapping aligned with the
+        frontend edge id convention where edge i is between corners i and
+        (i+1)%6). HEX_DIRECTIONS is a separate port-side mapping and must
+        NOT be used here.
+        """
+        from app.game.board import EDGE_NEIGHBORS
         for side in range(6):
             ek = canonical_edge(0, 0, side)
             verts = set(vertices_of_edge(ek))
             assert len(verts) == 2, f"side {side} should produce 2 distinct endpoints"
             # Each endpoint vertex must lie on the edge's adjacent tile too.
-            dq, dr = HEX_DIRECTIONS[side]
+            dq, dr = EDGE_NEIGHBORS[side]
             neighbor_tile = (dq, dr)
             neighbor_verts = set(vertices_of_tile(*neighbor_tile))
             shared = verts & neighbor_verts
@@ -94,15 +100,84 @@ class TestAdjacency:
                 f"with neighbor tile {neighbor_tile}; got shared={shared}"
             )
 
+    def test_vertices_of_edge_matches_frontend_visual_convention(self):
+        """Frontend authority: HexGrid.tsx draws edge `i` between
+        hexCorners[i] and hexCorners[(i+1)%6]. The backend's
+        vertices_of_edge must return the canonical form of exactly those
+        two corners so that a road placed on the clicked edge lines up
+        geometrically with the settlement corner the player also clicked.
+        """
+        for side in range(6):
+            ek = (0, 0, side)  # raw, uncanonicalized
+            endpoints = vertices_of_edge(ek)
+            expected = {
+                canonical_vertex(0, 0, side),
+                canonical_vertex(0, 0, (side + 1) % 6),
+            }
+            assert set(endpoints) == expected, (
+                f"side {side}: vertices_of_edge returned {endpoints}, "
+                f"expected corners {side} and {(side+1) % 6} "
+                f"(-> canonical {expected})"
+            )
+
+    def test_canonical_edge_neighbor_round_trip_all_sides(self):
+        """For every side of a tile, canonicalizing the edge from the tile
+        itself and from the opposite tile (through EDGE_NEIGHBORS) must
+        produce the same key. Otherwise two distinct clicks on the same
+        physical edge canonicalize to different keys and the engine treats
+        them as two edges.
+        """
+        from app.game.board import EDGE_NEIGHBORS
+        for side in range(6):
+            dq, dr = EDGE_NEIGHBORS[side]
+            other_side = (side + 3) % 6
+            e_from_a = canonical_edge(0, 0, side)
+            e_from_b = canonical_edge(dq, dr, other_side)
+            assert e_from_a == e_from_b, (
+                f"side {side}: canonical_edge mismatch — "
+                f"from (0,0) = {e_from_a}, from neighbor ({dq},{dr}) "
+                f"side {other_side} = {e_from_b}"
+            )
+
     def test_setup_road_adjacency_all_sides(self):
         """For each of the 6 sides of a tile, placing a settlement at one of
         its endpoints and a road on that edge must be accepted as a valid
-        setup placement (the road must connect to the settlement)."""
+        setup placement (the road must connect to the settlement).
+
+        This covers the setup-phase bug where after the settlement placement
+        the subsequent road on a geometrically adjacent edge was rejected
+        because vertices_of_edge returned wrong endpoints for sides 1/2/4/5.
+        """
+        from app.game.board import EDGE_NEIGHBORS
         for side in range(6):
-            ek = canonical_edge(0, 0, side)
-            endpoints = vertices_of_edge(ek)
-            for vk in endpoints:
-                assert vk in endpoints  # trivially true, guards typo
+            # Use a tile (0, -1) whose all 6 corners are land vertices on
+            # the 7-hex test map.
+            base_q, base_r = 0, -1
+            # The neighbor through this edge must also be a land tile
+            # (otherwise the edge might not be on the valid-edge set).
+            dq, dr = EDGE_NEIGHBORS[side]
+            neighbor = (base_q + dq, base_r + dr)
+            land_tiles = {(0, 0), (0, -1), (1, -1), (1, 0), (0, 1), (-1, 1), (-1, 0)}
+            if neighbor not in land_tiles:
+                continue  # skip map-border edges
+
+            game = make_game()
+            # Place settlement at corner `side` of the base tile — this
+            # corner is one of the endpoints of edge `side`.
+            place_settlement(game, "p0", base_q, base_r, side)
+            settlement_vk = canonical_vertex(base_q, base_r, side)
+
+            # Now validate placing a road on that edge.
+            ek = canonical_edge(base_q, base_r, side)
+            ok, msg = can_place_road(
+                ek, "p0", game,
+                setup_phase=True, setup_settlement_vk=settlement_vk,
+            )
+            assert ok, (
+                f"side {side}: road on canonical_edge{(base_q, base_r, side)} "
+                f"should be valid (settlement is at corner {side}). "
+                f"can_place_road said: {msg}"
+            )
 
     def test_adjacent_vertices(self):
         """Each vertex should have 2 or 3 adjacent vertices."""

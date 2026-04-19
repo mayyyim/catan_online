@@ -7,7 +7,14 @@
 
 ## 进行中
 
-（无）
+- [ ] **修复 Setup 阶段 road placement bug** — M（代码已修，等 commit）
+  - agent: backend-api-developer ✅ → testing-auto-commit（进行中）
+  - 起始: 2026-04-19
+  - 症状: 放 settlement 后相邻 edge 放路被拒 → setup_step 不递增 → 回合无法结束 → 可反复改路
+  - 根因: board.py:114 `vertices_of_edge` side→corner 映射 (6-side,7-side+1) 与前端 HexGrid.tsx:175 SVG 约定 (side, side+1) 不一致，只有 side 0 吻合
+  - 修复: board.py 新增 `EDGE_NEIGHBORS` 常量专门给 edge 函数用（`HEX_DIRECTIONS` 保留给 port-side 语义）；`vertices_of_edge` 改为 (side, (side+1)%6)；`canonical_edge` 改用 `EDGE_NEIGHBORS`
+  - 验证: pytest 165 passed（新增 10 回归测试，修复前 10/10 红，修复后全绿）；road_stats / bots / ports / topology 跨模块无回归
+  - 下一步: testing-auto-commit 跑全量测试并提交
 
 
 

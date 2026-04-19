@@ -175,3 +175,62 @@ class TestSetupPlacement:
         p1_total = sum(p1.resources.values())
         # Second round settlements are adjacent to resource tiles, so > 0
         assert p0_total > 0 or p1_total > 0, "At least one player should get setup resources"
+
+
+class TestSetupRoadAllSides:
+    """End-to-end setup road placement on every edge side.
+
+    Regression for the bug where after placing the first settlement, any
+    geometrically adjacent road on sides 1/2/4/5 was rejected and
+    setup_step failed to advance (players could click repeatedly without
+    the turn progressing).
+    """
+
+    def _setup_game(self):
+        game = make_game(phase=GamePhase.WAITING, turn_step=TurnStep.PRE_ROLL)
+        map_data = MapData(map_id="test", tiles=list(SMALL_MAP_TILES), ports=list(SMALL_MAP_PORTS))
+        with patch("app.game.engine.random") as mock_rng:
+            mock_rng.shuffle = lambda x: None
+            mock_rng.randint = lambda a, b: a
+            mock_rng.choice = lambda x: x[0]
+            handle_start_game(game, map_data, "p0")
+        return game
+
+    @pytest.mark.parametrize("side", [0, 1, 2, 3, 4, 5])
+    def test_setup_step_advances_after_settlement_and_road_on_every_side(self, side):
+        """Placing a settlement at corner `side` of a land tile and then a
+        road on edge `side` of that tile must succeed and advance setup."""
+        from app.game.board import EDGE_NEIGHBORS
+        game = self._setup_game()
+
+        # Pick a base tile where both endpoints of edge `side` are valid
+        # land vertices AND the neighbor through this edge is also land
+        # (so the edge is two-sided and valid).
+        land = {(t.q, t.r) for t in game.map_data.tiles}
+        dq, dr = EDGE_NEIGHBORS[side]
+        base = None
+        for tq, tr in land:
+            if (tq + dq, tr + dr) in land:
+                base = (tq, tr)
+                break
+        assert base is not None, (
+            f"small map has no land edge for side {side} — test assumption broken"
+        )
+
+        prev_step = game.setup_step
+        handle_build(game, "p0", "settlement", {"q": base[0], "r": base[1], "direction": side})
+        assert game.setup_step == prev_step + 1, "settlement should advance setup_step by 1"
+
+        # Place road on edge `side` of the same tile (adjacent to the settlement)
+        handle_build(game, "p0", "road", {"q": base[0], "r": base[1], "direction": side})
+        assert game.setup_step == prev_step + 2, (
+            f"road on side {side} was rejected — setup_step did not advance "
+            f"(step={game.setup_step}, expected={prev_step + 2})"
+        )
+
+        # After p0's first settlement+road, setup_order is [0,1,1,0] so
+        # the current player should now be p1.
+        current_pid = game.players[game.current_player_index].player_id
+        assert current_pid == "p1", (
+            f"after p0's first placement, next player should be p1, got {current_pid}"
+        )
